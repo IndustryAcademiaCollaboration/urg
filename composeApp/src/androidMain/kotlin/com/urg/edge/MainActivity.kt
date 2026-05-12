@@ -9,6 +9,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.lifecycle.lifecycleScope
 import com.google.mediapipe.tasks.genai.llminference.LlmInference
+import com.google.mediapipe.tasks.genai.llminference.LlmInferenceSession
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -67,7 +68,9 @@ class MainActivity : ComponentActivity() {
 あなたは災害時支援AIです。
 一般市民向けに行動支援を行います。
 医療診断は行いません。
-必ず3行以内で簡潔に答えてください。
+必ず日本語で答えてください。
+Be concise and brief.
+Do not repeat sentences.
 """.trimIndent()
 
                 val historyPrompt = currentMessages.joinToString("") { msg ->
@@ -78,7 +81,20 @@ class MainActivity : ComponentActivity() {
                     }
                 }
                 val fullPrompt = "<start_of_turn>user\n$systemPrompt<end_of_turn>\n$historyPrompt<start_of_turn>model\n"
-                val response = inference.generateResponse(fullPrompt)
+
+                val sessionOptions = LlmInferenceSession.LlmInferenceSessionOptions.builder()
+                    .setTopK(30) // この値を変更して精度を変更して出力の精度を高めて欲しいです。
+                    .setTopP(0.9f) // この値を変更して精度を変更して出力の精度を高めて欲しいです。
+                    .setTemperature(0.3f) // この値を変更して精度を変更して出力の精度を高めて欲しいです。
+                    .build()
+
+                val session = LlmInferenceSession.createFromOptions(inference, sessionOptions)
+                val response = try {
+                    session.addQueryChunk(fullPrompt)
+                    session.generateResponse()
+                } finally {
+                    session.close()
+                }
 
                 withContext(Dispatchers.Main) {
                     messages = messages + Message("assistant", response)
@@ -114,6 +130,7 @@ class MainActivity : ComponentActivity() {
             val options = LlmInference.LlmInferenceOptions.builder()
                 .setModelPath(modelFile.absolutePath)
                 .setMaxTokens(512)
+                .setMaxTopK(40)
                 .build()
 
             llmInference = LlmInference.createFromOptions(this, options)
