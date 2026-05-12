@@ -63,7 +63,14 @@ class MainActivity : ComponentActivity() {
                     return@launch
                 }
 
-                val fullPrompt = currentMessages.joinToString("\n") { "[${it.role}]: ${it.text}" }
+                val systemPrompt = """
+あなたは災害時支援AIです。
+一般市民向けに行動支援を行います。
+医療診断は行いません。
+""".trimIndent()
+
+                val historyPrompt = currentMessages.joinToString("\n") { "[${it.role}]: ${it.text}" }
+                val fullPrompt = "[system]: $systemPrompt\n$historyPrompt"
                 val response = inference.generateResponse(fullPrompt)
 
                 withContext(Dispatchers.Main) {
