@@ -70,8 +70,14 @@ class MainActivity : ComponentActivity() {
 必ず3行以内で簡潔に答えてください。
 """.trimIndent()
 
-                val historyPrompt = currentMessages.joinToString("\n") { "[${it.role}]: ${it.text}" }
-                val fullPrompt = "[system]: $systemPrompt\n$historyPrompt"
+                val historyPrompt = currentMessages.joinToString("") { msg ->
+                    when (msg.role) {
+                        "user"      -> "<start_of_turn>user\n${msg.text}<end_of_turn>\n"
+                        "assistant" -> "<start_of_turn>model\n${msg.text}<end_of_turn>\n"
+                        else        -> ""
+                    }
+                }
+                val fullPrompt = "<start_of_turn>user\n$systemPrompt<end_of_turn>\n$historyPrompt<start_of_turn>model\n"
                 val response = inference.generateResponse(fullPrompt)
 
                 withContext(Dispatchers.Main) {
