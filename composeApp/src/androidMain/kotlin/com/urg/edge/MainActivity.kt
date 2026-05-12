@@ -67,6 +67,7 @@ class MainActivity : ComponentActivity() {
 あなたは災害時支援AIです。
 一般市民向けに行動支援を行います。
 医療診断は行いません。
+必ず3行以内で簡潔に答えてください。
 """.trimIndent()
 
                 val historyPrompt = currentMessages.joinToString("\n") { "[${it.role}]: ${it.text}" }
@@ -106,7 +107,7 @@ class MainActivity : ComponentActivity() {
         try {
             val options = LlmInference.LlmInferenceOptions.builder()
                 .setModelPath(modelFile.absolutePath)
-                .setMaxTokens(128)
+                .setMaxTokens(512)
                 .build()
 
             llmInference = LlmInference.createFromOptions(this, options)
