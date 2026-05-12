@@ -23,7 +23,7 @@ class MainActivity : ComponentActivity() {
 
     private var promptText by mutableStateOf("")
 
-    private var responseText by mutableStateOf("")
+    private var messages by mutableStateOf(listOf<Message>())
 
     private var isLoading by mutableStateOf(false)
 
@@ -45,18 +45,17 @@ class MainActivity : ComponentActivity() {
         if (promptText.isBlank()) return
         if (isLoading) return
 
+        messages = messages + Message("user", promptText)
         isLoading = true
-        responseText = ""
 
         lifecycleScope.launch(Dispatchers.IO) {
-
 
             try {
 
                 val inference = llmInference ?: run {
 
                     withContext(Dispatchers.Main) {
-                        responseText = "ERROR: LLM is not initialized"
+                        messages = messages + Message("assistant", "ERROR: LLM is not initialized")
                         isLoading = false
                     }
                     return@launch
@@ -65,15 +64,13 @@ class MainActivity : ComponentActivity() {
                 val response = inference.generateResponse(promptText)
 
                 withContext(Dispatchers.Main) {
-                    responseText = response
+                    messages = messages + Message("assistant", response)
                     isLoading = false
                 }
 
-
-
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
-                    responseText = "ERROR: ${e.message}"
+                    messages = messages + Message("assistant", "ERROR: ${e.message}")
                     isLoading = false
                 }
 
@@ -98,14 +95,14 @@ class MainActivity : ComponentActivity() {
 
             Log.d("LLM_INIT", "SUCCESS")
         } catch (e: Exception) {
-            responseText = "ERROR: LLM initialization failed: ${e.message}"
+            messages = messages + Message("assistant", "ERROR: LLM initialization failed: ${e.message}")
             Log.e("LLM_INIT", "FAILED: ${e.message}", e)
         }
 
         setContent {
             App(
                 prompt = promptText,
-                response = responseText,
+                response = messages.lastOrNull { it.role == "assistant" }?.text ?: "",
                 isLoading = isLoading,
                 onPromptChange = {
                     promptText = it
