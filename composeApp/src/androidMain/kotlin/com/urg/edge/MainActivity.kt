@@ -48,6 +48,8 @@ class MainActivity : ComponentActivity() {
         messages = messages + Message("user", promptText)
         isLoading = true
 
+        val currentMessages = messages
+
         lifecycleScope.launch(Dispatchers.IO) {
 
             try {
@@ -61,7 +63,8 @@ class MainActivity : ComponentActivity() {
                     return@launch
                 }
 
-                val response = inference.generateResponse(promptText)
+                val fullPrompt = currentMessages.joinToString("\n") { "[${it.role}]: ${it.text}" }
+                val response = inference.generateResponse(fullPrompt)
 
                 withContext(Dispatchers.Main) {
                     messages = messages + Message("assistant", response)
