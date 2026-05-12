@@ -23,7 +23,7 @@ class MainActivity : ComponentActivity() {
 
     private var promptText by mutableStateOf("")
 
-    private var responseText by mutableStateOf("")
+    private var messages by mutableStateOf(listOf<Message>())
 
     private var isLoading by mutableStateOf(false)
 
@@ -45,35 +45,35 @@ class MainActivity : ComponentActivity() {
         if (promptText.isBlank()) return
         if (isLoading) return
 
+        messages = messages + Message("user", promptText)
         isLoading = true
-        responseText = ""
+
+        val currentMessages = messages
 
         lifecycleScope.launch(Dispatchers.IO) {
-
 
             try {
 
                 val inference = llmInference ?: run {
 
                     withContext(Dispatchers.Main) {
-                        responseText = "ERROR: LLM is not initialized"
+                        messages = messages + Message("assistant", "ERROR: LLM is not initialized")
                         isLoading = false
                     }
                     return@launch
                 }
 
-                val response = inference.generateResponse(promptText)
+                val fullPrompt = currentMessages.joinToString("\n") { "[${it.role}]: ${it.text}" }
+                val response = inference.generateResponse(fullPrompt)
 
                 withContext(Dispatchers.Main) {
-                    responseText = response
+                    messages = messages + Message("assistant", response)
                     isLoading = false
                 }
 
-
-
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
-                    responseText = "ERROR: ${e.message}"
+                    messages = messages + Message("assistant", "ERROR: ${e.message}")
                     isLoading = false
                 }
 
@@ -85,6 +85,14 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
+
+        savedInstanceState?.let { state ->
+            val roles = state.getStringArrayList("message_roles") ?: emptyList<String>()
+            val texts = state.getStringArrayList("message_texts") ?: emptyList<String>()
+            if (roles.size == texts.size) {
+                messages = roles.zip(texts).map { (role, text) -> Message(role, text) }
+            }
+        }
 
         val modelFile = copyModelToInternalStorage()
 
@@ -98,14 +106,14 @@ class MainActivity : ComponentActivity() {
 
             Log.d("LLM_INIT", "SUCCESS")
         } catch (e: Exception) {
-            responseText = "ERROR: LLM initialization failed: ${e.message}"
+            messages = messages + Message("assistant", "ERROR: LLM initialization failed: ${e.message}")
             Log.e("LLM_INIT", "FAILED: ${e.message}", e)
         }
 
         setContent {
             App(
                 prompt = promptText,
-                response = responseText,
+                messages = messages,
                 isLoading = isLoading,
                 onPromptChange = {
                     promptText = it
@@ -115,6 +123,12 @@ class MainActivity : ComponentActivity() {
                 }
             )
         }
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        outState.putStringArrayList("message_roles", ArrayList(messages.map { it.role }))
+        outState.putStringArrayList("message_texts", ArrayList(messages.map { it.text }))
     }
 
     override fun onDestroy() {
@@ -128,7 +142,10 @@ class MainActivity : ComponentActivity() {
 fun AppAndroidPreview() {
     App(
         prompt = "",
-        response = "Hello",
+        messages = listOf(
+            Message("user", "こんにちは"),
+            Message("assistant", "Hello")
+        ),
         isLoading = false,
         onPromptChange = {},
         onSendClick = {}
