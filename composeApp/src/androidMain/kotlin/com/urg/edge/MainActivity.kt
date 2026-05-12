@@ -102,7 +102,7 @@ class MainActivity : ComponentActivity() {
         setContent {
             App(
                 prompt = promptText,
-                response = messages.lastOrNull { it.role == "assistant" }?.text ?: "",
+                messages = messages,
                 isLoading = isLoading,
                 onPromptChange = {
                     promptText = it
@@ -125,7 +125,10 @@ class MainActivity : ComponentActivity() {
 fun AppAndroidPreview() {
     App(
         prompt = "",
-        response = "Hello",
+        messages = listOf(
+            Message("user", "こんにちは"),
+            Message("assistant", "Hello")
+        ),
         isLoading = false,
         onPromptChange = {},
         onSendClick = {}
