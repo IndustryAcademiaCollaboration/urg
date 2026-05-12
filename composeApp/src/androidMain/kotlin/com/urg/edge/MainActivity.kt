@@ -86,6 +86,14 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
 
+        savedInstanceState?.let { state ->
+            val roles = state.getStringArrayList("message_roles") ?: emptyList<String>()
+            val texts = state.getStringArrayList("message_texts") ?: emptyList<String>()
+            if (roles.size == texts.size) {
+                messages = roles.zip(texts).map { (role, text) -> Message(role, text) }
+            }
+        }
+
         val modelFile = copyModelToInternalStorage()
 
         try {
@@ -115,6 +123,12 @@ class MainActivity : ComponentActivity() {
                 }
             )
         }
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        outState.putStringArrayList("message_roles", ArrayList(messages.map { it.role }))
+        outState.putStringArrayList("message_texts", ArrayList(messages.map { it.text }))
     }
 
     override fun onDestroy() {
