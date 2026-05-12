@@ -83,9 +83,9 @@ Do not repeat sentences.
                 val fullPrompt = "<start_of_turn>user\n$systemPrompt<end_of_turn>\n$historyPrompt<start_of_turn>model\n"
 
                 val sessionOptions = LlmInferenceSession.LlmInferenceSessionOptions.builder()
-                    .setTopK(30) // この値を変更して精度を変更して出力の精度を高めて欲しいです。
-                    .setTopP(0.9f) // この値を変更して精度を変更して出力の精度を高めて欲しいです。
-                    .setTemperature(0.3f) // この値を変更して精度を変更して出力の精度を高めて欲しいです。
+                    .setTopK(30) // 次のトークン候補を確率上位K個に絞る設定。大きいと、文脈に無関係なワードが混在しやすくなる
+                    .setTopP(0.9f) // 確率の累積が(引数 * 100)%に達するまでの候補のみに絞る設定
+                    .setTemperature(0.3f) // 確率分布の「尖り」を調整: 高い:決定的で繰り返し 低い:多様、創造的、ハルシネーション増
                     .build()
 
                 val session = LlmInferenceSession.createFromOptions(inference, sessionOptions)
