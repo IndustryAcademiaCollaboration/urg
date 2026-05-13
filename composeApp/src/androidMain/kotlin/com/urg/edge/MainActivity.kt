@@ -21,6 +21,7 @@ import androidx.compose.runtime.setValue
 class MainActivity : ComponentActivity() {
 
     private var llmInference: LlmInference? = null
+    private lateinit var retriever: KeywordRetriever
 
     private var promptText by mutableStateOf("")
 
@@ -64,6 +65,11 @@ class MainActivity : ComponentActivity() {
                     return@launch
                 }
 
+                val retrievedChunks = retriever.retrieve(currentMessages.last().text, topK = 3)
+                val ragSection = if (retrievedChunks.isNotEmpty()) {
+                    "\n\n[参考情報]\n" + retrievedChunks.joinToString("\n") { "・${it.title}: ${it.text}" }
+                } else ""
+
                 val systemPrompt = """
 あなたは災害時支援AIです。
 一般市民向けに行動支援を行います。
@@ -71,6 +77,7 @@ class MainActivity : ComponentActivity() {
 必ず日本語で答えてください。
 Be concise and brief.
 Do not repeat sentences.
+[参考情報]が存在する場合は、必ずその内容のみに基づいて回答してください。$ragSection
 """.trimIndent()
 
                 val historyPrompt = currentMessages.joinToString("") { msg ->
@@ -123,6 +130,9 @@ Do not repeat sentences.
                 messages = roles.zip(texts).map { (role, text) -> Message(role, text) }
             }
         }
+
+        val knowledgeChunks = KnowledgeLoader.load(assets)
+        retriever = KeywordRetriever(knowledgeChunks)
 
         val modelFile = copyModelToInternalStorage()
 
