@@ -21,7 +21,7 @@ import androidx.compose.runtime.setValue
 class MainActivity : ComponentActivity() {
 
     private var llmInference: LlmInference? = null
-    private lateinit var retriever: KeywordRetriever
+    private var embeddingRetriever: EmbeddingRetriever? = null
 
     private var promptText by mutableStateOf("")
 
@@ -65,6 +65,13 @@ class MainActivity : ComponentActivity() {
                     return@launch
                 }
 
+                val retriever = embeddingRetriever ?: run {
+                    withContext(Dispatchers.Main) {
+                        messages = messages + Message("assistant", "知識ベースの初期化中です。しばらくお待ちください。")
+                        isLoading = false
+                    }
+                    return@launch
+                }
                 val retrievedChunks = retriever.retrieve(currentMessages.last().text, topK = 3)
 
                 if (retrievedChunks.isEmpty()) {
@@ -143,9 +150,6 @@ Do not repeat sentences.
             }
         }
 
-        val knowledgeChunks = KnowledgeLoader.load(assets)
-        retriever = KeywordRetriever(knowledgeChunks)
-
         val modelFile = copyModelToInternalStorage()
 
         try {
@@ -161,6 +165,25 @@ Do not repeat sentences.
         } catch (e: Exception) {
             messages = messages + Message("assistant", "ERROR: LLM initialization failed: ${e.message}")
             Log.e("LLM_INIT", "FAILED: ${e.message}", e)
+        }
+
+        lifecycleScope.launch(Dispatchers.IO) {
+            try {
+                val chunks = KnowledgeLoader.load(assets)
+                withContext(Dispatchers.Main) {
+                    messages = messages + Message("assistant", "[初期化] 知識ベース読み込み完了 (${chunks.size} chunks)")
+                }
+                embeddingRetriever = EmbeddingRetriever(this@MainActivity, chunks)
+                withContext(Dispatchers.Main) {
+                    messages = messages + Message("assistant", "[初期化] 準備完了")
+                }
+                Log.d("EMBEDDING_INIT", "SUCCESS")
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    messages = messages + Message("assistant", "[初期化エラー] ${e::class.simpleName}: ${e.message}")
+                }
+                Log.e("EMBEDDING_INIT", "FAILED: ${e.message}", e)
+            }
         }
 
         setContent {
@@ -186,6 +209,7 @@ Do not repeat sentences.
 
     override fun onDestroy() {
         llmInference?.close()
+        embeddingRetriever?.close()
         super.onDestroy()
     }
 }
