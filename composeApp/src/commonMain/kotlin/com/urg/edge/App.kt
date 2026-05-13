@@ -24,7 +24,8 @@ fun App(
     messages: List<Message>,
     isLoading: Boolean,
     onPromptChange: (String) -> Unit,
-    onSendClick: () -> Unit
+    onSendClick: () -> Unit,
+    onTriageClick: () -> Unit
 ) {
     val listState = rememberLazyListState()
 
@@ -73,8 +74,22 @@ fun App(
                 label = { Text("Prompt") }
             )
 
-            Button(onClick = onSendClick) {
-                Text("Send")
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Button(
+                    onClick = onTriageClick,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text("トリアージ開始")
+                }
+                Button(
+                    onClick = onSendClick,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text("送信")
+                }
             }
         }
     }

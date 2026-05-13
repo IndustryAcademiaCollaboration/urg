@@ -24,10 +24,11 @@ class MainActivity : ComponentActivity() {
     private var embeddingRetriever: EmbeddingRetriever? = null
 
     private var promptText by mutableStateOf("")
-
     private var messages by mutableStateOf(listOf<Message>())
-
     private var isLoading by mutableStateOf(false)
+
+    private var triageStep: TriageStep? = null
+    private var triageInput = TriageInput()
 
     private fun copyModelToInternalStorage(): File {
         val outFile = File(filesDir, "gemma3-1b-it-int4.task")
@@ -41,6 +42,48 @@ class MainActivity : ComponentActivity() {
         }
 
         return outFile
+    }
+
+    private fun startTriage() {
+        triageInput = TriageInput()
+        triageStep = TriageStep.WALK
+        promptText = ""
+        messages = messages + Message("assistant", "STARTトリアージを開始します。\n\n${StartRuleEngine.stepQuestions[TriageStep.WALK]!!}")
+    }
+
+    private fun handleTriageResponse() {
+        val step = triageStep ?: return
+        if (step == TriageStep.DONE) return
+        if (promptText.isBlank()) return
+
+        val answer = StartRuleEngine.parseAnswer(promptText)
+        messages = messages + Message("user", promptText)
+        promptText = ""
+
+        if (answer == null) {
+            messages = messages + Message("assistant", "「はい」か「いいえ」でお答えください。\n${StartRuleEngine.stepQuestions[step]!!}")
+            return
+        }
+
+        triageInput = StartRuleEngine.applyAnswer(triageInput, step, answer)
+
+        // 歩行可能 → 軽症確定、残りの質問をスキップ
+        if (step == TriageStep.WALK && answer == true) {
+            triageStep = TriageStep.DONE
+            val result = StartRuleEngine.evaluate(triageInput)
+            messages = messages + Message("assistant", StartRuleEngine.toGuidance(result))
+            return
+        }
+
+        val nextStep = StartRuleEngine.nextStep(step)
+        triageStep = nextStep
+
+        if (nextStep == TriageStep.DONE) {
+            val result = StartRuleEngine.evaluate(triageInput)
+            messages = messages + Message("assistant", StartRuleEngine.toGuidance(result))
+        } else {
+            messages = messages + Message("assistant", StartRuleEngine.stepQuestions[nextStep]!!)
+        }
     }
 
     private fun generateResponse() {
@@ -191,12 +234,16 @@ Do not repeat sentences.
                 prompt = promptText,
                 messages = messages,
                 isLoading = isLoading,
-                onPromptChange = {
-                    promptText = it
-                },
+                onPromptChange = { promptText = it },
                 onSendClick = {
-                    generateResponse()
-                }
+                    val step = triageStep
+                    if (step != null && step != TriageStep.DONE) {
+                        handleTriageResponse()
+                    } else {
+                        generateResponse()
+                    }
+                },
+                onTriageClick = { startTriage() }
             )
         }
     }
@@ -225,6 +272,7 @@ fun AppAndroidPreview() {
         ),
         isLoading = false,
         onPromptChange = {},
-        onSendClick = {}
+        onSendClick = {},
+        onTriageClick = {}
     )
 }
