@@ -9,6 +9,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.lifecycle.lifecycleScope
 import com.google.mediapipe.tasks.genai.llminference.LlmInference
+import com.google.mediapipe.tasks.genai.llminference.LlmInferenceSession
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -63,8 +64,37 @@ class MainActivity : ComponentActivity() {
                     return@launch
                 }
 
-                val fullPrompt = currentMessages.joinToString("\n") { "[${it.role}]: ${it.text}" }
-                val response = inference.generateResponse(fullPrompt)
+                val systemPrompt = """
+あなたは災害時支援AIです。
+一般市民向けに行動支援を行います。
+医療診断は行いません。
+必ず日本語で答えてください。
+Be concise and brief.
+Do not repeat sentences.
+""".trimIndent()
+
+                val historyPrompt = currentMessages.joinToString("") { msg ->
+                    when (msg.role) {
+                        "user"      -> "<start_of_turn>user\n${msg.text}<end_of_turn>\n"
+                        "assistant" -> "<start_of_turn>model\n${msg.text}<end_of_turn>\n"
+                        else        -> ""
+                    }
+                }
+                val fullPrompt = "<start_of_turn>user\n$systemPrompt<end_of_turn>\n$historyPrompt<start_of_turn>model\n"
+
+                val sessionOptions = LlmInferenceSession.LlmInferenceSessionOptions.builder()
+                    .setTopK(30) // 次のトークン候補を確率上位K個に絞る設定。大きいと、文脈に無関係なワードが混在しやすくなる
+                    .setTopP(0.9f) // 確率の累積が(引数 * 100)%に達するまでの候補のみに絞る設定
+                    .setTemperature(0.3f) // 確率分布の「尖り」を調整: 高い:決定的で繰り返し 低い:多様、創造的、ハルシネーション増
+                    .build()
+
+                val session = LlmInferenceSession.createFromOptions(inference, sessionOptions)
+                val response = try {
+                    session.addQueryChunk(fullPrompt)
+                    session.generateResponse()
+                } finally {
+                    session.close()
+                }
 
                 withContext(Dispatchers.Main) {
                     messages = messages + Message("assistant", response)
@@ -99,7 +129,8 @@ class MainActivity : ComponentActivity() {
         try {
             val options = LlmInference.LlmInferenceOptions.builder()
                 .setModelPath(modelFile.absolutePath)
-                .setMaxTokens(128)
+                .setMaxTokens(512)
+                .setMaxTopK(40)
                 .build()
 
             llmInference = LlmInference.createFromOptions(this, options)
