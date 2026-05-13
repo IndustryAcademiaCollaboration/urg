@@ -66,9 +66,16 @@ class MainActivity : ComponentActivity() {
                 }
 
                 val retrievedChunks = retriever.retrieve(currentMessages.last().text, topK = 3)
-                val ragSection = if (retrievedChunks.isNotEmpty()) {
-                    "\n\n[参考情報]\n" + retrievedChunks.joinToString("\n") { "・${it.title}: ${it.text}" }
-                } else ""
+
+                if (retrievedChunks.isEmpty()) {
+                    withContext(Dispatchers.Main) {
+                        messages = messages + Message("assistant", "申し訳ありませんが、その状況に関する情報を持ち合わせていません。近くの救護所または避難所でご確認ください。")
+                        isLoading = false
+                    }
+                    return@launch
+                }
+
+                val ragSection = "\n\n[参考情報]\n" + retrievedChunks.joinToString("\n") { "・${it.title}: ${it.text}" }
 
                 val systemPrompt = """
 あなたは災害時支援AIです。
@@ -82,7 +89,7 @@ Do not repeat sentences.
 出血の量が不明な場合は、必ず量を確認してから救護所または病院への誘導を行ってください。
 状況に応じて、救護所または病院への誘導を行ってください。
 助けようとする場合でも、周囲に二次災害の危険がある場合は、まず自分自身の避難を促してください。
-[参考情報]が存在する場合は、必ずその内容のみに基づいて回答してください。$ragSection
+[参考情報]の内容のみに基づいて回答してください。[参考情報]にない情報は回答しないでください。$ragSection
 """.trimIndent()
 
                 val historyPrompt = currentMessages.joinToString("") { msg ->
