@@ -21,6 +21,7 @@ import androidx.compose.runtime.setValue
 class MainActivity : ComponentActivity() {
 
     private var llmInference: LlmInference? = null
+    private var embeddingRetriever: EmbeddingRetriever? = null
 
     private var promptText by mutableStateOf("")
 
@@ -64,6 +65,25 @@ class MainActivity : ComponentActivity() {
                     return@launch
                 }
 
+                val retriever = embeddingRetriever ?: run {
+                    withContext(Dispatchers.Main) {
+                        messages = messages + Message("assistant", "知識ベースの初期化中です。しばらくお待ちください。")
+                        isLoading = false
+                    }
+                    return@launch
+                }
+                val retrievedChunks = retriever.retrieve(currentMessages.last().text, topK = 3)
+
+                if (retrievedChunks.isEmpty()) {
+                    withContext(Dispatchers.Main) {
+                        messages = messages + Message("assistant", "申し訳ありませんが、その状況に関する情報を持ち合わせていません。近くの救護所または避難所でご確認ください。")
+                        isLoading = false
+                    }
+                    return@launch
+                }
+
+                val ragSection = "\n\n[参考情報]\n" + retrievedChunks.joinToString("\n") { "・${it.title}: ${it.text}" }
+
                 val systemPrompt = """
 あなたは災害時支援AIです。
 一般市民向けに行動支援を行います。
@@ -71,6 +91,12 @@ class MainActivity : ComponentActivity() {
 必ず日本語で答えてください。
 Be concise and brief.
 Do not repeat sentences.
+具体的な時間の見積もりや数値は絶対に言及しないでください。
+状況が不明な場合は、まず相手の状況を確認する質問をしてください。
+出血の量が不明な場合は、必ず量を確認してから救護所または病院への誘導を行ってください。
+状況に応じて、救護所または病院への誘導を行ってください。
+助けようとする場合でも、周囲に二次災害の危険がある場合は、まず自分自身の避難を促してください。
+[参考情報]の内容のみに基づいて回答してください。[参考情報]にない情報は回答しないでください。$ragSection
 """.trimIndent()
 
                 val historyPrompt = currentMessages.joinToString("") { msg ->
@@ -141,6 +167,25 @@ Do not repeat sentences.
             Log.e("LLM_INIT", "FAILED: ${e.message}", e)
         }
 
+        lifecycleScope.launch(Dispatchers.IO) {
+            try {
+                val chunks = KnowledgeLoader.load(assets)
+                withContext(Dispatchers.Main) {
+                    messages = messages + Message("assistant", "[初期化] 知識ベース読み込み完了 (${chunks.size} chunks)")
+                }
+                embeddingRetriever = EmbeddingRetriever(this@MainActivity, chunks)
+                withContext(Dispatchers.Main) {
+                    messages = messages + Message("assistant", "[初期化] 準備完了")
+                }
+                Log.d("EMBEDDING_INIT", "SUCCESS")
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    messages = messages + Message("assistant", "[初期化エラー] ${e::class.simpleName}: ${e.message}")
+                }
+                Log.e("EMBEDDING_INIT", "FAILED: ${e.message}", e)
+            }
+        }
+
         setContent {
             App(
                 prompt = promptText,
@@ -164,6 +209,7 @@ Do not repeat sentences.
 
     override fun onDestroy() {
         llmInference?.close()
+        embeddingRetriever?.close()
         super.onDestroy()
     }
 }
