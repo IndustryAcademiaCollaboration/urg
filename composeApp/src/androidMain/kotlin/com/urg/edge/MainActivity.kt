@@ -26,6 +26,7 @@ class MainActivity : ComponentActivity() {
     private var promptText by mutableStateOf("")
     private var messages by mutableStateOf(listOf<Message>())
     private var isLoading by mutableStateOf(false)
+    private var streamingText by mutableStateOf("")
 
     private var triageStep: TriageStep? = null
     private var triageInput = TriageInput()
@@ -178,16 +179,20 @@ $supplementText
                     .build()
 
                 val session = LlmInferenceSession.createFromOptions(inference, sessionOptions)
-                val response = try {
-                    session.addQueryChunk(fullPrompt)
-                    session.generateResponse()
-                } finally {
-                    session.close()
-                }
+                val accumulated = StringBuilder()
 
-                withContext(Dispatchers.Main) {
-                    messages = messages + Message("assistant", response)
-                    isLoading = false
+                session.addQueryChunk(fullPrompt)
+                session.generateResponseAsync { partialResult, done ->
+                    lifecycleScope.launch(Dispatchers.Main) {
+                        accumulated.append(partialResult)
+                        streamingText = accumulated.toString()
+                        if (done) {
+                            session.close()
+                            messages = messages + Message("assistant", accumulated.toString())
+                            streamingText = ""
+                            isLoading = false
+                        }
+                    }
                 }
 
             } catch (e: Exception) {
@@ -285,16 +290,20 @@ $forbiddenList$triageContext
                     .build()
 
                 val session = LlmInferenceSession.createFromOptions(inference, sessionOptions)
-                val response = try {
-                    session.addQueryChunk(fullPrompt)
-                    session.generateResponse()
-                } finally {
-                    session.close()
-                }
+                val accumulated = StringBuilder()
 
-                withContext(Dispatchers.Main) {
-                    messages = messages + Message("assistant", response)
-                    isLoading = false
+                session.addQueryChunk(fullPrompt)
+                session.generateResponseAsync { partialResult, done ->
+                    lifecycleScope.launch(Dispatchers.Main) {
+                        accumulated.append(partialResult)
+                        streamingText = accumulated.toString()
+                        if (done) {
+                            session.close()
+                            messages = messages + Message("assistant", accumulated.toString())
+                            streamingText = ""
+                            isLoading = false
+                        }
+                    }
                 }
 
             } catch (e: Exception) {
@@ -361,6 +370,7 @@ $forbiddenList$triageContext
                 prompt = promptText,
                 messages = messages,
                 isLoading = isLoading,
+                streamingText = streamingText,
                 onPromptChange = { promptText = it },
                 onSendClick = {
                     val step = triageStep
@@ -398,6 +408,7 @@ fun AppAndroidPreview() {
             Message("assistant", "Hello")
         ),
         isLoading = false,
+        streamingText = "",
         onPromptChange = {},
         onSendClick = {},
         onTriageClick = {}

@@ -23,6 +23,7 @@ fun App(
     prompt: String,
     messages: List<Message>,
     isLoading: Boolean,
+    streamingText: String,
     onPromptChange: (String) -> Unit,
     onSendClick: () -> Unit,
     onTriageClick: () -> Unit
@@ -63,7 +64,17 @@ fun App(
                 }
             }
 
-            if (isLoading) {
+            if (streamingText.isNotEmpty()) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.Start
+                ) {
+                    Text(
+                        text = streamingText,
+                        modifier = Modifier.padding(8.dp)
+                    )
+                }
+            } else if (isLoading) {
                 Text("Loading...")
             }
 
