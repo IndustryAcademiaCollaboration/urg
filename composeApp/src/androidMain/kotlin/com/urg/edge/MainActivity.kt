@@ -112,8 +112,13 @@ class MainActivity : ComponentActivity() {
                     "\n\n[補足知識]\n" + retrievedChunks.joinToString("\n") { "・${it.title}: ${it.text}" }
                 } else ""
 
+                val safetyFirstText = actionPlan.safetyFirst
+                    .mapIndexed { i, item -> "${i + 1}. $item" }
+                    .joinToString("\n")
+
+                val actionOffset = actionPlan.safetyFirst.size
                 val actionListText = actionPlan.actions
-                    .mapIndexed { i, action -> "${i + 1}. $action" }
+                    .mapIndexed { i, action -> "${i + actionOffset + 1}. $action" }
                     .joinToString("\n")
 
                 val forbiddenText = if (actionPlan.forbiddenActions.isNotEmpty()) {
@@ -125,20 +130,24 @@ class MainActivity : ComponentActivity() {
 必ず日本語で答えてください。
 
 重要:
+- [安全確認]を必ず最初に説明する
 - 与えられた行動リスト以外を提案しない
 - 搬送先を変更しない
 - 医療診断をしない
 - 新しい処置を追加しない
-- 3〜5項目・各1文・短く
+- 各1文・短く
 - 必ず落ち着いた口調で説明する
 """.trimIndent()
 
                 val userPrompt = """
-以下の行動リストを、一般市民向けに、短く・落ち着いた口調で番号付きリストとして説明してください。
-[補足知識]がある場合は、説明の言葉選びの参考にしてください。行動リスト以外の内容は追加しないでください。
+以下の内容を、一般市民向けに、短く・落ち着いた口調で番号付きリストとして説明してください。
+[補足知識]がある場合は、説明の言葉選びの参考にしてください。リスト以外の内容は追加しないでください。
 
 [搬送方針]
 ${actionPlan.destination}
+
+[安全確認（必ず最初に説明すること）]
+$safetyFirstText
 
 [行動リスト]
 $actionListText

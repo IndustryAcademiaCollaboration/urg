@@ -13,11 +13,19 @@ enum class TriageResult { MINOR, SEVERE }
 
 data class TriageActionPlan(
     val destination: String,
+    val safetyFirst: List<String>,
     val actions: List<String>,
     val forbiddenActions: List<String>
 )
 
 object StartRuleEngine {
+
+    // 重症ならば状態に関わらず必ず最初に確認する項目
+    val safetyFirstSevere = listOf(
+        "周囲の安全を確認する",
+        "呼吸を確認する",
+        "意識を確認する"
+    )
 
     // 重症ならば状態に関わらず常に禁止する行為
     val globalForbiddenSevere = listOf(
@@ -73,8 +81,8 @@ object StartRuleEngine {
         if (result == TriageResult.MINOR) {
             return TriageActionPlan(
                 destination = "救護所（自力で移動）",
+                safetyFirst = listOf("周囲の安全を確認する"),
                 actions = listOf(
-                    "周囲の安全を確認する",
                     "傷や出血がある場合は清潔な布で押さえる",
                     "救護所へ自力で向かう"
                 ),
@@ -82,7 +90,7 @@ object StartRuleEngine {
             )
         }
 
-        val actions = mutableListOf("周囲の安全を確認する")
+        val actions = mutableListOf<String>()
         val forbidden = mutableListOf<String>().also { it.addAll(globalForbiddenSevere) }
 
         when {
@@ -116,6 +124,7 @@ object StartRuleEngine {
 
         return TriageActionPlan(
             destination = "病院（周囲の人が運ぶ）",
+            safetyFirst = safetyFirstSevere,
             actions = actions,
             forbiddenActions = forbidden
         )
