@@ -72,6 +72,7 @@ class MainActivity : ComponentActivity() {
             triageStep = TriageStep.DONE
             val result = StartRuleEngine.evaluate(triageInput)
             messages = messages + Message("assistant", StartRuleEngine.toGuidance(result))
+            generateTriageGuidance(result, triageInput)
             return
         }
 
@@ -81,8 +82,91 @@ class MainActivity : ComponentActivity() {
         if (nextStep == TriageStep.DONE) {
             val result = StartRuleEngine.evaluate(triageInput)
             messages = messages + Message("assistant", StartRuleEngine.toGuidance(result))
+            generateTriageGuidance(result, triageInput)
         } else {
             messages = messages + Message("assistant", StartRuleEngine.stepQuestions[nextStep]!!)
+        }
+    }
+
+    private fun generateTriageGuidance(result: TriageResult, input: TriageInput) {
+        isLoading = true
+
+        lifecycleScope.launch(Dispatchers.IO) {
+            try {
+                val inference = llmInference ?: run {
+                    withContext(Dispatchers.Main) { isLoading = false }
+                    return@launch
+                }
+                val retriever = embeddingRetriever ?: run {
+                    withContext(Dispatchers.Main) { isLoading = false }
+                    return@launch
+                }
+
+                val severityLabel = when (result) {
+                    TriageResult.MINOR -> "軽症"
+                    TriageResult.SEVERE -> "重症"
+                }
+                val destinationLabel = when (result) {
+                    TriageResult.MINOR -> "救護所（傷病者が自力で移動）"
+                    TriageResult.SEVERE -> "病院（周囲の人が運ぶ）"
+                }
+                val conditionSummary = listOfNotNull(
+                    input.isBreathing?.let { "呼吸：${if (it) "あり" else "なし"}" },
+                    input.hasCirculation?.let { "脈：${if (it) "あり" else "なし"}" },
+                    input.isConscious?.let { "意識：${if (it) "あり" else "なし"}" }
+                ).joinToString("、")
+
+                val ragQuery = "$severityLabel 応急処置 搬送 $conditionSummary"
+                val retrievedChunks = retriever.retrieve(ragQuery, topK = 3)
+
+                val ragSection = if (retrievedChunks.isNotEmpty()) {
+                    "\n\n[参考情報]\n" + retrievedChunks.joinToString("\n") { "・${it.title}: ${it.text}" }
+                } else ""
+
+                val systemPrompt = """
+あなたは災害時支援AIです。
+一般市民向けに行動支援を行います。
+医療診断は行いません。
+必ず日本語で答えてください。
+Be concise and brief.
+Do not repeat sentences.
+[参考情報]の内容のみに基づいて回答してください。[参考情報]にない情報は回答しないでください。$ragSection
+""".trimIndent()
+
+                val userPrompt = """
+[トリアージ結果]
+重症度：$severityLabel
+搬送先：$destinationLabel
+傷病者の状態：$conditionSummary
+
+この傷病者に対して、今すぐできる応急処置と具体的な行動を簡潔に教えてください。
+""".trimIndent()
+
+                val fullPrompt = "<start_of_turn>user\n$systemPrompt<end_of_turn>\n<start_of_turn>user\n$userPrompt<end_of_turn>\n<start_of_turn>model\n"
+
+                val sessionOptions = LlmInferenceSession.LlmInferenceSessionOptions.builder()
+                    .setTopK(30)
+                    .setTopP(0.9f)
+                    .setTemperature(0.3f)
+                    .build()
+
+                val session = LlmInferenceSession.createFromOptions(inference, sessionOptions)
+                val response = try {
+                    session.addQueryChunk(fullPrompt)
+                    session.generateResponse()
+                } finally {
+                    session.close()
+                }
+
+                withContext(Dispatchers.Main) {
+                    messages = messages + Message("assistant", response)
+                    isLoading = false
+                }
+
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) { isLoading = false }
+                Log.e("TRIAGE_LLM", "FAILED", e)
+            }
         }
     }
 
