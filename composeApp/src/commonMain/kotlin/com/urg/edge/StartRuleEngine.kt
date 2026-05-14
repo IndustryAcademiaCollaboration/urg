@@ -19,6 +19,13 @@ data class TriageActionPlan(
 
 object StartRuleEngine {
 
+    // 重症ならば状態に関わらず常に禁止する行為
+    val globalForbiddenSevere = listOf(
+        "首を動かす・ねじる",
+        "一人だけで無理に搬送する",
+        "止血せずに傷病者を動かす"
+    )
+
     val stepQuestions = mapOf(
         TriageStep.WALK to "【歩行確認】傷病者は自力で歩けますか？（はい / いいえ）",
         TriageStep.BREATHING to "【呼吸確認】呼吸はありますか？（はい / いいえ）",
@@ -76,7 +83,7 @@ object StartRuleEngine {
         }
 
         val actions = mutableListOf("周囲の安全を確認する")
-        val forbidden = mutableListOf<String>()
+        val forbidden = mutableListOf<String>().also { it.addAll(globalForbiddenSevere) }
 
         when {
             input.isBreathing == false -> {

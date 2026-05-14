@@ -215,6 +215,9 @@ $supplementText
 
                 val ragSection = "\n\n[参考情報]\n" + retrievedChunks.joinToString("\n") { "・${it.title}: ${it.text}" }
 
+                val forbiddenList = StartRuleEngine.globalForbiddenSevere
+                    .joinToString("\n") { "- $it" }
+
                 val systemPrompt = """
 あなたは災害時支援AIです。
 一般市民向けに行動支援を行います。
@@ -227,6 +230,8 @@ Do not repeat sentences.
 出血の量が不明な場合は、必ず量を確認してから救護所または病院への誘導を行ってください。
 状況に応じて、救護所または病院への誘導を行ってください。
 助けようとする場合でも、周囲に二次災害の危険がある場合は、まず自分自身の避難を促してください。
+以下の行為は絶対に提案しないでください：
+$forbiddenList
 [参考情報]の内容のみに基づいて回答してください。[参考情報]にない情報は回答しないでください。$ragSection
 """.trimIndent()
 
