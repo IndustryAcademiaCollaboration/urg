@@ -102,44 +102,48 @@ class MainActivity : ComponentActivity() {
                     return@launch
                 }
 
-                val severityLabel = when (result) {
-                    TriageResult.MINOR -> "軽症"
-                    TriageResult.SEVERE -> "重症"
-                }
-                val destinationLabel = when (result) {
-                    TriageResult.MINOR -> "救護所（傷病者が自力で移動）"
-                    TriageResult.SEVERE -> "病院（周囲の人が運ぶ）"
-                }
-                val conditionSummary = listOfNotNull(
-                    input.isBreathing?.let { "呼吸：${if (it) "あり" else "なし"}" },
-                    input.hasCirculation?.let { "脈：${if (it) "あり" else "なし"}" },
-                    input.isConscious?.let { "意識：${if (it) "あり" else "なし"}" }
-                ).joinToString("、")
+                // Rule Engine がアクションリストを確定
+                val actionPlan = StartRuleEngine.decideActions(result, input)
 
-                val ragQuery = "$severityLabel 応急処置 搬送 $conditionSummary"
-                val retrievedChunks = retriever.retrieve(ragQuery, topK = 3)
+                // RAG: アクションリストに関連する知識を言葉選びの補足として取得
+                val ragQuery = actionPlan.actions.joinToString(" ")
+                val retrievedChunks = retriever.retrieve(ragQuery, topK = 2)
+                val supplementText = if (retrievedChunks.isNotEmpty()) {
+                    "\n\n[補足知識]\n" + retrievedChunks.joinToString("\n") { "・${it.title}: ${it.text}" }
+                } else ""
 
-                val ragSection = if (retrievedChunks.isNotEmpty()) {
-                    "\n\n[参考情報]\n" + retrievedChunks.joinToString("\n") { "・${it.title}: ${it.text}" }
+                val actionListText = actionPlan.actions
+                    .mapIndexed { i, action -> "${i + 1}. $action" }
+                    .joinToString("\n")
+
+                val forbiddenText = if (actionPlan.forbiddenActions.isNotEmpty()) {
+                    "\n\n[禁止行為]\n" + actionPlan.forbiddenActions.joinToString("\n") { "・$it" }
                 } else ""
 
                 val systemPrompt = """
 あなたは災害時支援AIです。
-一般市民向けに行動支援を行います。
-医療診断は行いません。
 必ず日本語で答えてください。
-Be concise and brief.
-Do not repeat sentences.
-[参考情報]の内容のみに基づいて回答してください。[参考情報]にない情報は回答しないでください。$ragSection
+
+重要:
+- 与えられた行動リスト以外を提案しない
+- 搬送先を変更しない
+- 医療診断をしない
+- 新しい処置を追加しない
+- 3〜5項目・各1文・短く
+- 必ず落ち着いた口調で説明する
 """.trimIndent()
 
                 val userPrompt = """
-[トリアージ結果]
-重症度：$severityLabel
-搬送先：$destinationLabel
-傷病者の状態：$conditionSummary
+以下の行動リストを、一般市民向けに、短く・落ち着いた口調で番号付きリストとして説明してください。
+[補足知識]がある場合は、説明の言葉選びの参考にしてください。行動リスト以外の内容は追加しないでください。
 
-この傷病者に対して、今すぐできる応急処置と具体的な行動を簡潔に教えてください。
+[搬送方針]
+${actionPlan.destination}
+
+[行動リスト]
+$actionListText
+$forbiddenText
+$supplementText
 """.trimIndent()
 
                 val fullPrompt = "<start_of_turn>user\n$systemPrompt<end_of_turn>\n<start_of_turn>user\n$userPrompt<end_of_turn>\n<start_of_turn>model\n"

@@ -11,6 +11,12 @@ enum class TriageStep { WALK, BREATHING, CIRCULATION, CONSCIOUSNESS, DONE }
 
 enum class TriageResult { MINOR, SEVERE }
 
+data class TriageActionPlan(
+    val destination: String,
+    val actions: List<String>,
+    val forbiddenActions: List<String>
+)
+
 object StartRuleEngine {
 
     val stepQuestions = mapOf(
@@ -54,5 +60,57 @@ object StartRuleEngine {
     fun toGuidance(result: TriageResult): String = when (result) {
         TriageResult.MINOR -> "【判定：軽症】傷病者は自力で最寄りの救護所へ向かうよう案内してください。"
         TriageResult.SEVERE -> "【判定：重症】傷病者を最寄りの病院へ運んでください。"
+    }
+
+    fun decideActions(result: TriageResult, input: TriageInput): TriageActionPlan {
+        if (result == TriageResult.MINOR) {
+            return TriageActionPlan(
+                destination = "救護所（自力で移動）",
+                actions = listOf(
+                    "周囲の安全を確認する",
+                    "傷や出血がある場合は清潔な布で押さえる",
+                    "救護所へ自力で向かう"
+                ),
+                forbiddenActions = emptyList()
+            )
+        }
+
+        val actions = mutableListOf("周囲の安全を確認する")
+        val forbidden = mutableListOf<String>()
+
+        when {
+            input.isBreathing == false -> {
+                actions.add("頭部を後ろに傾け気道を確保する")
+                actions.add("呼吸が戻らない場合は胸骨圧迫を行う")
+                actions.add("近くにAEDがあれば使用する")
+                forbidden.add("首を無理に動かす")
+                forbidden.add("傷病者を一人にしない")
+            }
+            input.hasCirculation == false -> {
+                actions.add("出血部位を清潔な布で強く圧迫する")
+                actions.add("圧迫を緩めず保持し続ける")
+                forbidden.add("圧迫を途中で外す")
+                forbidden.add("止血しないまま動かす")
+            }
+            input.isConscious == false -> {
+                actions.add("呼吸を確認し続ける")
+                actions.add("横向きに寝かせる（回復体位）")
+                forbidden.add("無理に起こす")
+                forbidden.add("飲食物を与える")
+            }
+            else -> {
+                actions.add("傷や出血箇所を確認し布などで圧迫する")
+                actions.add("傷病者を安静に保つ")
+            }
+        }
+
+        actions.add("複数人で病院へ運ぶ")
+        forbidden.add("一人だけで搬送する")
+
+        return TriageActionPlan(
+            destination = "病院（周囲の人が運ぶ）",
+            actions = actions,
+            forbiddenActions = forbidden
+        )
     }
 }
