@@ -192,8 +192,8 @@ $supplementText
         messages = messages + Message("user", promptText)
         isLoading = true
 
-        // TRIAGE・SYSTEM メッセージを除外し、チャット履歴のみ LLM に渡す
-        val currentMessages = messages.filter { it.type == MessageType.CHAT }
+        // TRIAGE・SYSTEM を除外し、直近 8 件（4往復）のみ LLM に渡す
+        val currentMessages = messages.filter { it.type == MessageType.CHAT }.takeLast(8)
 
         lifecycleScope.launch(Dispatchers.IO) {
 
@@ -313,7 +313,7 @@ $forbiddenList$triageContext
         try {
             val options = LlmInference.LlmInferenceOptions.builder()
                 .setModelPath(modelFile.absolutePath)
-                .setMaxTokens(512)
+                .setMaxTokens(2048)
                 .setMaxTopK(40)
                 .build()
 
