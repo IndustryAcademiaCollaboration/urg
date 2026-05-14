@@ -180,15 +180,27 @@ $supplementText
 
                 val session = LlmInferenceSession.createFromOptions(inference, sessionOptions)
                 val accumulated = StringBuilder()
+                val startTime = System.currentTimeMillis()
+                var firstTokenTime = -1L
+                var tokenCount = 0
 
                 session.addQueryChunk(fullPrompt)
                 session.generateResponseAsync { partialResult, done ->
                     lifecycleScope.launch(Dispatchers.Main) {
+                        if (firstTokenTime == -1L) {
+                            firstTokenTime = System.currentTimeMillis()
+                        }
+                        tokenCount++
                         accumulated.append(partialResult)
                         streamingText = accumulated.toString()
                         if (done) {
+                            val endTime = System.currentTimeMillis()
+                            val ttft = firstTokenTime - startTime
+                            val totalMs = endTime - startTime
+                            val tokensPerSec = if (totalMs > 0) tokenCount * 1000.0 / totalMs else 0.0
                             session.close()
                             messages = messages + Message("assistant", accumulated.toString())
+                            Log.d("TRIAGE_PERF", "TTFT=${ttft}ms  tokens/sec=${"%.1f".format(tokensPerSec)}")
                             streamingText = ""
                             isLoading = false
                         }
@@ -291,15 +303,27 @@ $forbiddenList$triageContext
 
                 val session = LlmInferenceSession.createFromOptions(inference, sessionOptions)
                 val accumulated = StringBuilder()
+                val startTime = System.currentTimeMillis()
+                var firstTokenTime = -1L
+                var tokenCount = 0
 
                 session.addQueryChunk(fullPrompt)
                 session.generateResponseAsync { partialResult, done ->
                     lifecycleScope.launch(Dispatchers.Main) {
+                        if (firstTokenTime == -1L) {
+                            firstTokenTime = System.currentTimeMillis()
+                        }
+                        tokenCount++
                         accumulated.append(partialResult)
                         streamingText = accumulated.toString()
                         if (done) {
+                            val endTime = System.currentTimeMillis()
+                            val ttft = firstTokenTime - startTime
+                            val totalMs = endTime - startTime
+                            val tokensPerSec = if (totalMs > 0) tokenCount * 1000.0 / totalMs else 0.0
                             session.close()
                             messages = messages + Message("assistant", accumulated.toString())
+                            Log.d("LLM_PERF", "TTFT=${ttft}ms  tokens/sec=${"%.1f".format(tokensPerSec)}")
                             streamingText = ""
                             isLoading = false
                         }
