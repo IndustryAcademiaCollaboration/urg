@@ -29,6 +29,8 @@ class MainActivity : ComponentActivity() {
 
     private var triageStep: TriageStep? = null
     private var triageInput = TriageInput()
+    private var lastTriageResult: TriageResult? = null
+    private var lastTriageActionPlan: TriageActionPlan? = null
 
     private fun copyModelToInternalStorage(): File {
         val outFile = File(filesDir, "gemma3-1b-it-int4.task")
@@ -71,6 +73,7 @@ class MainActivity : ComponentActivity() {
         if (step == TriageStep.WALK && answer == true) {
             triageStep = TriageStep.DONE
             val result = StartRuleEngine.evaluate(triageInput)
+            lastTriageResult = result
             messages = messages + Message("assistant", StartRuleEngine.toGuidance(result))
             generateTriageGuidance(result, triageInput)
             return
@@ -81,6 +84,7 @@ class MainActivity : ComponentActivity() {
 
         if (nextStep == TriageStep.DONE) {
             val result = StartRuleEngine.evaluate(triageInput)
+            lastTriageResult = result
             messages = messages + Message("assistant", StartRuleEngine.toGuidance(result))
             generateTriageGuidance(result, triageInput)
         } else {
@@ -104,6 +108,7 @@ class MainActivity : ComponentActivity() {
 
                 // Rule Engine がアクションリストを確定
                 val actionPlan = StartRuleEngine.decideActions(result, input)
+                withContext(Dispatchers.Main) { lastTriageActionPlan = actionPlan }
 
                 // RAG: アクションリストに関連する知識を言葉選びの補足として取得
                 val ragQuery = actionPlan.actions.joinToString(" ")
@@ -224,6 +229,16 @@ $supplementText
                 val forbiddenList = StartRuleEngine.globalForbiddenSevere
                     .joinToString("\n") { "- $it" }
 
+                val triageContext = run {
+                    val result = lastTriageResult
+                    val plan = lastTriageActionPlan
+                    if (result != null && plan != null) {
+                        val severityLabel = if (result == TriageResult.MINOR) "軽症" else "重症"
+                        val actionsSummary = (plan.safetyFirst + plan.actions).joinToString("、")
+                        "\n\n[トリアージ済み情報]\n判定：$severityLabel\n搬送先：${plan.destination}\n確認済み行動：$actionsSummary"
+                    } else ""
+                }
+
                 val systemPrompt = """
 あなたは災害時支援AIです。
 一般市民向けに行動支援を行います。
@@ -237,7 +252,7 @@ Do not repeat sentences.
 状況に応じて、救護所または病院への誘導を行ってください。
 助けようとする場合でも、周囲に二次災害の危険がある場合は、まず自分自身の避難を促してください。
 以下の行為は絶対に提案しないでください：
-$forbiddenList
+$forbiddenList$triageContext
 [参考情報]の内容のみに基づいて回答してください。[参考情報]にない情報は回答しないでください。$ragSection
 """.trimIndent()
 
