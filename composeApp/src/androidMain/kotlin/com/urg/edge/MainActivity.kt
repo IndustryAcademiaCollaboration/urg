@@ -50,7 +50,7 @@ class MainActivity : ComponentActivity() {
         triageInput = TriageInput()
         triageStep = TriageStep.WALK
         promptText = ""
-        messages = messages + Message("assistant", "STARTトリアージを開始します。\n\n${StartRuleEngine.stepQuestions[TriageStep.WALK]!!}")
+        messages = messages + Message("assistant", "STARTトリアージを開始します。\n\n${StartRuleEngine.stepQuestions[TriageStep.WALK]!!}", MessageType.TRIAGE)
     }
 
     private fun handleTriageResponse() {
@@ -59,11 +59,11 @@ class MainActivity : ComponentActivity() {
         if (promptText.isBlank()) return
 
         val answer = StartRuleEngine.parseAnswer(promptText)
-        messages = messages + Message("user", promptText)
+        messages = messages + Message("user", promptText, MessageType.TRIAGE)
         promptText = ""
 
         if (answer == null) {
-            messages = messages + Message("assistant", "「はい」か「いいえ」でお答えください。\n${StartRuleEngine.stepQuestions[step]!!}")
+            messages = messages + Message("assistant", "「はい」か「いいえ」でお答えください。\n${StartRuleEngine.stepQuestions[step]!!}", MessageType.TRIAGE)
             return
         }
 
@@ -74,7 +74,7 @@ class MainActivity : ComponentActivity() {
             triageStep = TriageStep.DONE
             val result = StartRuleEngine.evaluate(triageInput)
             lastTriageResult = result
-            messages = messages + Message("assistant", StartRuleEngine.toGuidance(result))
+            messages = messages + Message("assistant", StartRuleEngine.toGuidance(result), MessageType.TRIAGE)
             generateTriageGuidance(result, triageInput)
             return
         }
@@ -85,10 +85,10 @@ class MainActivity : ComponentActivity() {
         if (nextStep == TriageStep.DONE) {
             val result = StartRuleEngine.evaluate(triageInput)
             lastTriageResult = result
-            messages = messages + Message("assistant", StartRuleEngine.toGuidance(result))
+            messages = messages + Message("assistant", StartRuleEngine.toGuidance(result), MessageType.TRIAGE)
             generateTriageGuidance(result, triageInput)
         } else {
-            messages = messages + Message("assistant", StartRuleEngine.stepQuestions[nextStep]!!)
+            messages = messages + Message("assistant", StartRuleEngine.stepQuestions[nextStep]!!, MessageType.TRIAGE)
         }
     }
 
@@ -192,7 +192,8 @@ $supplementText
         messages = messages + Message("user", promptText)
         isLoading = true
 
-        val currentMessages = messages
+        // TRIAGE・SYSTEM メッセージを除外し、チャット履歴のみ LLM に渡す
+        val currentMessages = messages.filter { it.type == MessageType.CHAT }
 
         lifecycleScope.launch(Dispatchers.IO) {
 
@@ -201,7 +202,7 @@ $supplementText
                 val inference = llmInference ?: run {
 
                     withContext(Dispatchers.Main) {
-                        messages = messages + Message("assistant", "ERROR: LLM is not initialized")
+                        messages = messages + Message("assistant", "ERROR: LLM is not initialized", MessageType.SYSTEM)
                         isLoading = false
                     }
                     return@launch
@@ -209,7 +210,7 @@ $supplementText
 
                 val retriever = embeddingRetriever ?: run {
                     withContext(Dispatchers.Main) {
-                        messages = messages + Message("assistant", "知識ベースの初期化中です。しばらくお待ちください。")
+                        messages = messages + Message("assistant", "知識ベースの初期化中です。しばらくお待ちください。", MessageType.SYSTEM)
                         isLoading = false
                     }
                     return@launch
@@ -286,7 +287,7 @@ $forbiddenList$triageContext
 
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
-                    messages = messages + Message("assistant", "ERROR: ${e.message}")
+                    messages = messages + Message("assistant", "ERROR: ${e.message}", MessageType.SYSTEM)
                     isLoading = false
                 }
 
@@ -320,7 +321,7 @@ $forbiddenList$triageContext
 
             Log.d("LLM_INIT", "SUCCESS")
         } catch (e: Exception) {
-            messages = messages + Message("assistant", "ERROR: LLM initialization failed: ${e.message}")
+            messages = messages + Message("assistant", "ERROR: LLM initialization failed: ${e.message}", MessageType.SYSTEM)
             Log.e("LLM_INIT", "FAILED: ${e.message}", e)
         }
 
@@ -328,16 +329,16 @@ $forbiddenList$triageContext
             try {
                 val chunks = KnowledgeLoader.load(assets)
                 withContext(Dispatchers.Main) {
-                    messages = messages + Message("assistant", "[初期化] 知識ベース読み込み完了 (${chunks.size} chunks)")
+                    messages = messages + Message("assistant", "[初期化] 知識ベース読み込み完了 (${chunks.size} chunks)", MessageType.SYSTEM)
                 }
                 embeddingRetriever = EmbeddingRetriever(this@MainActivity, chunks)
                 withContext(Dispatchers.Main) {
-                    messages = messages + Message("assistant", "[初期化] 準備完了")
+                    messages = messages + Message("assistant", "[初期化] 準備完了", MessageType.SYSTEM)
                 }
                 Log.d("EMBEDDING_INIT", "SUCCESS")
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
-                    messages = messages + Message("assistant", "[初期化エラー] ${e::class.simpleName}: ${e.message}")
+                    messages = messages + Message("assistant", "[初期化エラー] ${e::class.simpleName}: ${e.message}", MessageType.SYSTEM)
                 }
                 Log.e("EMBEDDING_INIT", "FAILED: ${e.message}", e)
             }
