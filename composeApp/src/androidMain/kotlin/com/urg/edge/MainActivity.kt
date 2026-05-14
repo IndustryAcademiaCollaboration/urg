@@ -48,9 +48,9 @@ class MainActivity : ComponentActivity() {
 
     private fun startTriage() {
         triageInput = TriageInput()
-        triageStep = TriageStep.WALK
+        triageStep = TriageStep.SAFETY_CHECK
         promptText = ""
-        messages = messages + Message("assistant", "STARTトリアージを開始します。\n\n${StartRuleEngine.stepQuestions[TriageStep.WALK]!!}", MessageType.TRIAGE)
+        messages = messages + Message("assistant", "STARTトリアージを開始します。\n\n${StartRuleEngine.stepQuestions[TriageStep.SAFETY_CHECK]!!}", MessageType.TRIAGE)
     }
 
     private fun handleTriageResponse() {
@@ -64,6 +64,18 @@ class MainActivity : ComponentActivity() {
 
         if (answer == null) {
             messages = messages + Message("assistant", "「はい」か「いいえ」でお答えください。\n${StartRuleEngine.stepQuestions[step]!!}", MessageType.TRIAGE)
+            return
+        }
+
+        // 安全確認: いいえ → 避難を促しトリアージ中断
+        if (step == TriageStep.SAFETY_CHECK) {
+            if (answer == false) {
+                triageStep = null
+                messages = messages + Message("assistant", "周囲が危険です。まず自身の安全を確保し、速やかに避難してください。他の人の救助はご自身が安全な場所へ移動した後に行ってください。", MessageType.TRIAGE)
+            } else {
+                triageStep = TriageStep.WALK
+                messages = messages + Message("assistant", StartRuleEngine.stepQuestions[TriageStep.WALK]!!, MessageType.TRIAGE)
+            }
             return
         }
 
@@ -117,9 +129,12 @@ class MainActivity : ComponentActivity() {
                     "\n\n[補足知識]\n" + retrievedChunks.joinToString("\n") { "・${it.title}: ${it.text}" }
                 } else ""
 
-                val safetyFirstText = actionPlan.safetyFirst
-                    .mapIndexed { i, item -> "${i + 1}. $item" }
-                    .joinToString("\n")
+                val safetySection = if (actionPlan.safetyFirst.isNotEmpty()) {
+                    val text = actionPlan.safetyFirst
+                        .mapIndexed { i, item -> "${i + 1}. $item" }
+                        .joinToString("\n")
+                    "\n[傷病者の状態確認（必ず最初に説明すること）]\n$text\n"
+                } else ""
 
                 val actionOffset = actionPlan.safetyFirst.size
                 val actionListText = actionPlan.actions
@@ -147,10 +162,7 @@ class MainActivity : ComponentActivity() {
                 val userPrompt = """
 以下の内容を、一般市民向けに、短く・落ち着いた口調で番号付きリストとして説明してください。
 [補足知識]がある場合は、説明の言葉選びの参考にしてください。リスト以外の内容は追加しないでください。
-
-[安全確認（必ず最初に説明すること）]
-$safetyFirstText
-
+$safetySection
 [行動リスト]
 $actionListText
 $forbiddenText

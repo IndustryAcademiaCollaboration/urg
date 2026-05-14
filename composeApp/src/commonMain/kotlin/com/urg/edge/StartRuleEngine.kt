@@ -7,7 +7,7 @@ data class TriageInput(
     val isConscious: Boolean? = null
 )
 
-enum class TriageStep { WALK, BREATHING, CIRCULATION, CONSCIOUSNESS, DONE }
+enum class TriageStep { SAFETY_CHECK, WALK, BREATHING, CIRCULATION, CONSCIOUSNESS, DONE }
 
 enum class TriageResult { MINOR, SEVERE }
 
@@ -20,9 +20,8 @@ data class TriageActionPlan(
 
 object StartRuleEngine {
 
-    // 重症ならば状態に関わらず必ず最初に確認する項目
-    val safetyFirstSevere = listOf(
-        "周囲の安全を確認する",
+    // 重症時に傷病者に対して確認する項目
+    val patientChecksSevere = listOf(
         "呼吸を確認する",
         "意識を確認する"
     )
@@ -35,6 +34,7 @@ object StartRuleEngine {
     )
 
     val stepQuestions = mapOf(
+        TriageStep.SAFETY_CHECK to "【安全確認】周囲は安全ですか？（はい / いいえ）",
         TriageStep.WALK to "【歩行確認】傷病者は自力で歩けますか？（はい / いいえ）",
         TriageStep.BREATHING to "【呼吸確認】呼吸はありますか？（はい / いいえ）",
         TriageStep.CIRCULATION to "【循環確認】脈はありますか？（はい / いいえ）",
@@ -42,6 +42,7 @@ object StartRuleEngine {
     )
 
     fun nextStep(current: TriageStep): TriageStep = when (current) {
+        TriageStep.SAFETY_CHECK -> TriageStep.WALK
         TriageStep.WALK -> TriageStep.BREATHING
         TriageStep.BREATHING -> TriageStep.CIRCULATION
         TriageStep.CIRCULATION -> TriageStep.CONSCIOUSNESS
@@ -60,6 +61,7 @@ object StartRuleEngine {
 
     fun applyAnswer(input: TriageInput, step: TriageStep, answer: Boolean): TriageInput =
         when (step) {
+            TriageStep.SAFETY_CHECK -> input
             TriageStep.WALK -> input.copy(canWalk = answer)
             TriageStep.BREATHING -> input.copy(isBreathing = answer)
             TriageStep.CIRCULATION -> input.copy(hasCirculation = answer)
@@ -81,7 +83,7 @@ object StartRuleEngine {
         if (result == TriageResult.MINOR) {
             return TriageActionPlan(
                 destination = "救護所（自力で移動）",
-                safetyFirst = listOf("周囲の安全を確認する"),
+                safetyFirst = emptyList(),
                 actions = listOf(
                     "傷や出血がある場合は清潔な布で押さえる",
                     "救護所へ自力で向かう"
@@ -124,7 +126,7 @@ object StartRuleEngine {
 
         return TriageActionPlan(
             destination = "病院（周囲の人が運ぶ）",
-            safetyFirst = safetyFirstSevere,
+            safetyFirst = patientChecksSevere,
             actions = actions,
             forbiddenActions = forbidden
         )
