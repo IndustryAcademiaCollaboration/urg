@@ -143,9 +143,6 @@ class MainActivity : ComponentActivity() {
 以下の内容を、一般市民向けに、短く・落ち着いた口調で番号付きリストとして説明してください。
 [補足知識]がある場合は、説明の言葉選びの参考にしてください。リスト以外の内容は追加しないでください。
 
-[搬送方針]
-${actionPlan.destination}
-
 [安全確認（必ず最初に説明すること）]
 $safetyFirstText
 
