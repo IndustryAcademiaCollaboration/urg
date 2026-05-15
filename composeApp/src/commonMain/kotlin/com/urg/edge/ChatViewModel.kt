@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.urg.edge.llm.LlmConfig
 import com.urg.edge.llm.LlmEngine
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -11,23 +12,19 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
-class ChatViewModel : ViewModel() {
+class ChatViewModel(
+    private val ioDispatcher: CoroutineDispatcher
+) : ViewModel() {
+
+    @Suppress("unused")
+    constructor() : this(Dispatchers.Default)
 
     private var llmEngine: LlmEngine? = null
     private var retriever: KnowledgeRetriever? = null
     private var config: LlmConfig = LlmConfig()
 
-    private val _messages = MutableStateFlow<List<Message>>(emptyList())
-    val messages: StateFlow<List<Message>> = _messages.asStateFlow()
-
-    private val _isLoading = MutableStateFlow(false)
-    val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
-
-    private val _streamingText = MutableStateFlow("")
-    val streamingText: StateFlow<String> = _streamingText.asStateFlow()
-
-    private val _promptText = MutableStateFlow("")
-    val promptText: StateFlow<String> = _promptText.asStateFlow()
+    private val _uiState = MutableStateFlow(ChatUiState())
+    val uiState: StateFlow<ChatUiState> = _uiState.asStateFlow()
 
     private val triageController = TriageController()
 
@@ -41,23 +38,25 @@ class ChatViewModel : ViewModel() {
         appendMessage(Message("assistant", text, MessageType.SYSTEM))
     }
 
-    fun updatePrompt(text: String) { _promptText.value = text }
+    fun updatePrompt(text: String) {
+        _uiState.update { it.copy(promptText = text) }
+    }
 
     fun onSendClick() {
         if (triageController.isActive) handleTriageResponse() else generateResponse()
     }
 
     fun startTriage() {
-        _promptText.value = ""
+        _uiState.update { it.copy(promptText = "") }
         appendMessage(Message("assistant", triageController.start(), MessageType.TRIAGE))
     }
 
     private fun handleTriageResponse() {
-        val text = _promptText.value.trim()
+        val text = _uiState.value.promptText.trim()
         if (text.isBlank()) return
 
         appendMessage(Message("user", text, MessageType.TRIAGE))
-        _promptText.value = ""
+        _uiState.update { it.copy(promptText = "") }
 
         when (val result = triageController.handleAnswer(text)) {
             is TriageHandleResult.Ignored -> Unit
@@ -74,9 +73,9 @@ class ChatViewModel : ViewModel() {
     private fun generateTriageGuidance(actionPlan: TriageActionPlan) {
         val engine = llmEngine ?: return
         val r = retriever ?: return
-        _isLoading.value = true
+        _uiState.update { it.copy(isLoading = true) }
 
-        viewModelScope.launch(Dispatchers.Default) {
+        viewModelScope.launch(ioDispatcher) {
             try {
                 val chunks = r.retrieve(actionPlan.actions.joinToString(" "), topK = 2)
                 val supplementText = if (chunks.isNotEmpty()) {
@@ -90,45 +89,43 @@ class ChatViewModel : ViewModel() {
 
                 engine.generateStream(prompt) { partial, done ->
                     accumulated.append(partial)
-                    _streamingText.value = accumulated.toString()
+                    _uiState.update { it.copy(streamingText = accumulated.toString()) }
                     if (done) {
                         appendMessage(Message("assistant", accumulated.toString()))
-                        _streamingText.value = ""
-                        _isLoading.value = false
+                        _uiState.update { it.copy(streamingText = "", isLoading = false) }
                     }
                 }
             } catch (e: Exception) {
-                _isLoading.value = false
+                _uiState.update { it.copy(isLoading = false) }
             }
         }
     }
 
     private fun generateResponse() {
-        val text = _promptText.value.trim()
-        if (text.isBlank() || _isLoading.value) return
+        val text = _uiState.value.promptText.trim()
+        if (text.isBlank() || _uiState.value.isLoading) return
 
         val engine = llmEngine ?: run {
-            appendMessage(Message("assistant", "ERROR: LLM is not initialized", MessageType.SYSTEM))
+            addSystemMessage(Strings.ERROR_LLM_NOT_INITIALIZED)
             return
         }
         val r = retriever ?: run {
-            appendMessage(Message("assistant", "知識ベースの初期化中です。しばらくお待ちください。", MessageType.SYSTEM))
+            addSystemMessage(Strings.RETRIEVER_INITIALIZING)
             return
         }
 
         appendMessage(Message("user", text))
-        _promptText.value = ""
-        _isLoading.value = true
+        _uiState.update { it.copy(promptText = "", isLoading = true) }
 
-        val currentMessages = _messages.value.filter { it.type == MessageType.CHAT }.takeLast(8)
+        val currentMessages = _uiState.value.messages.filter { it.type == MessageType.CHAT }.takeLast(8)
 
-        viewModelScope.launch(Dispatchers.Default) {
+        viewModelScope.launch(ioDispatcher) {
             try {
-                val chunks = r.retrieve(currentMessages.last().text, topK = 3)
+                val chunks = r.retrieve(text, topK = 3)
 
                 if (chunks.isEmpty()) {
-                    appendMessage(Message("assistant", "申し訳ありませんが、その状況に関する情報を持ち合わせていません。近くの救護所または避難所でご確認ください。"))
-                    _isLoading.value = false
+                    appendMessage(Message("assistant", Strings.NO_RELEVANT_INFO))
+                    _uiState.update { it.copy(isLoading = false) }
                     return@launch
                 }
 
@@ -141,16 +138,15 @@ class ChatViewModel : ViewModel() {
                 val accumulated = StringBuilder()
                 engine.generateStream(prompt) { partial, done ->
                     accumulated.append(partial)
-                    _streamingText.value = accumulated.toString()
+                    _uiState.update { it.copy(streamingText = accumulated.toString()) }
                     if (done) {
                         appendMessage(Message("assistant", accumulated.toString()))
-                        _streamingText.value = ""
-                        _isLoading.value = false
+                        _uiState.update { it.copy(streamingText = "", isLoading = false) }
                     }
                 }
             } catch (e: Exception) {
-                appendMessage(Message("assistant", "ERROR: ${e.message}", MessageType.SYSTEM))
-                _isLoading.value = false
+                appendMessage(Message("assistant", "${Strings.ERROR_PREFIX}${e.message}", MessageType.SYSTEM))
+                _uiState.update { it.copy(isLoading = false) }
             }
         }
     }
@@ -164,7 +160,7 @@ class ChatViewModel : ViewModel() {
     }
 
     private fun appendMessage(message: Message) {
-        _messages.update { it + message }
+        _uiState.update { it.copy(messages = it.messages + message) }
     }
 
     override fun onCleared() {

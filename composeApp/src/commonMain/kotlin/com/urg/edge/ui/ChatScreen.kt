@@ -1,0 +1,40 @@
+package com.urg.edge.ui
+
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
+import com.urg.edge.ChatUiState
+import com.urg.edge.Strings
+
+@Composable
+fun ChatScreen(
+    uiState: ChatUiState,
+    onPromptChange: (String) -> Unit,
+    onSendClick: () -> Unit,
+    onTriageClick: () -> Unit
+) {
+    Column(
+        modifier = Modifier.fillMaxSize().padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Text(text = Strings.APP_TITLE)
+
+        MessageList(
+            messages = uiState.messages,
+            streamingText = uiState.streamingText,
+            modifier = Modifier.weight(1f)
+        )
+
+        if (uiState.isLoading && uiState.streamingText.isEmpty()) {
+            Text(Strings.LOADING_LABEL)
+        }
+
+        PromptInput(value = uiState.promptText, onValueChange = onPromptChange)
+        ActionButtons(onTriageClick = onTriageClick, onSendClick = onSendClick)
+    }
+}
