@@ -15,33 +15,28 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 @Composable
-fun App(
-    prompt: String,
-    messages: List<Message>,
-    isLoading: Boolean,
-    streamingText: String,
-    onPromptChange: (String) -> Unit,
-    onSendClick: () -> Unit,
-    onTriageClick: () -> Unit
-) {
+fun App(viewModel: ChatViewModel) {
+    val messages by viewModel.messages.collectAsStateWithLifecycle()
+    val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
+    val streamingText by viewModel.streamingText.collectAsStateWithLifecycle()
+    val promptText by viewModel.promptText.collectAsStateWithLifecycle()
+
     val listState = rememberLazyListState()
 
     LaunchedEffect(messages.size, streamingText.isNotEmpty()) {
         val total = messages.size + if (streamingText.isNotEmpty()) 1 else 0
-        if (total > 0) {
-            listState.animateScrollToItem(total - 1)
-        }
+        if (total > 0) listState.animateScrollToItem(total - 1)
     }
 
     MaterialTheme {
         Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(16.dp),
+            modifier = Modifier.fillMaxSize().padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             Text(text = "Local LLM Demo")
@@ -54,25 +49,15 @@ fun App(
                 items(messages) { message ->
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = if (message.role == "user")
-                            Arrangement.End else Arrangement.Start
+                        horizontalArrangement = if (message.role == "user") Arrangement.End else Arrangement.Start
                     ) {
-                        Text(
-                            text = message.text,
-                            modifier = Modifier.padding(8.dp)
-                        )
+                        Text(text = message.text, modifier = Modifier.padding(8.dp))
                     }
                 }
                 if (streamingText.isNotEmpty()) {
                     item {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.Start
-                        ) {
-                            Text(
-                                text = streamingText,
-                                modifier = Modifier.padding(8.dp)
-                            )
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Start) {
+                            Text(text = streamingText, modifier = Modifier.padding(8.dp))
                         }
                     }
                 }
@@ -83,8 +68,8 @@ fun App(
             }
 
             OutlinedTextField(
-                value = prompt,
-                onValueChange = onPromptChange,
+                value = promptText,
+                onValueChange = { viewModel.updatePrompt(it) },
                 modifier = Modifier.fillMaxWidth(),
                 label = { Text("Prompt") }
             )
@@ -93,16 +78,10 @@ fun App(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Button(
-                    onClick = onTriageClick,
-                    modifier = Modifier.weight(1f)
-                ) {
+                Button(onClick = { viewModel.startTriage() }, modifier = Modifier.weight(1f)) {
                     Text("トリアージ開始")
                 }
-                Button(
-                    onClick = onSendClick,
-                    modifier = Modifier.weight(1f)
-                ) {
+                Button(onClick = { viewModel.onSendClick() }, modifier = Modifier.weight(1f)) {
                     Text("送信")
                 }
             }

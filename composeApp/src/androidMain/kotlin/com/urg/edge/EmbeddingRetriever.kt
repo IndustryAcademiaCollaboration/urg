@@ -13,7 +13,7 @@ import kotlin.math.sqrt
 class EmbeddingRetriever(
     context: Context,
     private val chunks: List<KnowledgeChunk>
-) : AutoCloseable {
+) : KnowledgeRetriever, AutoCloseable {
 
     private val env: OrtEnvironment = OrtEnvironment.getEnvironment()
     private val session: OrtSession
@@ -48,7 +48,7 @@ class EmbeddingRetriever(
         Log.d("EMBEDDING_INIT", "chunk embeddings computed: ${chunks.size} chunks")
     }
 
-    fun retrieve(query: String, topK: Int = 3): List<KnowledgeChunk> {
+    override fun retrieve(query: String, topK: Int): List<KnowledgeChunk> {
         val queryEmbedding = embed("query: $query")
         return chunks
             .mapIndexed { i, chunk ->
@@ -113,6 +113,7 @@ class EmbeddingRetriever(
 
     override fun close() {
         session.close()
+        env.close()
         tokenizer.close()
     }
 }
