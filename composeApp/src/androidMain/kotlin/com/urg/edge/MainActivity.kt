@@ -35,7 +35,7 @@ class MainActivity : ComponentActivity() {
             chatViewModel.setLlmEngine(createLlmEngine(this, config), config)
             Log.d("LLM_INIT", "SUCCESS")
         } catch (e: Exception) {
-            chatViewModel.addSystemMessage("ERROR: LLM initialization failed: ${e.message}")
+            chatViewModel.addSystemMessage("${Strings.INIT_LLM_ERROR_PREFIX}${e.message}")
             Log.e("LLM_INIT", "FAILED", e)
         }
     }
@@ -45,17 +45,17 @@ class MainActivity : ComponentActivity() {
             try {
                 val chunks = KnowledgeLoader.load(assets)
                 withContext(Dispatchers.Main) {
-                    chatViewModel.addSystemMessage("[初期化] 知識ベース読み込み完了 (${chunks.size} chunks)")
+                    chatViewModel.addSystemMessage(Strings.knowledgeBaseLoaded(chunks.size))
                 }
                 val retriever = EmbeddingRetriever(this@MainActivity, chunks)
                 chatViewModel.setRetriever(retriever)
                 withContext(Dispatchers.Main) {
-                    chatViewModel.addSystemMessage("[初期化] 準備完了")
+                    chatViewModel.addSystemMessage(Strings.INIT_COMPLETE)
                 }
                 Log.d("EMBEDDING_INIT", "SUCCESS")
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
-                    chatViewModel.addSystemMessage("[初期化エラー] ${e::class.simpleName}: ${e.message}")
+                    chatViewModel.addSystemMessage("${Strings.INIT_ERROR_PREFIX}${e::class.simpleName}: ${e.message}")
                 }
                 Log.e("EMBEDDING_INIT", "FAILED", e)
             }

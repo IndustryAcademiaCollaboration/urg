@@ -11,4 +11,10 @@ object Strings {
     const val PROMPT_LABEL = "Prompt"
     const val BUTTON_TRIAGE = "トリアージ開始"
     const val BUTTON_SEND = "送信"
+
+    const val INIT_LLM_ERROR_PREFIX = "ERROR: LLM initialization failed: "
+    const val INIT_COMPLETE = "[初期化] 準備完了"
+    const val INIT_ERROR_PREFIX = "[初期化エラー] "
+
+    fun knowledgeBaseLoaded(count: Int): String = "[初期化] 知識ベース読み込み完了 ($count chunks)"
 }
