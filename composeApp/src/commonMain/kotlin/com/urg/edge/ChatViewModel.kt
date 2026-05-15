@@ -1,0 +1,171 @@
+package com.urg.edge
+
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.urg.edge.llm.LlmConfig
+import com.urg.edge.llm.LlmEngine
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
+
+class ChatViewModel(
+    private val ioDispatcher: CoroutineDispatcher
+) : ViewModel() {
+
+    @Suppress("unused")
+    constructor() : this(Dispatchers.Default)
+
+    private var llmEngine: LlmEngine? = null
+    private var retriever: KnowledgeRetriever? = null
+    private var config: LlmConfig = LlmConfig()
+
+    private val _uiState = MutableStateFlow(ChatUiState())
+    val uiState: StateFlow<ChatUiState> = _uiState.asStateFlow()
+
+    private val triageController = TriageController()
+
+    fun setLlmEngine(engine: LlmEngine, config: LlmConfig) {
+        llmEngine = engine
+        this.config = config
+    }
+    fun setRetriever(r: KnowledgeRetriever) { retriever = r }
+
+    fun addSystemMessage(text: String) {
+        appendMessage(Message("assistant", text, MessageType.SYSTEM))
+    }
+
+    fun updatePrompt(text: String) {
+        _uiState.update { it.copy(promptText = text) }
+    }
+
+    fun onSendClick() {
+        if (triageController.isActive) handleTriageResponse() else generateResponse()
+    }
+
+    fun startTriage() {
+        _uiState.update { it.copy(promptText = "") }
+        appendMessage(Message("assistant", triageController.start(), MessageType.TRIAGE))
+    }
+
+    private fun handleTriageResponse() {
+        val text = _uiState.value.promptText.trim()
+        if (text.isBlank()) return
+
+        appendMessage(Message("user", text, MessageType.TRIAGE))
+        _uiState.update { it.copy(promptText = "") }
+
+        when (val result = triageController.handleAnswer(text)) {
+            is TriageHandleResult.Ignored -> Unit
+            is TriageHandleResult.InvalidAnswer -> appendMessage(Message("assistant", result.message, MessageType.TRIAGE))
+            is TriageHandleResult.SafetyFailed -> appendMessage(Message("assistant", result.message, MessageType.TRIAGE))
+            is TriageHandleResult.NextQuestion -> appendMessage(Message("assistant", result.question, MessageType.TRIAGE))
+            is TriageHandleResult.Done -> {
+                appendMessage(Message("assistant", result.guidanceMessage, MessageType.TRIAGE))
+                generateTriageGuidance(result.actionPlan)
+            }
+        }
+    }
+
+    private fun generateTriageGuidance(actionPlan: TriageActionPlan) {
+        val engine = llmEngine ?: return
+        val r = retriever ?: return
+        _uiState.update { it.copy(isLoading = true) }
+
+        viewModelScope.launch(ioDispatcher) {
+            try {
+                val chunks = r.retrieve(actionPlan.actions.joinToString(" "), topK = 2)
+                val supplementText = if (chunks.isNotEmpty()) {
+                    "\n\n[補足知識]\n" + chunks.joinToString("\n") { "・${it.title}: ${it.text}" }
+                } else ""
+
+                val systemPrompt = PromptBuilder.buildTriageSystemPrompt()
+                val userPrompt = PromptBuilder.buildTriageUserPrompt(actionPlan, supplementText)
+                val prompt = config.chatTemplate.formatSinglePrompt(systemPrompt, userPrompt)
+                val accumulated = StringBuilder()
+
+                engine.generateStream(prompt) { partial, done ->
+                    accumulated.append(partial)
+                    _uiState.update { it.copy(streamingText = accumulated.toString()) }
+                    if (done) {
+                        appendMessage(Message("assistant", accumulated.toString()))
+                        _uiState.update { it.copy(streamingText = "", isLoading = false) }
+                    }
+                }
+            } catch (e: Exception) {
+                _uiState.update { it.copy(isLoading = false) }
+            }
+        }
+    }
+
+    private fun generateResponse() {
+        val text = _uiState.value.promptText.trim()
+        if (text.isBlank() || _uiState.value.isLoading) return
+
+        val engine = llmEngine ?: run {
+            addSystemMessage(Strings.ERROR_LLM_NOT_INITIALIZED)
+            return
+        }
+        val r = retriever ?: run {
+            addSystemMessage(Strings.RETRIEVER_INITIALIZING)
+            return
+        }
+
+        appendMessage(Message("user", text))
+        _uiState.update { it.copy(promptText = "", isLoading = true) }
+
+        val currentMessages = _uiState.value.messages.filter { it.type == MessageType.CHAT }.takeLast(8)
+
+        viewModelScope.launch(ioDispatcher) {
+            try {
+                val chunks = r.retrieve(text, topK = 3)
+
+                if (chunks.isEmpty()) {
+                    appendMessage(Message("assistant", Strings.NO_RELEVANT_INFO))
+                    _uiState.update { it.copy(isLoading = false) }
+                    return@launch
+                }
+
+                val ragSection = "\n\n[参考情報]\n" + chunks.joinToString("\n") { "・${it.title}: ${it.text}" }
+                val forbiddenList = StartRuleEngine.globalForbiddenSevere.joinToString("\n") { "- $it" }
+                val triageContext = buildTriageContext()
+                val systemPrompt = PromptBuilder.buildChatSystemPrompt(ragSection, forbiddenList, triageContext)
+                val prompt = config.chatTemplate.formatChatPrompt(systemPrompt, currentMessages)
+
+                val accumulated = StringBuilder()
+                engine.generateStream(prompt) { partial, done ->
+                    accumulated.append(partial)
+                    _uiState.update { it.copy(streamingText = accumulated.toString()) }
+                    if (done) {
+                        appendMessage(Message("assistant", accumulated.toString()))
+                        _uiState.update { it.copy(streamingText = "", isLoading = false) }
+                    }
+                }
+            } catch (e: Exception) {
+                appendMessage(Message("assistant", "${Strings.ERROR_PREFIX}${e.message}", MessageType.SYSTEM))
+                _uiState.update { it.copy(isLoading = false) }
+            }
+        }
+    }
+
+    private fun buildTriageContext(): String {
+        val result = triageController.lastResult ?: return ""
+        val plan = triageController.lastActionPlan ?: return ""
+        val label = if (result == TriageResult.MINOR) "軽症" else "重症"
+        val actions = (plan.safetyFirst + plan.actions).joinToString("、")
+        return "\n\n[トリアージ済み情報]\n判定：$label\n搬送先：${plan.destination}\n確認済み行動：$actions"
+    }
+
+    private fun appendMessage(message: Message) {
+        _uiState.update { it.copy(messages = it.messages + message) }
+    }
+
+    override fun onCleared() {
+        llmEngine?.close()
+        retriever?.close()
+        super.onCleared()
+    }
+}
