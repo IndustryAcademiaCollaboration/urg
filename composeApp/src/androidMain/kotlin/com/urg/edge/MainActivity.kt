@@ -8,7 +8,6 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
 import androidx.lifecycle.lifecycleScope
 import com.urg.edge.llm.LlmConfig
-import com.urg.edge.llm.PlatformContext
 import com.urg.edge.llm.createLlmEngine
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -33,7 +32,7 @@ class MainActivity : ComponentActivity() {
     private fun initLlmEngine() {
         try {
             val config = LlmConfig()
-            chatViewModel.setLlmEngine(createLlmEngine(PlatformContext(this), config), config)
+            chatViewModel.setLlmEngine(createLlmEngine(this, config), config)
             Log.d("LLM_INIT", "SUCCESS")
         } catch (e: Exception) {
             chatViewModel.addSystemMessage("ERROR: LLM initialization failed: ${e.message}")
