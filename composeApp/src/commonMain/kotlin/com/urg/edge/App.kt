@@ -23,15 +23,17 @@ fun App(
     prompt: String,
     messages: List<Message>,
     isLoading: Boolean,
+    streamingText: String,
     onPromptChange: (String) -> Unit,
     onSendClick: () -> Unit,
     onTriageClick: () -> Unit
 ) {
     val listState = rememberLazyListState()
 
-    LaunchedEffect(messages.size) {
-        if (messages.isNotEmpty()) {
-            listState.animateScrollToItem(messages.size - 1)
+    LaunchedEffect(messages.size, streamingText.isNotEmpty()) {
+        val total = messages.size + if (streamingText.isNotEmpty()) 1 else 0
+        if (total > 0) {
+            listState.animateScrollToItem(total - 1)
         }
     }
 
@@ -61,9 +63,22 @@ fun App(
                         )
                     }
                 }
+                if (streamingText.isNotEmpty()) {
+                    item {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.Start
+                        ) {
+                            Text(
+                                text = streamingText,
+                                modifier = Modifier.padding(8.dp)
+                            )
+                        }
+                    }
+                }
             }
 
-            if (isLoading) {
+            if (isLoading && streamingText.isEmpty()) {
                 Text("Loading...")
             }
 
