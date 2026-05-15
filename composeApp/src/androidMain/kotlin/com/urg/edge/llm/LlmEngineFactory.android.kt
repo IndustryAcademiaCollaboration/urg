@@ -3,15 +3,16 @@ package com.urg.edge.llm
 import android.content.Context
 import java.io.File
 
-actual typealias PlatformContext = Context
+actual class PlatformContext(internal val context: Context)
 
 actual fun createLlmEngine(context: PlatformContext, config: LlmConfig): LlmEngine {
-    val modelFile = File(context.filesDir, config.modelFileName).also { file ->
+    val androidContext = context.context
+    val modelFile = File(androidContext.filesDir, config.modelFileName).also { file ->
         if (!file.exists()) {
-            context.assets.open("models/${config.modelFileName}").use { input ->
+            androidContext.assets.open("models/${config.modelFileName}").use { input ->
                 file.outputStream().use { output -> input.copyTo(output) }
             }
         }
     }
-    return MediaPipeLlmEngine(context, modelFile.absolutePath, config)
+    return MediaPipeLlmEngine(androidContext, modelFile.absolutePath, config)
 }
