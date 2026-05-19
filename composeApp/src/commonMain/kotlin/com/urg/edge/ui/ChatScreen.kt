@@ -2,10 +2,15 @@ package com.urg.edge.ui
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.urg.edge.ChatUiState
@@ -19,12 +24,22 @@ fun ChatScreen(
     onTriageClick: () -> Unit,
     onMicStart: () -> Unit,
     onMicStop: () -> Unit,
+    onTestWavRecognize: () -> Unit,
 ) {
     Column(
-        modifier = Modifier.fillMaxSize().padding(16.dp),
+        modifier = Modifier.fillMaxSize().statusBarsPadding().padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        Text(text = Strings.APP_TITLE)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(text = Strings.APP_TITLE)
+            OutlinedButton(onClick = onTestWavRecognize) {
+                Text(Strings.BUTTON_TEST_WAV)
+            }
+        }
 
         MessageList(
             messages = uiState.messages,

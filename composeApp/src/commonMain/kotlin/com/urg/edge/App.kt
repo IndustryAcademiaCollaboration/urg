@@ -11,6 +11,7 @@ fun App(
     viewModel: ChatViewModel,
     onMicStart: () -> Unit,
     onMicStop: () -> Unit,
+    onTestWavRecognize: () -> Unit,
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
@@ -22,6 +23,7 @@ fun App(
             onTriageClick = viewModel::startTriage,
             onMicStart = onMicStart,
             onMicStop = onMicStop,
+            onTestWavRecognize = onTestWavRecognize,
         )
     }
 }

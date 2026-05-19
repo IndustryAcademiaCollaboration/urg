@@ -13,6 +13,8 @@ object Strings {
     const val BUTTON_SEND = "送信"
     const val BUTTON_MIC = "音声入力"
     const val BUTTON_MIC_LISTENING = "録音中..."
+    const val BUTTON_TEST_WAV = "テストWAV認識"
+    const val ERROR_TEST_WAV_PREFIX = "テスト認識エラー: "
     const val LISTENING_LABEL = "音声入力中..."
 
     const val INIT_LLM_ERROR_PREFIX = "ERROR: LLM initialization failed: "

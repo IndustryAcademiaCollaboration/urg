@@ -15,6 +15,7 @@ import com.urg.edge.llm.LlmConfig
 import com.urg.edge.llm.createLlmEngine
 import com.urg.edge.stt.AudioRecorder
 import com.urg.edge.stt.SttConfig
+import com.urg.edge.stt.WavLoader
 import com.urg.edge.stt.createSttEngine
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -47,7 +48,23 @@ class MainActivity : ComponentActivity() {
                 viewModel = chatViewModel,
                 onMicStart = ::handleMicStart,
                 onMicStop = ::handleMicStop,
+                onTestWavRecognize = ::handleTestWavRecognize,
             )
+        }
+    }
+
+    private fun handleTestWavRecognize() {
+        lifecycleScope.launch(Dispatchers.IO) {
+            try {
+                val samples = WavLoader.loadFromAssets(assets, "test_wavs/1.wav")
+                withContext(Dispatchers.Main) {
+                    chatViewModel.recognizeFromSamples(samples)
+                }
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    chatViewModel.addSystemMessage("${Strings.ERROR_TEST_WAV_PREFIX}${e.message}")
+                }
+            }
         }
     }
 
