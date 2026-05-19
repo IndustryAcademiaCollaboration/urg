@@ -26,7 +26,7 @@ class AudioRecorder(
 
         val record = try {
             AudioRecord(
-                MediaRecorder.AudioSource.MIC,
+                MediaRecorder.AudioSource.VOICE_RECOGNITION,
                 sampleRate,
                 AudioFormat.CHANNEL_IN_MONO,
                 AudioFormat.ENCODING_PCM_16BIT,
@@ -78,12 +78,22 @@ class AudioRecorder(
         val total = collected.sumOf { it.size }
         val samples = FloatArray(total)
         var idx = 0
+        var maxAbs = 0f
+        var sumAbs = 0f
         collected.forEach { chunk ->
             for (s in chunk) {
-                samples[idx++] = s / 32768.0f
+                val v = s / 32768.0f
+                samples[idx++] = v
+                val a = if (v < 0f) -v else v
+                if (a > maxAbs) maxAbs = a
+                sumAbs += a
             }
         }
-        Log.d("AudioRecorder", "stop: chunks=${collected.size}, samples=$total, durationMs=${total * 1000 / sampleRate}")
+        val meanAbs = if (total > 0) sumAbs / total else 0f
+        Log.d(
+            "AudioRecorder",
+            "stop: chunks=${collected.size}, samples=$total, durationMs=${total * 1000 / sampleRate}, maxAbs=$maxAbs, meanAbs=$meanAbs"
+        )
         return samples
     }
 }
