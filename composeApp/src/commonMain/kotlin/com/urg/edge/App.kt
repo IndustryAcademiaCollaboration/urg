@@ -7,7 +7,11 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.urg.edge.ui.ChatScreen
 
 @Composable
-fun App(viewModel: ChatViewModel) {
+fun App(
+    viewModel: ChatViewModel,
+    onMicStart: () -> Unit,
+    onMicStop: () -> Unit,
+) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
     MaterialTheme {
@@ -15,7 +19,9 @@ fun App(viewModel: ChatViewModel) {
             uiState = uiState,
             onPromptChange = viewModel::updatePrompt,
             onSendClick = viewModel::onSendClick,
-            onTriageClick = viewModel::startTriage
+            onTriageClick = viewModel::startTriage,
+            onMicStart = onMicStart,
+            onMicStop = onMicStop,
         )
     }
 }

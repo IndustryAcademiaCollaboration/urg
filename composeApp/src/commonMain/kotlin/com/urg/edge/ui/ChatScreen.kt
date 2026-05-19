@@ -16,7 +16,9 @@ fun ChatScreen(
     uiState: ChatUiState,
     onPromptChange: (String) -> Unit,
     onSendClick: () -> Unit,
-    onTriageClick: () -> Unit
+    onTriageClick: () -> Unit,
+    onMicStart: () -> Unit,
+    onMicStop: () -> Unit,
 ) {
     Column(
         modifier = Modifier.fillMaxSize().padding(16.dp),
@@ -33,8 +35,17 @@ fun ChatScreen(
         if (uiState.isLoading && uiState.streamingText.isEmpty()) {
             Text(Strings.LOADING_LABEL)
         }
+        if (uiState.isListening) {
+            Text(Strings.LISTENING_LABEL)
+        }
 
         PromptInput(value = uiState.promptText, onValueChange = onPromptChange)
-        ActionButtons(onTriageClick = onTriageClick, onSendClick = onSendClick)
+        ActionButtons(
+            isListening = uiState.isListening,
+            onTriageClick = onTriageClick,
+            onMicStart = onMicStart,
+            onMicStop = onMicStop,
+            onSendClick = onSendClick,
+        )
     }
 }

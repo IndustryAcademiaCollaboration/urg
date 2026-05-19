@@ -45,6 +45,7 @@ class AudioRecorder(
         audioRecord = record
         isRecording = true
         record.startRecording()
+        Log.d("AudioRecorder", "start: sampleRate=$sampleRate, minBuf=$minBufferSize")
 
         recordingThread = thread(name = "AudioRecorder", isDaemon = true) {
             val readBuf = ShortArray(512)
@@ -82,6 +83,7 @@ class AudioRecorder(
                 samples[idx++] = s / 32768.0f
             }
         }
+        Log.d("AudioRecorder", "stop: chunks=${collected.size}, samples=$total, durationMs=${total * 1000 / sampleRate}")
         return samples
     }
 }

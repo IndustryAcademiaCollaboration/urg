@@ -8,6 +8,15 @@ import com.k2fsa.sherpa.onnx.OfflineRecognizerConfig
 import com.k2fsa.sherpa.onnx.OfflineTransducerModelConfig
 
 fun createSttEngine(context: Context, config: SttConfig = SttConfig()): SttEngine {
+    val required = listOf(config.encoderFile, config.decoderFile, config.joinerFile, config.tokensFile)
+    val available = runCatching { context.assets.list(config.modelDir) }.getOrNull()?.toSet().orEmpty()
+    val missing = required.filterNot { it in available }
+    if (missing.isNotEmpty()) {
+        throw IllegalStateException(
+            "STTモデルファイルが assets/${config.modelDir}/ に見つかりません: ${missing.joinToString(", ")}"
+        )
+    }
+
     val modelConfig = OfflineModelConfig(
         transducer = OfflineTransducerModelConfig(
             encoder = "${config.modelDir}/${config.encoderFile}",
