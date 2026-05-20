@@ -11,7 +11,7 @@ fun App(
     viewModel: ChatViewModel,
     onMicStart: () -> Unit,
     onMicStop: () -> Unit,
-    onTestWavRecognize: () -> Unit,
+    onTestWavRecognize: (String) -> Unit,
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 

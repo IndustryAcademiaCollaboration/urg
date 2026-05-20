@@ -53,10 +53,10 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    private fun handleTestWavRecognize() {
+    private fun handleTestWavRecognize(path: String) {
         lifecycleScope.launch(Dispatchers.IO) {
             try {
-                val samples = WavLoader.loadFromAssets(assets, "test_wavs/1.wav")
+                val samples = WavLoader.loadFromAssets(assets, path)
                 withContext(Dispatchers.Main) {
                     chatViewModel.recognizeFromSamples(samples)
                 }

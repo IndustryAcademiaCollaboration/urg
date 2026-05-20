@@ -24,20 +24,22 @@ fun ChatScreen(
     onTriageClick: () -> Unit,
     onMicStart: () -> Unit,
     onMicStop: () -> Unit,
-    onTestWavRecognize: () -> Unit,
+    onTestWavRecognize: (String) -> Unit,
 ) {
     Column(
         modifier = Modifier.fillMaxSize().statusBarsPadding().padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
+        Text(text = Strings.APP_TITLE)
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            Text(text = Strings.APP_TITLE)
-            OutlinedButton(onClick = onTestWavRecognize) {
-                Text(Strings.BUTTON_TEST_WAV)
+            OutlinedButton(onClick = { onTestWavRecognize("test_wavs/1.wav") }) {
+                Text(Strings.BUTTON_TEST_WAV_1)
+            }
+            OutlinedButton(onClick = { onTestWavRecognize("test_wavs/2.wav") }) {
+                Text(Strings.BUTTON_TEST_WAV_2)
             }
         }
 
