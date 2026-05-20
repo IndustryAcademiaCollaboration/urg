@@ -19,3 +19,4 @@ captures
 node_modules/
 *.task
 composeApp/src/androidMain/assets/models/
+composeApp/src/androidMain/assets/sherpa-onnx-zipformer-ja-reazonspeech-2024-08-01/

@@ -34,6 +34,7 @@ kotlin {
             implementation("com.microsoft.onnxruntime:onnxruntime-android:1.20.0")
             implementation("ai.djl.huggingface:tokenizers:0.33.0")
             implementation("ai.djl.android:tokenizer-native:0.33.0")
+            implementation(files("libs/sherpa-onnx-static-link-onnxruntime-1.13.2.aar"))
         }
         commonMain.dependencies {
             implementation(libs.compose.runtime)

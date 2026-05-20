@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.urg.edge.llm.LlmConfig
 import com.urg.edge.llm.LlmEngine
+import com.urg.edge.stt.SttEngine
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -21,6 +22,7 @@ class ChatViewModel(
 
     private var llmEngine: LlmEngine? = null
     private var retriever: KnowledgeRetriever? = null
+    private var sttEngine: SttEngine? = null
     private var config: LlmConfig = LlmConfig()
 
     private val _uiState = MutableStateFlow(ChatUiState())
@@ -33,6 +35,33 @@ class ChatViewModel(
         this.config = config
     }
     fun setRetriever(r: KnowledgeRetriever) { retriever = r }
+    fun setSttEngine(engine: SttEngine) { sttEngine = engine }
+
+    fun setListening(listening: Boolean) {
+        _uiState.update { it.copy(isListening = listening) }
+    }
+
+    fun recognizeFromSamples(samples: FloatArray) {
+        val engine = sttEngine ?: run {
+            addSystemMessage(Strings.ERROR_STT_NOT_INITIALIZED)
+            return
+        }
+        println("STT_RECOGNIZE: enter samples=${samples.size}")
+        if (samples.isEmpty()) return
+
+        viewModelScope.launch(ioDispatcher) {
+            try {
+                val text = engine.recognize(samples)
+                println("STT_RECOGNIZE: result text='$text'")
+                if (text.isNotBlank()) {
+                    _uiState.update { it.copy(promptText = text) }
+                }
+            } catch (e: Exception) {
+                println("STT_RECOGNIZE: error ${e::class.simpleName}: ${e.message}")
+                addSystemMessage("${Strings.ERROR_RECOGNITION_FAILED}${e.message}")
+            }
+        }
+    }
 
     fun addSystemMessage(text: String) {
         appendMessage(Message("assistant", text, MessageType.SYSTEM))
@@ -166,6 +195,7 @@ class ChatViewModel(
     override fun onCleared() {
         llmEngine?.close()
         retriever?.close()
+        sttEngine?.close()
         super.onCleared()
     }
 }

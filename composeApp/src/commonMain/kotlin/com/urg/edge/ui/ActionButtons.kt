@@ -11,7 +11,13 @@ import androidx.compose.ui.unit.dp
 import com.urg.edge.Strings
 
 @Composable
-fun ActionButtons(onTriageClick: () -> Unit, onSendClick: () -> Unit) {
+fun ActionButtons(
+    isListening: Boolean,
+    onTriageClick: () -> Unit,
+    onMicStart: () -> Unit,
+    onMicStop: () -> Unit,
+    onSendClick: () -> Unit,
+) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -19,6 +25,12 @@ fun ActionButtons(onTriageClick: () -> Unit, onSendClick: () -> Unit) {
         Button(onClick = onTriageClick, modifier = Modifier.weight(1f)) {
             Text(Strings.BUTTON_TRIAGE)
         }
+        MicButton(
+            isListening = isListening,
+            onMicStart = onMicStart,
+            onMicStop = onMicStop,
+            modifier = Modifier.weight(1f),
+        )
         Button(onClick = onSendClick, modifier = Modifier.weight(1f)) {
             Text(Strings.BUTTON_SEND)
         }
