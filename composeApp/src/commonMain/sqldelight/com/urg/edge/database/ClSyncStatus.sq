@@ -1,0 +1,16 @@
+CREATE TABLE cl_sync_status (
+  session_id TEXT    PRIMARY KEY NOT NULL REFERENCES cl_sessions(id),
+  is_synced  INTEGER NOT NULL DEFAULT 0,
+  synced_at  INTEGER
+);
+
+insert:
+INSERT INTO cl_sync_status (session_id, is_synced) VALUES (?, 0);
+
+markSynced:
+UPDATE cl_sync_status
+SET is_synced = 1, synced_at = ?
+WHERE session_id = ?;
+
+selectUnsynced:
+SELECT * FROM cl_sync_status WHERE is_synced = 0;
