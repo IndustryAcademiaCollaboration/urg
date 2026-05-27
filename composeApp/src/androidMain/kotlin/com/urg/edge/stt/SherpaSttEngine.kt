@@ -9,6 +9,7 @@ class SherpaSttEngine(
 ) : SttEngine {
 
     override fun recognize(samples: FloatArray): String {
+        //マイクからの入力時間が0.125秒未満なら入力扱いしないようにしました。 → 0秒の入力があるとエラーが発生する為
         if (samples.size < sampleRate / 8) {
             Log.d("STT", "audio too short: samples=${samples.size}")
             return ""
