@@ -24,9 +24,10 @@ fun ChatScreen(
     onMicStart: () -> Unit,
     onMicStop: () -> Unit,
     onTestWavRecognize: (String) -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     Column(
-        modifier = Modifier.fillMaxSize().statusBarsPadding().padding(16.dp),
+        modifier = modifier.fillMaxSize().statusBarsPadding().padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         Text(text = Strings.APP_TITLE)
