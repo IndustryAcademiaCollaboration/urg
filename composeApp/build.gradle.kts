@@ -55,6 +55,7 @@ kotlin {
 android {
     namespace = "com.urg.edge"
     compileSdk = libs.versions.android.compileSdk.get().toInt()
+    ndkVersion = "27.0.12077973"
 
     defaultConfig {
         applicationId = "com.urg.edge"
