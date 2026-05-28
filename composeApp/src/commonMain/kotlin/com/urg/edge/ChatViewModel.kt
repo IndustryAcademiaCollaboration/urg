@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.urg.edge.llm.LlmConfig
 import com.urg.edge.llm.LlmEngine
 import com.urg.edge.stt.SttEngine
+import com.urg.edge.tts.TtsEngine
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -23,6 +24,7 @@ class ChatViewModel(
     private var llmEngine: LlmEngine? = null
     private var retriever: KnowledgeRetriever? = null
     private var sttEngine: SttEngine? = null
+    private var ttsEngine: TtsEngine? = null
     private var config: LlmConfig = LlmConfig()
 
     private val _uiState = MutableStateFlow(ChatUiState())
@@ -36,6 +38,7 @@ class ChatViewModel(
     }
     fun setRetriever(r: KnowledgeRetriever) { retriever = r }
     fun setSttEngine(engine: SttEngine) { sttEngine = engine }
+    fun setTtsEngine(engine: TtsEngine) { ttsEngine = engine }
 
     fun setListening(listening: Boolean) {
         _uiState.update { it.copy(isListening = listening) }
@@ -121,6 +124,7 @@ class ChatViewModel(
                     _uiState.update { it.copy(streamingText = accumulated.toString()) }
                     if (done) {
                         appendMessage(Message("assistant", accumulated.toString()))
+                        speak(accumulated.toString())
                         _uiState.update { it.copy(streamingText = "", isLoading = false) }
                     }
                 }
@@ -170,6 +174,7 @@ class ChatViewModel(
                     _uiState.update { it.copy(streamingText = accumulated.toString()) }
                     if (done) {
                         appendMessage(Message("assistant", accumulated.toString()))
+                        speak(accumulated.toString())
                         _uiState.update { it.copy(streamingText = "", isLoading = false) }
                     }
                 }
@@ -188,6 +193,17 @@ class ChatViewModel(
         return "\n\n[トリアージ済み情報]\n判定：$label\n搬送先：${plan.destination}\n確認済み行動：$actions"
     }
 
+    private fun speak(text: String) {
+        val engine = ttsEngine ?: return
+        viewModelScope.launch(ioDispatcher) {
+            try {
+                engine.speak(text)
+            } catch (e: Exception) {
+                println("TTS_SPEAK: error ${e::class.simpleName}: ${e.message}")
+            }
+        }
+    }
+
     private fun appendMessage(message: Message) {
         _uiState.update { it.copy(messages = it.messages + message) }
     }
@@ -196,6 +212,7 @@ class ChatViewModel(
         llmEngine?.close()
         retriever?.close()
         sttEngine?.close()
+        ttsEngine?.close()
         super.onCleared()
     }
 }
