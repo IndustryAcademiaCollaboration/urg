@@ -30,9 +30,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.urg.edge.ui.CalmMode
 import com.urg.edge.ui.ChatScreen
 import com.urg.edge.ui.HomeScreen
 import com.urg.edge.ui.ModeSelect
+import com.urg.edge.ui.Result
 import com.urg.edge.ui.SafetyCheck
 import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.painterResource
@@ -68,6 +70,9 @@ fun App(
     var selectedTab by remember { mutableStateOf(0) }
     var showSafetyCheck by remember { mutableStateOf(false) }
     var showModeSelect by remember { mutableStateOf(false) }
+    var showCalmMode by remember { mutableStateOf(false) }
+    var showResult by remember { mutableStateOf(false) }
+    var calmModeAnswers by remember { mutableStateOf<List<Boolean>>(emptyList()) }
 
     val navItems = listOf(
         NavItem("ホーム",     Res.drawable.ic_home,     Res.drawable.ic_home_selected),
@@ -95,7 +100,13 @@ fun App(
                                 Column(
                                     horizontalAlignment = Alignment.CenterHorizontally,
                                     modifier = Modifier
-                                        .clickable { selectedTab = index }
+                                        .clickable {
+                                            selectedTab = index
+                                            showSafetyCheck = false
+                                            showModeSelect = false
+                                            showCalmMode = false
+                                            showResult = false
+                                        }
                                         .padding(horizontal = 12.dp)
                                 ) {
                                     Icon(
@@ -136,6 +147,33 @@ fun App(
             }
         ) { paddingValues ->
             when {
+                showResult -> Result(
+                    answers = calmModeAnswers,
+                    onBack = {
+                        showResult = false
+                        showCalmMode = true
+                    },
+                    onHome = {
+                        showResult = false
+                        showCalmMode = false
+                        showModeSelect = false
+                        showSafetyCheck = false
+                        selectedTab = 0
+                    },
+                    modifier = Modifier.padding(paddingValues)
+                )
+                showCalmMode -> CalmMode(
+                    onBack = {
+                        showCalmMode = false
+                        showModeSelect = true
+                    },
+                    onComplete = { answers ->
+                        calmModeAnswers = answers
+                        showCalmMode = false
+                        showResult = true
+                    },
+                    modifier = Modifier.padding(paddingValues)
+                )
                 showModeSelect -> ModeSelect(
                     onBack = {
                         showModeSelect = false
@@ -143,9 +181,7 @@ fun App(
                     },
                     onCalmClick = {
                         showModeSelect = false
-                        showSafetyCheck = false
-                        selectedTab = 1
-                        viewModel.startTriage()
+                        showCalmMode = true
                     },
                     onHurryClick = {
                         showModeSelect = false
@@ -156,10 +192,14 @@ fun App(
                     modifier = Modifier.padding(paddingValues)
                 )
                 showSafetyCheck -> SafetyCheck(
-                    onBack = { showSafetyCheck = false },
+                    onBack = {
+                        showSafetyCheck = false
+                        selectedTab = 0
+                    },
                     onSafeClick = {
                         showSafetyCheck = false
                         showModeSelect = true
+                        selectedTab = 1
                     },
                     onDangerClick = {
                         showSafetyCheck = false
