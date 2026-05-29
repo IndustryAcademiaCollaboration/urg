@@ -55,7 +55,7 @@ fun HomeScreen(
             // 「災害発生」ボタン
             Box(
                 modifier = Modifier
-                    .size(220.dp)
+                    .size(250.dp)
                     .clip(CircleShape)
                     .background(DisasterRed)
                     .clickable { onDisasterClick() },
@@ -70,13 +70,13 @@ fun HomeScreen(
                         painter = painterResource(Res.drawable.ic_disaster),
                         contentDescription = "災害発生",
                         tint = Color.Unspecified,
-                        modifier = Modifier.size(80.dp)
+                        modifier = Modifier.size(100.dp)
                     )
-                    Spacer(modifier = Modifier.height(4.dp))
+                    Spacer(modifier = Modifier.height(10.dp))
                     Text(
                         text = "災害発生",
                         color = Color.White,
-                        fontSize = 22.sp,
+                        fontSize = 24.sp,
                         fontWeight = FontWeight.Bold
                     )
                 }

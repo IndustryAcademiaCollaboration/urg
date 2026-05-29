@@ -33,6 +33,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.urg.edge.ui.CalmMode
 import com.urg.edge.ui.ChatScreen
 import com.urg.edge.ui.HomeScreen
+import com.urg.edge.ui.HurryMode
 import com.urg.edge.ui.ModeSelect
 import com.urg.edge.ui.Result
 import com.urg.edge.ui.SafetyCheck
@@ -71,6 +72,7 @@ fun App(
     var showSafetyCheck by remember { mutableStateOf(false) }
     var showModeSelect by remember { mutableStateOf(false) }
     var showCalmMode by remember { mutableStateOf(false) }
+    var showHurryMode by remember { mutableStateOf(false) }
     var showResult by remember { mutableStateOf(false) }
     var calmModeAnswers by remember { mutableStateOf<List<Boolean>>(emptyList()) }
 
@@ -105,6 +107,7 @@ fun App(
                                             showSafetyCheck = false
                                             showModeSelect = false
                                             showCalmMode = false
+                                            showHurryMode = false
                                             showResult = false
                                         }
                                         .padding(horizontal = 12.dp)
@@ -147,6 +150,20 @@ fun App(
             }
         ) { paddingValues ->
             when {
+                showHurryMode -> HurryMode(
+                    onBack = {
+                        showHurryMode = false
+                        showSafetyCheck = false
+                        showModeSelect = false
+                        selectedTab = 0
+                    },
+                    onHistoryClick = {
+                        showHurryMode = false
+                        selectedTab = 1
+                    },
+                    onMicClick = onMicStart,
+                    modifier = Modifier.padding(paddingValues)
+                )
                 showResult -> Result(
                     answers = calmModeAnswers,
                     onBack = {
@@ -185,9 +202,7 @@ fun App(
                     },
                     onHurryClick = {
                         showModeSelect = false
-                        showSafetyCheck = false
-                        selectedTab = 1
-                        viewModel.startTriage()
+                        showHurryMode = true
                     },
                     modifier = Modifier.padding(paddingValues)
                 )
@@ -203,8 +218,7 @@ fun App(
                     },
                     onDangerClick = {
                         showSafetyCheck = false
-                        selectedTab = 1
-                        viewModel.startTriage()
+                        showHurryMode = true
                     },
                     modifier = Modifier.padding(paddingValues)
                 )
