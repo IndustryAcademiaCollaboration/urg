@@ -34,11 +34,11 @@ object StartRuleEngine {
     )
 
     val stepQuestions = mapOf(
-        TriageStep.SAFETY_CHECK to "【安全確認】周囲は安全ですか？（はい / いいえ）",
+        TriageStep.SAFETY_CHECK to "【安全確認】周囲の状況は安全ですか？（はい / いいえ）",
         TriageStep.WALK to "【歩行確認】傷病者は自力で歩けますか？（はい / いいえ）",
-        TriageStep.BREATHING to "【呼吸確認】呼吸はありますか？（はい / いいえ）",
+        TriageStep.BREATHING to "【呼吸確認】普段通りの呼吸はありますか？（はい / いいえ）",
         TriageStep.CIRCULATION to "【循環確認】脈はありますか？（はい / いいえ）",
-        TriageStep.CONSCIOUSNESS to "【意識確認】呼びかけに反応しますか？（はい / いいえ）"
+        TriageStep.CONSCIOUSNESS to "【意識確認】呼びかけに反応がありますか？（はい / いいえ）"
     )
 
     fun nextStep(current: TriageStep): TriageStep = when (current) {
