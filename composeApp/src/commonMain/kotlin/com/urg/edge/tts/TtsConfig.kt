@@ -18,7 +18,7 @@ data class TtsConfig(
     val language: String = "ja",
     /** 話者 ID。Tsukuyomi-chan は 1 話者（sid=0）のみ。 */
     val speakerId: Int = 0,
-    /** 発話の長さスケール。MB-iSTFT 版は 1.5 推奨（1.0 だと早口で不自然）。 */
+    /** 発話の長さスケール。MB-iSTFT 版は 1.5 推奨（1.0 だと早口）。少し速めにする調整値。 */
     val lengthScale: Float = 1.5f,
     /** ノイズスケール（抑揚の強さ）。Piper 標準は 0.667。 */
     val noiseScale: Float = 0.667f,
