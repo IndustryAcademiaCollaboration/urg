@@ -100,6 +100,7 @@ class ChatViewModel(
             }
         }
     }
+
     @OptIn(ExperimentalTime::class)
     private fun generateTriageGuidance(actionPlan: TriageActionPlan) {
         val engine = llmEngine ?: return
@@ -127,17 +128,12 @@ class ChatViewModel(
                         lastUpdateTime = now
                         val textNow = accumulated.toString()
 
-                        _uiState.update {
-                            it.copy(streamingText = textNow)
-                        }
+                        _uiState.update {it.copy(streamingText = textNow)}
                     }
 
                     if (done) {
-                        val finalText = accumulated.toString()
-                        appendMessage(Message("assistant", finalText))
-                        _uiState.update {
-                            it.copy(streamingText = "", isLoading = false)
-                        }
+                        appendMessage(Message("assistant", accumulated.toString()))
+                        _uiState.update { it.copy(streamingText = "", isLoading = false) }
                     }
                 }
             } catch (e: Exception) {
