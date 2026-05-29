@@ -123,8 +123,8 @@ class ChatViewModel(
                     accumulated.append(partial)
                     _uiState.update { it.copy(streamingText = accumulated.toString()) }
                     if (done) {
+                        // appendMessage 経由で speak される（appendMessage 内で発火）。
                         appendMessage(Message("assistant", accumulated.toString()))
-                        speak(accumulated.toString())
                         _uiState.update { it.copy(streamingText = "", isLoading = false) }
                     }
                 }
@@ -173,8 +173,8 @@ class ChatViewModel(
                     accumulated.append(partial)
                     _uiState.update { it.copy(streamingText = accumulated.toString()) }
                     if (done) {
+                        // appendMessage 経由で speak される（appendMessage 内で発火）。
                         appendMessage(Message("assistant", accumulated.toString()))
-                        speak(accumulated.toString())
                         _uiState.update { it.copy(streamingText = "", isLoading = false) }
                     }
                 }
@@ -206,6 +206,13 @@ class ChatViewModel(
 
     private fun appendMessage(message: Message) {
         _uiState.update { it.copy(messages = it.messages + message) }
+        // アプリ側が提示する文字を漏れなく読み上げる。
+        // - role == "assistant"：トリアージ質問・判定、不正回答リトライ、LLM応答 等
+        // - type != SYSTEM    ：初期化完了/エラー等の技術通知は読まない
+        // ユーザー入力（role == "user"）は対象外。
+        if (message.role == "assistant" && message.type != MessageType.SYSTEM) {
+            speak(message.text)
+        }
     }
 
     override fun onCleared() {
