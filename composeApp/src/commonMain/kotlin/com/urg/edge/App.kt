@@ -30,8 +30,12 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.urg.edge.ui.CalmMode
 import com.urg.edge.ui.ChatScreen
 import com.urg.edge.ui.HomeScreen
+import com.urg.edge.ui.ModeSelect
+import com.urg.edge.ui.Result
+import com.urg.edge.ui.SafetyCheck
 import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.painterResource
 import urg.composeapp.generated.resources.Res
@@ -64,6 +68,11 @@ fun App(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     var selectedTab by remember { mutableStateOf(0) }
+    var showSafetyCheck by remember { mutableStateOf(false) }
+    var showModeSelect by remember { mutableStateOf(false) }
+    var showCalmMode by remember { mutableStateOf(false) }
+    var showResult by remember { mutableStateOf(false) }
+    var calmModeAnswers by remember { mutableStateOf<List<Boolean>>(emptyList()) }
 
     val navItems = listOf(
         NavItem("ホーム",     Res.drawable.ic_home,     Res.drawable.ic_home_selected),
@@ -91,7 +100,13 @@ fun App(
                                 Column(
                                     horizontalAlignment = Alignment.CenterHorizontally,
                                     modifier = Modifier
-                                        .clickable { selectedTab = index }
+                                        .clickable {
+                                            selectedTab = index
+                                            showSafetyCheck = false
+                                            showModeSelect = false
+                                            showCalmMode = false
+                                            showResult = false
+                                        }
                                         .padding(horizontal = 12.dp)
                                 ) {
                                     Icon(
@@ -131,16 +146,74 @@ fun App(
                 }
             }
         ) { paddingValues ->
-            when (selectedTab) {
-                0 -> HomeScreen(
-                    uiState = uiState,
-                    onDisasterClick = {
+            when {
+                showResult -> Result(
+                    answers = calmModeAnswers,
+                    onBack = {
+                        showResult = false
+                        showCalmMode = true
+                    },
+                    onHome = {
+                        showResult = false
+                        showCalmMode = false
+                        showModeSelect = false
+                        showSafetyCheck = false
+                        selectedTab = 0
+                    },
+                    modifier = Modifier.padding(paddingValues)
+                )
+                showCalmMode -> CalmMode(
+                    onBack = {
+                        showCalmMode = false
+                        showModeSelect = true
+                    },
+                    onComplete = { answers ->
+                        calmModeAnswers = answers
+                        showCalmMode = false
+                        showResult = true
+                    },
+                    modifier = Modifier.padding(paddingValues)
+                )
+                showModeSelect -> ModeSelect(
+                    onBack = {
+                        showModeSelect = false
+                        showSafetyCheck = true
+                    },
+                    onCalmClick = {
+                        showModeSelect = false
+                        showCalmMode = true
+                    },
+                    onHurryClick = {
+                        showModeSelect = false
+                        showSafetyCheck = false
                         selectedTab = 1
                         viewModel.startTriage()
                     },
                     modifier = Modifier.padding(paddingValues)
                 )
-                1 -> ChatScreen(
+                showSafetyCheck -> SafetyCheck(
+                    onBack = {
+                        showSafetyCheck = false
+                        selectedTab = 0
+                    },
+                    onSafeClick = {
+                        showSafetyCheck = false
+                        showModeSelect = true
+                        selectedTab = 1
+                    },
+                    onDangerClick = {
+                        showSafetyCheck = false
+                        selectedTab = 1
+                        viewModel.startTriage()
+                    },
+                    modifier = Modifier.padding(paddingValues)
+                )
+                selectedTab == 0 -> HomeScreen(
+                    uiState = uiState,
+                    onDisasterClick = { showSafetyCheck = true },
+                    modifier = Modifier.padding(paddingValues)
+                )
+                selectedTab == 1 -> ChatScreen(
                     uiState = uiState,
                     onPromptChange = viewModel::updatePrompt,
                     onSendClick = viewModel::onSendClick,

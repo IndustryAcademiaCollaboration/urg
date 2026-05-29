@@ -16,7 +16,7 @@ kotlin {
             jvmTarget.set(JvmTarget.JVM_11)
         }
     }
-    
+
     listOf(
         iosArm64(),
         iosSimulatorArm64()
@@ -26,7 +26,7 @@ kotlin {
             isStatic = true
         }
     }
-    
+
     sourceSets {
         androidMain.dependencies {
             implementation(libs.compose.uiToolingPreview)
@@ -39,6 +39,7 @@ kotlin {
             implementation(files("libs/sherpa-onnx-static-link-onnxruntime-1.13.2.aar"))
             //DB
             implementation(libs.sqldelight.android)
+            implementation("io.github.ayutaz:piper-plus-g2p-android:1.0.0")
         }
         commonMain.dependencies {
             implementation(libs.compose.runtime)
@@ -99,6 +100,7 @@ android {
 dependencies {
     debugImplementation(libs.compose.uiTooling)
 }
+
 //DB
 sqldelight {
     linkSqlite.set(true)
@@ -108,4 +110,3 @@ sqldelight {
         }
     }
 }
-
