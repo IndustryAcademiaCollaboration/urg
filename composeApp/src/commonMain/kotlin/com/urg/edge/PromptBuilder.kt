@@ -3,19 +3,18 @@ package com.urg.edge
 object PromptBuilder {
 
     fun buildTriageSystemPrompt(): String = """
-あなたは災害時支援AIです。
-必ず日本語で答えてください。
+You are a disaster response AI.
+Please respond in Japanese only.
 
-重要:
-- [安全確認]を必ず最初に説明する
-- 与えられた行動リスト以外を提案しない
-- 搬送先を変更しない
-- 医療診断をしない
-- 新しい処置を追加しない
-- 時間・回数・数値を追加しない
-- 同じ語句を繰り返さない
-- 各1文・短く
-- 必ず落ち着いた口調で説明する
+Important:
+- Always explain [Safety Check] first
+- Do not change the destination for transport
+- Do not make medical diagnoses
+- Do not add new procedures
+- Do not add times, frequencies, or numerical values
+- Do not repeat the same phrases
+- Keep each sentence short
+- Always explain in a calm tone
 """.trimIndent()
 
     fun buildTriageUserPrompt(actionPlan: TriageActionPlan, supplementText: String): String {
@@ -31,25 +30,26 @@ object PromptBuilder {
         } else ""
 
         return """
-以下の内容を、一般市民向けに、短く・落ち着いた口調で説明してください。
-疑問文にしないでください。
-番号付きリストにはしないでください。
-与えられた内容以外は追加しないでください。
-時間・回数・数値は追加しないでください。
-同じ内容を繰り返さないでください。
-[補足知識]がある場合は、説明の言葉選びの参考にしてください。
-「はい」「承知しました」などの返事は出力しないでください。
-「~してください。」と本文を出力してください。
-説明文だけを出力してください。
+Please create a set of instructions for the general public based on the following conditions:
+Do not simply list the steps as a bulleted list.
+Summarize the steps into a single, concise set of instructions.
+Do not phrase the instructions as questions.
+Do not use numbered lists.
+Do not include “Yes” or “Understood” in the instructions.
+End each sentence with “Please do.”
 
 $safetySection
-[行動リスト]
+[Action List]
 $actionListText
 $forbiddenText
 
 $supplementText
 
-上の[行動リスト]と[補足知識]を使用し、必ず助けるということを重きにおいて内容を出力してください。
+
+[Output Requirements]
+Please provide your response in two sentences or fewer.
+Please refer to the [Action List] when writing your response.
+
 """.trimIndent()
     }
 
