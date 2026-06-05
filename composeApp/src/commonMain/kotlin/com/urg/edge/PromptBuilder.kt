@@ -12,37 +12,55 @@ object PromptBuilder {
 - 搬送先を変更しない
 - 医療診断をしない
 - 新しい処置を追加しない
+- 時間・回数・数値を追加しない
+- 同じ語句を繰り返さない
 - 各1文・短く
 - 必ず落ち着いた口調で説明する
 """.trimIndent()
 
     fun buildTriageUserPrompt(actionPlan: TriageActionPlan, supplementText: String): String {
         val safetySection = if (actionPlan.safetyFirst.isNotEmpty()) {
-            val text = actionPlan.safetyFirst.mapIndexed { i, item -> "${i + 1}. $item" }.joinToString("\n")
+            val text = actionPlan.safetyFirst.distinct().joinToString("\n") { "・$it" }
             "\n[傷病者の状態確認（必ず最初に説明すること）]\n$text\n"
         } else ""
 
-        val actionOffset = actionPlan.safetyFirst.size
-        val actionListText = actionPlan.actions
-            .mapIndexed { i, action -> "${i + actionOffset + 1}. $action" }
-            .joinToString("\n")
+        val actionListText = actionPlan.actions.distinct().joinToString("\n") { "・$it" }
 
         val forbiddenText = if (actionPlan.forbiddenActions.isNotEmpty()) {
-            "\n\n[禁止行為]\n" + actionPlan.forbiddenActions.joinToString("\n") { "・$it" }
+            "\n\n[禁止行為]\n" + actionPlan.forbiddenActions.distinct().joinToString("\n") { "・$it" }
         } else ""
 
         return """
-以下の内容を、一般市民向けに、短く・落ち着いた口調で番号付きリストとして説明してください。
-[補足知識]がある場合は、説明の言葉選びの参考にしてください。リスト以外の内容は追加しないでください。
+以下の内容を、一般市民向けに、短く・落ち着いた口調で説明してください。
+語尾を「ね」などにせず「してください」など一般的なものにしてください。
+疑問文にしないでください。
+番号付きリストにはしないでください。
+与えられた内容以外は追加しないでください。
+時間・回数・数値は追加しないでください。
+同じ内容を繰り返さないでください。
+[補足知識]がある場合は、説明の言葉選びの参考にしてください。
+「はい」「承知しました」などの返事は出力しないでください。
+
+説明文だけを出力してください。
+
 $safetySection
 [行動リスト]
 $actionListText
 $forbiddenText
 $supplementText
+
+[出力形式]
+まずは、呼吸と意識を確認してください。
+頭部を後ろに傾け、気道を確保してください。
+呼吸が戻らない場合は、胸骨圧迫を行ってください。
+近くにAEDがあれば使用してください。
+一人で無理に搬送しないでください。
+
+上の形式に合わせて、本文だけを出力してください。
 """.trimIndent()
     }
 
-    fun buildChatSystemPrompt(ragSection: String, forbiddenList: String, triageContext: String): String = """
+    fun buildChatSystemPrompt(ragSection: String,forbiddenList: String,triageContext: String): String = """
 あなたは災害時支援AIです。
 一般市民向けに行動支援を行います。
 医療診断は行いません。
