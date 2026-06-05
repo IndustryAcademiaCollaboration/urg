@@ -35,8 +35,10 @@ import com.urg.edge.ui.ChatScreen
 import com.urg.edge.ui.HomeScreen
 import com.urg.edge.ui.HurryMode
 import com.urg.edge.ui.ModeSelect
+import com.urg.edge.ui.PriorityScreen
 import com.urg.edge.ui.Result
 import com.urg.edge.ui.SafetyCheck
+import com.urg.edge.ui.TriageScreen
 import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.painterResource
 import urg.composeapp.generated.resources.Res
@@ -75,6 +77,7 @@ fun App(
     var showHurryMode by remember { mutableStateOf(false) }
     var showResult by remember { mutableStateOf(false) }
     var calmModeAnswers by remember { mutableStateOf<List<Boolean>>(emptyList()) }
+
 
     val navItems = listOf(
         NavItem("ホーム",     Res.drawable.ic_home,     Res.drawable.ic_home_selected),
@@ -235,6 +238,10 @@ fun App(
                     onMicStart = onMicStart,
                     onMicStop = onMicStop,
                     onTestWavRecognize = onTestWavRecognize,
+                    modifier = Modifier.padding(paddingValues)
+                )
+                selectedTab == 3 -> PriorityScreen(
+                    onBack = { selectedTab = 0 },
                     modifier = Modifier.padding(paddingValues)
                 )
                 else -> {
