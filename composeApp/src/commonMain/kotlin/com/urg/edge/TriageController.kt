@@ -15,7 +15,7 @@ class TriageController {
     fun start(): String {
         input = TriageInput()
         step = TriageStep.SAFETY_CHECK
-        return "STARTトリアージを開始します。\n\n${StartRuleEngine.stepQuestions[TriageStep.SAFETY_CHECK]!!}"
+        return "${Strings.TRIAGE_CALM_INTRO}STARTトリアージを開始します。\n\n${StartRuleEngine.stepQuestions[TriageStep.SAFETY_CHECK]!!}"
     }
 
     fun handleAnswer(text: String): TriageHandleResult {

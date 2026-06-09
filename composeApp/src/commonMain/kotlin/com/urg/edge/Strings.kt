@@ -9,6 +9,7 @@ object Strings {
     const val APP_TITLE = "Local LLM Demo"
     const val LOADING_LABEL = "Loading..."
     const val PROMPT_LABEL = "Prompt"
+    const val TRIAGE_CALM_INTRO = "大丈夫です。落ち着いて、ゆっくり答えてください。一緒に確認していきましょう。\n\n"
     const val BUTTON_TRIAGE = "トリアージ開始"
     const val BUTTON_SEND = "送信"
     const val BUTTON_MIC = "音声入力"
