@@ -100,7 +100,59 @@ class ChatViewModel(
         appendMessage(Message("user", text, MessageType.TRIAGE))
         _uiState.update { it.copy(promptText = "") }
 
-        when (val result = triageController.handleAnswer(text)) {
+        val result = triageController.handleAnswer(text)
+
+        if (result is TriageHandleResult.InvalidAnswer) {
+            val currentStep = triageController.step
+            if (llmEngine != null && currentStep != null) {
+                classifyWithLlm(text, currentStep, fallback = result)
+                return
+            }
+        }
+
+        applyTriageResult(result)
+    }
+
+    private fun classifyWithLlm(
+        userInput: String,
+        step: TriageStep,
+        fallback: TriageHandleResult.InvalidAnswer
+    ) {
+        val engine = llmEngine ?: run { applyTriageResult(fallback); return }
+        val question = StartRuleEngine.stepQuestions[step] ?: run { applyTriageResult(fallback); return }
+
+        _uiState.update { it.copy(isLoading = true) }
+
+        viewModelScope.launch(ioDispatcher) {
+            try {
+                val instruction = PromptBuilder.buildYesNoClassificationInstruction(userInput, question)
+                val prompt = config.chatTemplate.formatInstructionPrompt(instruction)
+                val accumulated = StringBuilder()
+
+                engine.generateStream(prompt) { partial, done ->
+                    accumulated.append(partial)
+                    if (done) {
+                        _uiState.update { it.copy(isLoading = false) }
+                        println("LLM_CLASSIFY: output='${accumulated}'")
+                        val classified = StartRuleEngine.parseAnswer(accumulated.toString())
+                        if (classified != null) {
+                            val classifiedText = if (classified) "はい" else "いいえ"
+                            val newResult = triageController.handleAnswer(classifiedText)
+                            applyTriageResult(newResult)
+                        } else {
+                            applyTriageResult(fallback)
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                _uiState.update { it.copy(isLoading = false) }
+                applyTriageResult(fallback)
+            }
+        }
+    }
+
+    private fun applyTriageResult(result: TriageHandleResult) {
+        when (result) {
             is TriageHandleResult.Ignored -> Unit
             is TriageHandleResult.InvalidAnswer -> {
                 appendMessage(Message("assistant", result.message, MessageType.TRIAGE))
