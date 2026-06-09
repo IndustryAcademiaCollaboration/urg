@@ -53,8 +53,21 @@ object StartRuleEngine {
     fun parseAnswer(text: String): Boolean? {
         val t = text.trim()
         return when {
-            t.contains("はい") || t.contains("yes", ignoreCase = true) || t == "y" || t == "1" -> true
-            t.contains("いいえ") || t.contains("no", ignoreCase = true) || t == "n" || t == "0" -> false
+            // 肯定 — "問題ない" は否定側の "ない" より先に評価する必要がある
+            t.contains("はい") || t.contains("yes", ignoreCase = true) || t.contains("ok", ignoreCase = true)
+            || t == "y" || t == "1"
+            || t.contains("うん") || t.contains("ええ")
+            || t.contains("できます") || t.contains("できる")
+            || t.contains("歩けます") || t.contains("歩ける")
+            || t.contains("大丈夫") || t.contains("問題ない")
+            || t.contains("あります") || t.contains("反応あり") -> true
+
+            // 否定
+            t.contains("いいえ") || t.contains("no", ignoreCase = true) || t == "n" || t == "0"
+            || t.contains("ありません") || t.contains("できません") || t.contains("できない")
+            || t.contains("歩けません") || t.contains("歩けない")
+            || t.contains("無理") || t.contains("なし") || t.contains("ない") -> false
+
             else -> null
         }
     }
