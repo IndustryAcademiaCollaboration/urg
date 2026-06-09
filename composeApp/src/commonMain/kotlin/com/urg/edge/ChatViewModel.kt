@@ -137,6 +137,7 @@ class ChatViewModel(
                         val classified = StartRuleEngine.parseAnswer(accumulated.toString())
                         if (classified != null) {
                             val classifiedText = if (classified) "はい" else "いいえ"
+                            appendMessage(Message("assistant", "（AIが「$classifiedText」と解釈しました）", MessageType.TRIAGE))
                             val newResult = triageController.handleAnswer(classifiedText)
                             applyTriageResult(newResult)
                         } else {
