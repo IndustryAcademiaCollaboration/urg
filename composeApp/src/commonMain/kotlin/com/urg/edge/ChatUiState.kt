@@ -6,4 +6,5 @@ data class ChatUiState(
     val streamingText: String = "",
     val promptText: String = "",
     val isListening: Boolean = false,
+    val showTriageButtons: Boolean = false,
 )

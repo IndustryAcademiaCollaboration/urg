@@ -79,8 +79,18 @@ class ChatViewModel(
     }
 
     fun startTriage() {
-        _uiState.update { it.copy(promptText = "") }
+        _uiState.update { it.copy(promptText = "", showTriageButtons = false) }
         appendMessage(Message("assistant", triageController.start(), MessageType.TRIAGE))
+    }
+
+    fun answerTriageYes() {
+        _uiState.update { it.copy(promptText = Strings.BUTTON_YES) }
+        handleTriageResponse()
+    }
+
+    fun answerTriageNo() {
+        _uiState.update { it.copy(promptText = Strings.BUTTON_NO) }
+        handleTriageResponse()
     }
 
     private fun handleTriageResponse() {
@@ -92,11 +102,21 @@ class ChatViewModel(
 
         when (val result = triageController.handleAnswer(text)) {
             is TriageHandleResult.Ignored -> Unit
-            is TriageHandleResult.InvalidAnswer -> appendMessage(Message("assistant", result.message, MessageType.TRIAGE))
-            is TriageHandleResult.SafetyFailed -> appendMessage(Message("assistant", result.message, MessageType.TRIAGE))
-            is TriageHandleResult.NextQuestion -> appendMessage(Message("assistant", result.question, MessageType.TRIAGE))
+            is TriageHandleResult.InvalidAnswer -> {
+                appendMessage(Message("assistant", result.message, MessageType.TRIAGE))
+                if (result.showButtons) _uiState.update { it.copy(showTriageButtons = true) }
+            }
+            is TriageHandleResult.SafetyFailed -> {
+                appendMessage(Message("assistant", result.message, MessageType.TRIAGE))
+                _uiState.update { it.copy(showTriageButtons = false) }
+            }
+            is TriageHandleResult.NextQuestion -> {
+                appendMessage(Message("assistant", result.question, MessageType.TRIAGE))
+                _uiState.update { it.copy(showTriageButtons = false) }
+            }
             is TriageHandleResult.Done -> {
                 appendMessage(Message("assistant", result.guidanceMessage, MessageType.TRIAGE))
+                _uiState.update { it.copy(showTriageButtons = false) }
                 generateTriageGuidance(result.actionPlan)
             }
         }

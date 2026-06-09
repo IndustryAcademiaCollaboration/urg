@@ -221,6 +221,8 @@ fun App(
                     onMicStart = onMicStart,
                     onMicStop = onMicStop,
                     onTestWavRecognize = onTestWavRecognize,
+                    onTriageYes = viewModel::answerTriageYes,
+                    onTriageNo = viewModel::answerTriageNo,
                     modifier = Modifier.padding(paddingValues)
                 )
                 else -> {
