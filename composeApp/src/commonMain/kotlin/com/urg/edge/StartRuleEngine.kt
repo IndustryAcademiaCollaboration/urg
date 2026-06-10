@@ -61,6 +61,9 @@ object StartRuleEngine {
 
     fun parseAnswer(text: String): Boolean? {
         val t = text.trim()
+        // 不確かな表現は先に null で除外して LLM フォールバックに流す
+        if (t.contains("わからない") || t.contains("わかりません") || t.contains("不明")
+            || t.contains("確認できない") || t.contains("確認できません")) return null
         return when {
             // 肯定 — "問題ない" は否定側の "ない" より先に評価する必要がある
             t.contains("はい") || t.contains("yes", ignoreCase = true) || t.contains("ok", ignoreCase = true)

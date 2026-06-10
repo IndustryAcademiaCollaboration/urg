@@ -141,6 +141,7 @@ class ChatViewModel(
                             val newResult = triageController.handleAnswer(classifiedText)
                             applyTriageResult(newResult)
                         } else {
+                            appendMessage(Message("assistant", "（AIが判断できませんでした）", MessageType.TRIAGE))
                             applyTriageResult(fallback)
                         }
                     }
