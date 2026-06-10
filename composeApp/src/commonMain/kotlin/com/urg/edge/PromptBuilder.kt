@@ -42,6 +42,13 @@ $supplementText
 """.trimIndent()
     }
 
+    fun buildYesNoClassificationInstruction(userInput: String, question: String): String = """
+以下の質問に対するユーザーの回答が「はい」か「いいえ」かを判定してください。「YES」か「NO」のみ答えてください。
+
+質問：$question
+ユーザーの回答：「$userInput」
+""".trimIndent()
+
     fun buildChatSystemPrompt(ragSection: String, forbiddenList: String, triageContext: String): String = """
 あなたは災害時支援AIです。
 一般市民向けに行動支援を行います。
