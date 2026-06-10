@@ -25,6 +25,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.urg.edge.ChatUiState
+import com.urg.edge.Strings
 import org.jetbrains.compose.resources.painterResource
 import urg.composeapp.generated.resources.Res
 import urg.composeapp.generated.resources.ic_triage_selected
@@ -38,6 +39,8 @@ fun ChatScreen(
     onMicStart: () -> Unit,
     onMicStop: () -> Unit,
     onTestWavRecognize: (String) -> Unit,
+    onTriageYes: () -> Unit = {},
+    onTriageNo: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -46,7 +49,6 @@ fun ChatScreen(
             .background(Color(0xFFF2F4F6))
             .statusBarsPadding()
     ) {
-        // ─── テスト WAV ボタン ────────────────────────────────
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -54,18 +56,17 @@ fun ChatScreen(
             horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             WavButton(
-                label = "テスト WAV1",
+                label = "Test WAV1",
                 onClick = { onTestWavRecognize("test_wavs/1.wav") },
                 modifier = Modifier.weight(1f)
             )
             WavButton(
-                label = "テスト WAV2",
+                label = "Test WAV2",
                 onClick = { onTestWavRecognize("test_wavs/2.wav") },
                 modifier = Modifier.weight(1f)
             )
         }
 
-        // ─── メッセージリスト ─────────────────────────────────
         MessageList(
             messages = uiState.messages,
             streamingText = uiState.streamingText,
@@ -74,13 +75,55 @@ fun ChatScreen(
                 .padding(horizontal = 16.dp)
         )
 
-        // ─── 入力エリア ───────────────────────────────────────
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .background(Color.White)
                 .padding(horizontal = 16.dp, vertical = 12.dp)
         ) {
+            if (uiState.showTriageButtons) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    // はい：緑アウトライン ピル型
+                    Box(
+                        contentAlignment = Alignment.Center,
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(38.dp)
+                            .clip(RoundedCornerShape(50))
+                            .background(Color(0xFFE8FAF3))
+                            .clickable { onTriageYes() }
+                    ) {
+                        Text(
+                            text = "✓  ${Strings.BUTTON_YES}",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = Color(0xFF2E9E6E),
+                        )
+                    }
+                    // いいえ：赤アウトライン ピル型
+                    Box(
+                        contentAlignment = Alignment.Center,
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(38.dp)
+                            .clip(RoundedCornerShape(50))
+                            .background(Color(0xFFFFF0F0))
+                            .clickable { onTriageNo() }
+                    ) {
+                        Text(
+                            text = "✕  ${Strings.BUTTON_NO}",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = Color(0xFFD94444),
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+            }
+
             PromptInput(
                 value = uiState.promptText,
                 onValueChange = onPromptChange,
@@ -99,7 +142,6 @@ fun ChatScreen(
     }
 }
 
-// ─── テスト WAV ピルボタン ─────────────────────────────────
 @Composable
 private fun WavButton(
     label: String,

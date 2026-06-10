@@ -19,4 +19,7 @@ object GemmaTemplate : ChatTemplate {
         "<start_of_turn>user\n$systemPrompt<end_of_turn>\n" +
             "<start_of_turn>user\n$userPrompt<end_of_turn>\n" +
             "<start_of_turn>model\n"
+
+    override fun formatInstructionPrompt(instruction: String): String =
+        "<start_of_turn>user\n$instruction<end_of_turn>\n<start_of_turn>model\n"
 }
