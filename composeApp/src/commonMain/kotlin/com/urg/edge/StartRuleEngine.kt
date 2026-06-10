@@ -50,6 +50,15 @@ object StartRuleEngine {
         TriageStep.DONE -> TriageStep.DONE
     }
 
+    fun parseLlmYesNo(text: String): Boolean? {
+        val t = text.trim()
+        return when {
+            t.contains("YES", ignoreCase = true) || t.contains("はい") -> true
+            t.contains("NO", ignoreCase = true) || t.contains("いいえ") -> false
+            else -> null
+        }
+    }
+
     fun parseAnswer(text: String): Boolean? {
         val t = text.trim()
         return when {

@@ -134,7 +134,7 @@ class ChatViewModel(
                     if (done) {
                         _uiState.update { it.copy(isLoading = false) }
                         println("LLM_CLASSIFY: output='${accumulated}'")
-                        val classified = StartRuleEngine.parseAnswer(accumulated.toString())
+                        val classified = StartRuleEngine.parseLlmYesNo(accumulated.toString())
                         if (classified != null) {
                             val classifiedText = if (classified) "はい" else "いいえ"
                             appendMessage(Message("assistant", "（AIが「$classifiedText」と解釈しました）", MessageType.TRIAGE))
