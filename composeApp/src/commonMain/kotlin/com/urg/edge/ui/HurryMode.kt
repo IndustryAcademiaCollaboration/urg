@@ -46,7 +46,7 @@ fun HurryMode(
             modifier = Modifier
                 .fillMaxWidth()
                 .statusBarsPadding()
-                .padding(horizontal = 16.dp, vertical = 14.dp)
+                .padding(horizontal = 16.dp, vertical = 6.dp)
         ) {
             Icon(
                 painter = painterResource(Res.drawable.ic_back),
