@@ -1,0 +1,17 @@
+CREATE TABLE cl_sessions (
+  id         TEXT    PRIMARY KEY NOT NULL,
+  mode       TEXT    NOT NULL,
+  latitude   REAL,
+  longitude  REAL,
+  started_at INTEGER NOT NULL
+);
+
+insert:
+INSERT INTO cl_sessions (id, mode, latitude, longitude, started_at)
+VALUES (?, ?, ?, ?, ?);
+
+selectAll:
+SELECT * FROM cl_sessions ORDER BY started_at DESC;
+
+selectById:
+SELECT * FROM cl_sessions WHERE id = ?;

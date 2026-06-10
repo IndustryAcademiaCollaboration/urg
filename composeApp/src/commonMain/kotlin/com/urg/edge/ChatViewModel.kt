@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.urg.edge.llm.LlmConfig
 import com.urg.edge.llm.LlmEngine
 import com.urg.edge.stt.SttEngine
+import com.urg.edge.tts.TtsEngine
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -25,6 +26,7 @@ class ChatViewModel(
     private var llmEngine: LlmEngine? = null
     private var retriever: KnowledgeRetriever? = null
     private var sttEngine: SttEngine? = null
+    private var ttsEngine: TtsEngine? = null
     private var config: LlmConfig = LlmConfig()
 
     private val _uiState = MutableStateFlow(ChatUiState())
@@ -38,6 +40,7 @@ class ChatViewModel(
     }
     fun setRetriever(r: KnowledgeRetriever) { retriever = r }
     fun setSttEngine(engine: SttEngine) { sttEngine = engine }
+    fun setTtsEngine(engine: TtsEngine) { ttsEngine = engine }
 
     fun setListening(listening: Boolean) {
         _uiState.update { it.copy(isListening = listening) }
@@ -78,8 +81,18 @@ class ChatViewModel(
     }
 
     fun startTriage() {
-        _uiState.update { it.copy(promptText = "") }
+        _uiState.update { it.copy(promptText = "", showTriageButtons = false) }
         appendMessage(Message("assistant", triageController.start(), MessageType.TRIAGE))
+    }
+
+    fun answerTriageYes() {
+        _uiState.update { it.copy(promptText = Strings.BUTTON_YES) }
+        handleTriageResponse()
+    }
+
+    fun answerTriageNo() {
+        _uiState.update { it.copy(promptText = Strings.BUTTON_NO) }
+        handleTriageResponse()
     }
 
     private fun handleTriageResponse() {
@@ -89,13 +102,77 @@ class ChatViewModel(
         appendMessage(Message("user", text, MessageType.TRIAGE))
         _uiState.update { it.copy(promptText = "") }
 
-        when (val result = triageController.handleAnswer(text)) {
+        val result = triageController.handleAnswer(text)
+
+        if (result is TriageHandleResult.InvalidAnswer) {
+            val currentStep = triageController.step
+            if (llmEngine != null && currentStep != null) {
+                classifyWithLlm(text, currentStep, fallback = result)
+                return
+            }
+        }
+
+        applyTriageResult(result)
+    }
+
+    private fun classifyWithLlm(
+        userInput: String,
+        step: TriageStep,
+        fallback: TriageHandleResult.InvalidAnswer
+    ) {
+        val engine = llmEngine ?: run { applyTriageResult(fallback); return }
+        val question = StartRuleEngine.stepQuestions[step] ?: run { applyTriageResult(fallback); return }
+
+        _uiState.update { it.copy(isLoading = true) }
+
+        viewModelScope.launch(ioDispatcher) {
+            try {
+                val instruction = PromptBuilder.buildYesNoClassificationInstruction(userInput, question)
+                val prompt = config.chatTemplate.formatInstructionPrompt(instruction)
+                val accumulated = StringBuilder()
+
+                engine.generateStream(prompt) { partial, done ->
+                    accumulated.append(partial)
+                    if (done) {
+                        _uiState.update { it.copy(isLoading = false) }
+                        println("LLM_CLASSIFY: output='${accumulated}'")
+                        val classified = StartRuleEngine.parseLlmYesNo(accumulated.toString())
+                        if (classified != null) {
+                            val classifiedText = if (classified) "はい" else "いいえ"
+                            appendMessage(Message("assistant", "（AIが「$classifiedText」と解釈しました）", MessageType.TRIAGE))
+                            val newResult = triageController.handleAnswer(classifiedText)
+                            applyTriageResult(newResult)
+                        } else {
+                            appendMessage(Message("assistant", "（AIが判断できませんでした）", MessageType.TRIAGE))
+                            applyTriageResult(fallback)
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                _uiState.update { it.copy(isLoading = false) }
+                applyTriageResult(fallback)
+            }
+        }
+    }
+
+    private fun applyTriageResult(result: TriageHandleResult) {
+        when (result) {
             is TriageHandleResult.Ignored -> Unit
-            is TriageHandleResult.InvalidAnswer -> appendMessage(Message("assistant", result.message, MessageType.TRIAGE))
-            is TriageHandleResult.SafetyFailed -> appendMessage(Message("assistant", result.message, MessageType.TRIAGE))
-            is TriageHandleResult.NextQuestion -> appendMessage(Message("assistant", result.question, MessageType.TRIAGE))
+            is TriageHandleResult.InvalidAnswer -> {
+                appendMessage(Message("assistant", result.message, MessageType.TRIAGE))
+                if (result.showButtons) _uiState.update { it.copy(showTriageButtons = true) }
+            }
+            is TriageHandleResult.SafetyFailed -> {
+                appendMessage(Message("assistant", result.message, MessageType.TRIAGE))
+                _uiState.update { it.copy(showTriageButtons = false) }
+            }
+            is TriageHandleResult.NextQuestion -> {
+                appendMessage(Message("assistant", result.question, MessageType.TRIAGE))
+                _uiState.update { it.copy(showTriageButtons = false) }
+            }
             is TriageHandleResult.Done -> {
                 appendMessage(Message("assistant", result.guidanceMessage, MessageType.TRIAGE))
+                _uiState.update { it.copy(showTriageButtons = false) }
                 generateTriageGuidance(result.actionPlan)
             }
         }
@@ -132,6 +209,7 @@ class ChatViewModel(
                     }
 
                     if (done) {
+                        // appendMessage 経由で speak される（appendMessage 内で発火）。
                         appendMessage(Message("assistant", accumulated.toString()))
                         _uiState.update { it.copy(streamingText = "", isLoading = false) }
                     }
@@ -181,6 +259,7 @@ class ChatViewModel(
                     accumulated.append(partial)
                     _uiState.update { it.copy(streamingText = accumulated.toString()) }
                     if (done) {
+                        // appendMessage 経由で speak される（appendMessage 内で発火）。
                         appendMessage(Message("assistant", accumulated.toString()))
                         _uiState.update { it.copy(streamingText = "", isLoading = false) }
                     }
@@ -200,14 +279,33 @@ class ChatViewModel(
         return "\n\n[トリアージ済み情報]\n判定：$label\n搬送先：${plan.destination}\n確認済み行動：$actions"
     }
 
+    private fun speak(text: String) {
+        val engine = ttsEngine ?: return
+        viewModelScope.launch(ioDispatcher) {
+            try {
+                engine.speak(text)
+            } catch (e: Exception) {
+                println("TTS_SPEAK: error ${e::class.simpleName}: ${e.message}")
+            }
+        }
+    }
+
     private fun appendMessage(message: Message) {
         _uiState.update { it.copy(messages = it.messages + message) }
+        // アプリ側が提示する文字を漏れなく読み上げる。
+        // - role == "assistant"：トリアージ質問・判定、不正回答リトライ、LLM応答 等
+        // - type != SYSTEM    ：初期化完了/エラー等の技術通知は読まない
+        // ユーザー入力（role == "user"）は対象外。
+        if (message.role == "assistant" && message.type != MessageType.SYSTEM) {
+            speak(message.text)
+        }
     }
 
     override fun onCleared() {
         llmEngine?.close()
         retriever?.close()
         sttEngine?.close()
+        ttsEngine?.close()
         super.onCleared()
     }
 }

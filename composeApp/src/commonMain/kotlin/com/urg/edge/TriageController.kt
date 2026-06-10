@@ -9,13 +9,15 @@ class TriageController {
         private set
     var lastActionPlan: TriageActionPlan? = null
         private set
+    private var retryCount = 0
 
     val isActive: Boolean get() = step != null && step != TriageStep.DONE
 
     fun start(): String {
         input = TriageInput()
         step = TriageStep.SAFETY_CHECK
-        return "STARTトリアージを開始します。\n\n${StartRuleEngine.stepQuestions[TriageStep.SAFETY_CHECK]!!}"
+        retryCount = 0
+        return "${Strings.TRIAGE_CALM_INTRO}STARTトリアージを開始します。\n\n${StartRuleEngine.stepQuestions[TriageStep.SAFETY_CHECK]!!}"
     }
 
     fun handleAnswer(text: String): TriageHandleResult {
@@ -23,9 +25,16 @@ class TriageController {
         if (currentStep == TriageStep.DONE) return TriageHandleResult.Ignored
 
         val answer = StartRuleEngine.parseAnswer(text)
-            ?: return TriageHandleResult.InvalidAnswer(
-                "「はい」か「いいえ」でお答えください。\n${StartRuleEngine.stepQuestions[currentStep]!!}"
-            )
+            ?: run {
+                retryCount++
+                val message = if (retryCount >= 2)
+                    "「はい」か「いいえ」でお答えください。画面のボタンでも操作できます。\n${StartRuleEngine.stepQuestions[currentStep]!!}"
+                else
+                    "「はい」か「いいえ」でお答えください。\n${StartRuleEngine.stepQuestions[currentStep]!!}"
+                return TriageHandleResult.InvalidAnswer(message, showButtons = retryCount >= 2)
+            }
+
+        retryCount = 0
 
         if (currentStep == TriageStep.SAFETY_CHECK) {
             return if (!answer) {
@@ -62,7 +71,7 @@ class TriageController {
 
 sealed class TriageHandleResult {
     object Ignored : TriageHandleResult()
-    data class InvalidAnswer(val message: String) : TriageHandleResult()
+    data class InvalidAnswer(val message: String, val showButtons: Boolean = false) : TriageHandleResult()
     data class SafetyFailed(val message: String) : TriageHandleResult()
     data class NextQuestion(val question: String) : TriageHandleResult()
     data class Done(

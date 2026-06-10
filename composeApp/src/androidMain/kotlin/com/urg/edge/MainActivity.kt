@@ -17,6 +17,7 @@ import com.urg.edge.stt.AudioRecorder
 import com.urg.edge.stt.SttConfig
 import com.urg.edge.stt.WavLoader
 import com.urg.edge.stt.createSttEngine
+import com.urg.edge.tts.createTtsEngine
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -41,6 +42,7 @@ class MainActivity : ComponentActivity() {
         initLlmEngine()
         initKnowledgeRetriever()
         initSttEngine()
+        initTtsEngine()
         requestMicPermission()
 
         setContent {
@@ -112,6 +114,21 @@ class MainActivity : ComponentActivity() {
                     chatViewModel.addSystemMessage("${Strings.INIT_STT_ERROR_PREFIX}${e.message}")
                 }
                 Log.e("STT_INIT", "FAILED", e)
+            }
+        }
+    }
+
+    private fun initTtsEngine() {
+        lifecycleScope.launch(Dispatchers.IO) {
+            try {
+                val engine = createTtsEngine(this@MainActivity)
+                chatViewModel.setTtsEngine(engine)
+                Log.d("TTS_INIT", "SUCCESS")
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    chatViewModel.addSystemMessage("${Strings.INIT_TTS_ERROR_PREFIX}${e.message}")
+                }
+                Log.e("TTS_INIT", "FAILED", e)
             }
         }
     }
