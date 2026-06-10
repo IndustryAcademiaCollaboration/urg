@@ -20,6 +20,7 @@ object Strings {
 
     const val INIT_LLM_ERROR_PREFIX = "ERROR: LLM initialization failed: "
     const val INIT_STT_ERROR_PREFIX = "ERROR: STT initialization failed: "
+    const val INIT_TTS_ERROR_PREFIX = "ERROR: TTS initialization failed: "
     const val INIT_COMPLETE = "[初期化] 準備完了"
     const val INIT_ERROR_PREFIX = "[初期化エラー] "
 

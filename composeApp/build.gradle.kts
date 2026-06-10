@@ -6,6 +6,8 @@ plugins {
     alias(libs.plugins.androidApplication)
     alias(libs.plugins.composeMultiplatform)
     alias(libs.plugins.composeCompiler)
+    //DB
+    alias(libs.plugins.sqldelight)
 }
 
 kotlin {
@@ -14,7 +16,7 @@ kotlin {
             jvmTarget.set(JvmTarget.JVM_11)
         }
     }
-    
+
     listOf(
         iosArm64(),
         iosSimulatorArm64()
@@ -24,7 +26,7 @@ kotlin {
             isStatic = true
         }
     }
-    
+
     sourceSets {
         androidMain.dependencies {
             implementation(libs.compose.uiToolingPreview)
@@ -35,6 +37,9 @@ kotlin {
             implementation("ai.djl.huggingface:tokenizers:0.33.0")
             implementation("ai.djl.android:tokenizer-native:0.33.0")
             implementation(files("libs/sherpa-onnx-static-link-onnxruntime-1.13.2.aar"))
+            //DB
+            implementation(libs.sqldelight.android)
+            implementation("io.github.ayutaz:piper-plus-g2p-android:1.0.0")
         }
         commonMain.dependencies {
             implementation(libs.compose.runtime)
@@ -45,6 +50,12 @@ kotlin {
             implementation(libs.compose.uiToolingPreview)
             implementation(libs.androidx.lifecycle.viewmodelCompose)
             implementation(libs.androidx.lifecycle.runtimeCompose)
+            //DB
+            implementation(libs.sqldelight.coroutines)
+        }
+        //DB
+        iosMain.dependencies {
+            implementation(libs.sqldelight.native)
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)
@@ -90,3 +101,12 @@ dependencies {
     debugImplementation(libs.compose.uiTooling)
 }
 
+//DB
+sqldelight {
+    linkSqlite.set(true)
+    databases {
+        create("UrgDatabase") {
+            packageName.set("com.urg.edge.database")
+        }
+    }
+}
