@@ -31,6 +31,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.urg.edge.ui.CalmMode
+import com.urg.edge.ui.ChatHistory
 import com.urg.edge.ui.ChatScreen
 import com.urg.edge.ui.HomeScreen
 import com.urg.edge.ui.HurryMode
@@ -75,6 +76,7 @@ fun App(
     var showModeSelect by remember { mutableStateOf(false) }
     var showCalmMode by remember { mutableStateOf(false) }
     var showHurryMode by remember { mutableStateOf(false) }
+    var showChatHistory by remember { mutableStateOf(false) }
     var showResult by remember { mutableStateOf(false) }
     var calmModeAnswers by remember { mutableStateOf<List<Boolean>>(emptyList()) }
 
@@ -111,6 +113,7 @@ fun App(
                                             showModeSelect = false
                                             showCalmMode = false
                                             showHurryMode = false
+                                            showChatHistory = false
                                             showResult = false
                                         }
                                         .padding(horizontal = 12.dp)
@@ -153,6 +156,13 @@ fun App(
             }
         ) { paddingValues ->
             when {
+                showChatHistory -> ChatHistory(
+                    onBack = {
+                        showChatHistory = false
+                        showHurryMode = true
+                    },
+                    modifier = Modifier.padding(paddingValues)
+                )
                 showHurryMode -> HurryMode(
                     onBack = {
                         showHurryMode = false
@@ -161,8 +171,7 @@ fun App(
                         selectedTab = 0
                     },
                     onHistoryClick = {
-                        showHurryMode = false
-                        selectedTab = 1
+                        showChatHistory = true
                     },
                     onMicClick = onMicStart,
                     modifier = Modifier.padding(paddingValues)
