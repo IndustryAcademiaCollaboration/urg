@@ -14,7 +14,6 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
-import android.util.Log
 
 class ChatViewModel(
     private val ioDispatcher: CoroutineDispatcher
@@ -118,9 +117,6 @@ class ChatViewModel(
                 val systemPrompt = PromptBuilder.buildTriageSystemPrompt()
                 val userPrompt = PromptBuilder.buildTriageUserPrompt(actionPlan, supplementText)
                 val prompt = config.chatTemplate.formatSinglePrompt(systemPrompt, userPrompt)
-                Log.d("PROMPT", "systemPrompt=$systemPrompt")
-                Log.d("PROMPT", "userPrompt=$userPrompt")
-                Log.d("PROMPT", "fullPrompt=$prompt")
                 val accumulated = StringBuilder()
                 var lastUpdateTime = 0L
 

@@ -37,6 +37,9 @@ Do not phrase the instructions as questions.
 Do not use numbered lists.
 Do not include “Yes” or “Understood” in the instructions.
 End each sentence with “Please do.”
+Please pay attention to your use of conjunctions, such as “or” and “next,” to ensure your writing flows smoothly.
+Please make sure to end your sentences with “~てください.”
+Please prioritize generating output that sounds like natural Japanese.
 
 $safetySection
 [Action List]
