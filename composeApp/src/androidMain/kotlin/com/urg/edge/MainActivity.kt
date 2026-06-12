@@ -114,7 +114,7 @@ class MainActivity : ComponentActivity() {
 
         try {
             connection.inputStream.use { input ->
-                tempFile.outputStream().use { output ->
+                java.io.FileOutputStream(tempFile, true).use { output ->
                     val buffer = ByteArray(65536)
                     var read: Int
                     while (input.read(buffer).also { read = it } != -1) {
