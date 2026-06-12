@@ -40,6 +40,11 @@ kotlin {
             //DB
             implementation(libs.sqldelight.android)
             implementation("io.github.ayutaz:piper-plus-g2p-android:1.0.0")
+            // MapLibre Android (10.x = OpenGLES固定、Vulkan非対応エミュレーターでも動作)
+            implementation("org.maplibre.gl:android-sdk:10.3.1")
+            implementation("org.maplibre.gl:android-plugin-annotation-v9:1.0.0")
+            implementation("com.google.android.gms:play-services-location:21.3.0")
+            implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.7.3")
         }
         commonMain.dependencies {
             implementation(libs.compose.runtime)
