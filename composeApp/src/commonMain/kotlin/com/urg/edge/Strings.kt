@@ -22,6 +22,9 @@ object Strings {
     const val LISTENING_LABEL = "音声入力中..."
 
     const val INIT_LLM_ERROR_PREFIX = "ERROR: LLM initialization failed: "
+    const val LLM_MODEL_FILE_NAME = "model.litertlm"
+    const val LLM_MODEL_DOWNLOAD_URL =
+        "https://huggingface.co/litert-community/gemma-4-E2B-it-litert-lm/resolve/main/gemma-4-E2B-it.litertlm"
     const val INIT_STT_ERROR_PREFIX = "ERROR: STT initialization failed: "
     const val INIT_TTS_ERROR_PREFIX = "ERROR: TTS initialization failed: "
     const val INIT_COMPLETE = "[初期化] 準備完了"

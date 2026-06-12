@@ -72,6 +72,15 @@ class ChatViewModel(
         appendMessage(Message("assistant", text, MessageType.SYSTEM))
     }
 
+    fun updateLastSystemMessage(text: String) {
+        _uiState.update { state ->
+            val messages = state.messages.toMutableList()
+            val idx = messages.indexOfLast { it.type == MessageType.SYSTEM }
+            if (idx >= 0) messages[idx] = messages[idx].copy(text = text)
+            state.copy(messages = messages)
+        }
+    }
+
     fun updatePrompt(text: String) {
         _uiState.update { it.copy(promptText = text) }
     }
