@@ -36,6 +36,8 @@ import com.urg.edge.ui.HomeScreen
 import com.urg.edge.ui.ModeSelect
 import com.urg.edge.ui.Result
 import com.urg.edge.ui.SafetyCheck
+// ★ MapScreen を呼び出すためのインポートを追加
+import com.urg.edge.ui.MapScreen
 import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.painterResource
 import urg.composeapp.generated.resources.Res
@@ -221,6 +223,10 @@ fun App(
                     onMicStart = onMicStart,
                     onMicStop = onMicStop,
                     onTestWavRecognize = onTestWavRecognize,
+                    modifier = Modifier.padding(paddingValues)
+                )
+                // ★ 選択されたタブが 2（地図）の時、MapScreenを表示するよう追記
+                selectedTab == 2 -> MapScreen(
                     modifier = Modifier.padding(paddingValues)
                 )
                 else -> {
