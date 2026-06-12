@@ -1,0 +1,51 @@
+{
+  "version": 8,
+  "name": "Aichi Offline",
+  "sources": {
+    "aichi": {
+      "type": "vector",
+      "url": "mbtiles:///sdcard/Android/data/com.urg.edge/files/aichi.mbtiles"
+    }
+  },
+  "layers": [
+    {
+      "id": "background",
+      "type": "background",
+      "paint": {
+        "background-color": "#f8f4f0"
+      }
+    },
+    {
+      "id": "water",
+      "type": "fill",
+      "source": "aichi",
+      "source-layer": "water",
+      "paint": {
+        "fill-color": "#a0c8f0"
+      }
+    },
+    {
+      "id": "road",
+      "type": "line",
+      "source": "aichi",
+      "source-layer": "transportation",
+      "paint": {
+        "line-color": "#ffffff",
+        "line-width": 1.5
+      }
+    },
+    {
+      "id": "place-label",
+      "type": "symbol",
+      "source": "aichi",
+      "source-layer": "place",
+      "layout": {
+        "text-field": "{name:ja}",
+        "text-size": 12
+      },
+      "paint": {
+        "text-color": "#333333"
+      }
+    }
+  ]
+}
