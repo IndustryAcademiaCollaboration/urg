@@ -15,6 +15,10 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -36,6 +40,17 @@ fun HurryMode(
     onMicClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    var showRecording by remember { mutableStateOf(false) }
+
+    // 録音オーバーレイ表示中
+    if (showRecording) {
+        RecordingOverlay(
+            onClose = { showRecording = false },
+            modifier = modifier
+        )
+        return
+    }
+
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -112,7 +127,10 @@ fun HurryMode(
                     )
                     .background(Color(0xFFEF6B6B), CircleShape)
                     .clip(CircleShape)
-                    .clickable { onMicClick() }
+                    .clickable {
+                        showRecording = true
+                        onMicClick()
+                    }
             ) {
                 Icon(
                     painter = painterResource(Res.drawable.ic_mic),
