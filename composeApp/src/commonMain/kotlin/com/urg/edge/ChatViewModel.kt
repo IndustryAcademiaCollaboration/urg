@@ -13,6 +13,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlin.time.Clock
+import kotlin.time.ExperimentalTime
 
 class ChatViewModel(
     private val ioDispatcher: CoroutineDispatcher
@@ -70,6 +72,15 @@ class ChatViewModel(
         appendMessage(Message("assistant", text, MessageType.SYSTEM))
     }
 
+    fun updateLastSystemMessage(text: String) {
+        _uiState.update { state ->
+            val messages = state.messages.toMutableList()
+            val idx = messages.indexOfLast { it.type == MessageType.SYSTEM }
+            if (idx >= 0) messages[idx] = messages[idx].copy(text = text)
+            state.copy(messages = messages)
+        }
+    }
+
     fun updatePrompt(text: String) {
         _uiState.update { it.copy(promptText = text) }
     }
@@ -79,8 +90,18 @@ class ChatViewModel(
     }
 
     fun startTriage() {
-        _uiState.update { it.copy(promptText = "") }
+        _uiState.update { it.copy(promptText = "", showTriageButtons = false) }
         appendMessage(Message("assistant", triageController.start(), MessageType.TRIAGE))
+    }
+
+    fun answerTriageYes() {
+        _uiState.update { it.copy(promptText = Strings.BUTTON_YES) }
+        handleTriageResponse()
+    }
+
+    fun answerTriageNo() {
+        _uiState.update { it.copy(promptText = Strings.BUTTON_NO) }
+        handleTriageResponse()
     }
 
     private fun handleTriageResponse() {
@@ -90,18 +111,83 @@ class ChatViewModel(
         appendMessage(Message("user", text, MessageType.TRIAGE))
         _uiState.update { it.copy(promptText = "") }
 
-        when (val result = triageController.handleAnswer(text)) {
+        val result = triageController.handleAnswer(text)
+
+        if (result is TriageHandleResult.InvalidAnswer) {
+            val currentStep = triageController.step
+            if (llmEngine != null && currentStep != null) {
+                classifyWithLlm(text, currentStep, fallback = result)
+                return
+            }
+        }
+
+        applyTriageResult(result)
+    }
+
+    private fun classifyWithLlm(
+        userInput: String,
+        step: TriageStep,
+        fallback: TriageHandleResult.InvalidAnswer
+    ) {
+        val engine = llmEngine ?: run { applyTriageResult(fallback); return }
+        val question = StartRuleEngine.stepQuestions[step] ?: run { applyTriageResult(fallback); return }
+
+        _uiState.update { it.copy(isLoading = true) }
+
+        viewModelScope.launch(ioDispatcher) {
+            try {
+                val instruction = PromptBuilder.buildYesNoClassificationInstruction(userInput, question)
+                val prompt = config.chatTemplate.formatInstructionPrompt(instruction)
+                val accumulated = StringBuilder()
+
+                engine.generateStream(prompt) { partial, done ->
+                    accumulated.append(partial)
+                    if (done) {
+                        _uiState.update { it.copy(isLoading = false) }
+                        println("LLM_CLASSIFY: output='${accumulated}'")
+                        val classified = StartRuleEngine.parseLlmYesNo(accumulated.toString())
+                        if (classified != null) {
+                            val classifiedText = if (classified) "はい" else "いいえ"
+                            appendMessage(Message("assistant", "（AIが「$classifiedText」と解釈しました）", MessageType.TRIAGE))
+                            val newResult = triageController.handleAnswer(classifiedText)
+                            applyTriageResult(newResult)
+                        } else {
+                            appendMessage(Message("assistant", "（AIが判断できませんでした）", MessageType.TRIAGE))
+                            applyTriageResult(fallback)
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                _uiState.update { it.copy(isLoading = false) }
+                applyTriageResult(fallback)
+            }
+        }
+    }
+
+    private fun applyTriageResult(result: TriageHandleResult) {
+        when (result) {
             is TriageHandleResult.Ignored -> Unit
-            is TriageHandleResult.InvalidAnswer -> appendMessage(Message("assistant", result.message, MessageType.TRIAGE))
-            is TriageHandleResult.SafetyFailed -> appendMessage(Message("assistant", result.message, MessageType.TRIAGE))
-            is TriageHandleResult.NextQuestion -> appendMessage(Message("assistant", result.question, MessageType.TRIAGE))
+            is TriageHandleResult.InvalidAnswer -> {
+                appendMessage(Message("assistant", result.message, MessageType.TRIAGE))
+                if (result.showButtons) _uiState.update { it.copy(showTriageButtons = true) }
+            }
+            is TriageHandleResult.SafetyFailed -> {
+                appendMessage(Message("assistant", result.message, MessageType.TRIAGE))
+                _uiState.update { it.copy(showTriageButtons = false) }
+            }
+            is TriageHandleResult.NextQuestion -> {
+                appendMessage(Message("assistant", result.question, MessageType.TRIAGE))
+                _uiState.update { it.copy(showTriageButtons = false) }
+            }
             is TriageHandleResult.Done -> {
                 appendMessage(Message("assistant", result.guidanceMessage, MessageType.TRIAGE))
+                _uiState.update { it.copy(showTriageButtons = false) }
                 generateTriageGuidance(result.actionPlan)
             }
         }
     }
 
+    @OptIn(ExperimentalTime::class)
     private fun generateTriageGuidance(actionPlan: TriageActionPlan) {
         val engine = llmEngine ?: return
         val r = retriever ?: return
@@ -118,10 +204,19 @@ class ChatViewModel(
                 val userPrompt = PromptBuilder.buildTriageUserPrompt(actionPlan, supplementText)
                 val prompt = config.chatTemplate.formatSinglePrompt(systemPrompt, userPrompt)
                 val accumulated = StringBuilder()
+                var lastUpdateTime = 0L
 
                 engine.generateStream(prompt) { partial, done ->
                     accumulated.append(partial)
-                    _uiState.update { it.copy(streamingText = accumulated.toString()) }
+
+                    val now = Clock.System.now().toEpochMilliseconds()
+                    if (done || now - lastUpdateTime > 100) {
+                        lastUpdateTime = now
+                        val textNow = accumulated.toString()
+
+                        _uiState.update {it.copy(streamingText = textNow)}
+                    }
+
                     if (done) {
                         // appendMessage 経由で speak される（appendMessage 内で発火）。
                         appendMessage(Message("assistant", accumulated.toString()))

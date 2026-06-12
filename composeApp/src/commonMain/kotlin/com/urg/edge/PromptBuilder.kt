@@ -3,44 +3,66 @@ package com.urg.edge
 object PromptBuilder {
 
     fun buildTriageSystemPrompt(): String = """
-あなたは災害時支援AIです。
-必ず日本語で答えてください。
+You are a disaster response AI.
+Please respond in Japanese only.
 
-重要:
-- [安全確認]を必ず最初に説明する
-- 与えられた行動リスト以外を提案しない
-- 搬送先を変更しない
-- 医療診断をしない
-- 新しい処置を追加しない
-- 各1文・短く
-- 必ず落ち着いた口調で説明する
+Important:
+- Always explain [Safety Check] first
+- Do not change the destination for transport
+- Do not make medical diagnoses
+- Do not add new procedures
+- Do not add times, frequencies, or numerical values
+- Do not repeat the same phrases
+- Keep each sentence short
+- Always explain in a calm tone
 """.trimIndent()
 
     fun buildTriageUserPrompt(actionPlan: TriageActionPlan, supplementText: String): String {
         val safetySection = if (actionPlan.safetyFirst.isNotEmpty()) {
-            val text = actionPlan.safetyFirst.mapIndexed { i, item -> "${i + 1}. $item" }.joinToString("\n")
+            val text = actionPlan.safetyFirst.distinct().joinToString("\n") { "・$it" }
             "\n[傷病者の状態確認（必ず最初に説明すること）]\n$text\n"
         } else ""
 
-        val actionOffset = actionPlan.safetyFirst.size
-        val actionListText = actionPlan.actions
-            .mapIndexed { i, action -> "${i + actionOffset + 1}. $action" }
-            .joinToString("\n")
+        val actionListText = actionPlan.actions.distinct().joinToString("\n") { "・$it" }
 
         val forbiddenText = if (actionPlan.forbiddenActions.isNotEmpty()) {
-            "\n\n[禁止行為]\n" + actionPlan.forbiddenActions.joinToString("\n") { "・$it" }
+            "\n\n[禁止行為]\n" + actionPlan.forbiddenActions.distinct().joinToString("\n") { "・$it" }
         } else ""
 
         return """
-以下の内容を、一般市民向けに、短く・落ち着いた口調で番号付きリストとして説明してください。
-[補足知識]がある場合は、説明の言葉選びの参考にしてください。リスト以外の内容は追加しないでください。
+Please create a set of instructions for the general public based on the following conditions:
+Do not simply list the steps as a bulleted list.
+Summarize the steps into a single, concise set of instructions.
+Do not phrase the instructions as questions.
+Do not use numbered lists.
+Do not include “Yes” or “Understood” in the instructions.
+End each sentence with “Please do.”
+Please pay attention to your use of conjunctions, such as “or” and “next,” to ensure your writing flows smoothly.
+Please make sure to end your sentences with “~てください.”
+Please prioritize generating output that sounds like natural Japanese.
+
 $safetySection
-[行動リスト]
+[Action List]
 $actionListText
 $forbiddenText
+
 $supplementText
+
+
+[Output Requirements]
+Please provide your response in two sentences or fewer.
+Please refer to the [Action List] when writing your response.
+
 """.trimIndent()
     }
+
+
+    fun buildYesNoClassificationInstruction(userInput: String, question: String): String = """
+以下の質問に対するユーザーの回答が「はい」か「いいえ」かを判定してください。「YES」か「NO」のみ答えてください。
+
+質問：$question
+ユーザーの回答：「$userInput」
+""".trimIndent()
 
     fun buildChatSystemPrompt(ragSection: String, forbiddenList: String, triageContext: String): String = """
 あなたは災害時支援AIです。

@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.material3.Button
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -24,6 +25,8 @@ fun ChatScreen(
     onMicStart: () -> Unit,
     onMicStop: () -> Unit,
     onTestWavRecognize: (String) -> Unit,
+    onTriageYes: () -> Unit = {},
+    onTriageNo: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -57,6 +60,19 @@ fun ChatScreen(
         }
 
         PromptInput(value = uiState.promptText, onValueChange = onPromptChange)
+        if (uiState.showTriageButtons) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Button(onClick = onTriageYes, modifier = Modifier.weight(1f)) {
+                    Text(Strings.BUTTON_YES)
+                }
+                Button(onClick = onTriageNo, modifier = Modifier.weight(1f)) {
+                    Text(Strings.BUTTON_NO)
+                }
+            }
+        }
         ActionButtons(
             isListening = uiState.isListening,
             onTriageClick = onTriageClick,

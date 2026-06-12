@@ -34,11 +34,11 @@ object StartRuleEngine {
     )
 
     val stepQuestions = mapOf(
-        TriageStep.SAFETY_CHECK to "【安全確認】周囲は安全ですか？（はい / いいえ）",
+        TriageStep.SAFETY_CHECK to "【安全確認】周囲の状況は安全ですか？（はい / いいえ）",
         TriageStep.WALK to "【歩行確認】傷病者は自力で歩けますか？（はい / いいえ）",
-        TriageStep.BREATHING to "【呼吸確認】呼吸はありますか？（はい / いいえ）",
+        TriageStep.BREATHING to "【呼吸確認】普段通りの呼吸はありますか？（はい / いいえ）",
         TriageStep.CIRCULATION to "【循環確認】脈はありますか？（はい / いいえ）",
-        TriageStep.CONSCIOUSNESS to "【意識確認】呼びかけに反応しますか？（はい / いいえ）"
+        TriageStep.CONSCIOUSNESS to "【意識確認】呼びかけに反応がありますか？（はい / いいえ）"
     )
 
     fun nextStep(current: TriageStep): TriageStep = when (current) {
@@ -50,11 +50,36 @@ object StartRuleEngine {
         TriageStep.DONE -> TriageStep.DONE
     }
 
-    fun parseAnswer(text: String): Boolean? {
+    fun parseLlmYesNo(text: String): Boolean? {
         val t = text.trim()
         return when {
-            t.contains("はい") || t.contains("yes", ignoreCase = true) || t == "y" || t == "1" -> true
-            t.contains("いいえ") || t.contains("no", ignoreCase = true) || t == "n" || t == "0" -> false
+            t.contains("YES", ignoreCase = true) || t.contains("はい") -> true
+            t.contains("NO", ignoreCase = true) || t.contains("いいえ") -> false
+            else -> null
+        }
+    }
+
+    fun parseAnswer(text: String): Boolean? {
+        val t = text.trim()
+        // 不確かな表現は先に null で除外して LLM フォールバックに流す
+        if (t.contains("わからない") || t.contains("わかりません") || t.contains("不明")
+            || t.contains("確認できない") || t.contains("確認できません")) return null
+        return when {
+            // 肯定 — "問題ない" は否定側の "ない" より先に評価する必要がある
+            t.contains("はい") || t.contains("yes", ignoreCase = true) || t.contains("ok", ignoreCase = true)
+            || t == "y" || t == "1"
+            || t.contains("うん") || t.contains("ええ")
+            || t.contains("できます") || t.contains("できる")
+            || t.contains("歩けます") || t.contains("歩ける")
+            || t.contains("大丈夫") || t.contains("問題ない")
+            || t.contains("あります") || t.contains("反応あり") -> true
+
+            // 否定
+            t.contains("いいえ") || t.contains("no", ignoreCase = true) || t == "n" || t == "0"
+            || t.contains("ありません") || t.contains("できません") || t.contains("できない")
+            || t.contains("歩けません") || t.contains("歩けない")
+            || t.contains("無理") || t.contains("なし") || t.contains("ない") -> false
+
             else -> null
         }
     }

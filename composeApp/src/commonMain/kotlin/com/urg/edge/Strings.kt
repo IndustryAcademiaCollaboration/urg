@@ -9,7 +9,10 @@ object Strings {
     const val APP_TITLE = "Local LLM Demo"
     const val LOADING_LABEL = "Loading..."
     const val PROMPT_LABEL = "Prompt"
+    const val TRIAGE_CALM_INTRO = "大丈夫です。落ち着いて、ゆっくり答えてください。一緒に確認していきましょう。\n\n"
     const val BUTTON_TRIAGE = "トリアージ開始"
+    const val BUTTON_YES = "はい"
+    const val BUTTON_NO = "いいえ"
     const val BUTTON_SEND = "送信"
     const val BUTTON_MIC = "音声入力"
     const val BUTTON_MIC_LISTENING = "録音中..."
@@ -19,6 +22,9 @@ object Strings {
     const val LISTENING_LABEL = "音声入力中..."
 
     const val INIT_LLM_ERROR_PREFIX = "ERROR: LLM initialization failed: "
+    const val LLM_MODEL_FILE_NAME = "model.litertlm"
+    const val LLM_MODEL_DOWNLOAD_URL =
+        "https://huggingface.co/litert-community/gemma-4-E2B-it-litert-lm/resolve/main/gemma-4-E2B-it.litertlm"
     const val INIT_STT_ERROR_PREFIX = "ERROR: STT initialization failed: "
     const val INIT_TTS_ERROR_PREFIX = "ERROR: TTS initialization failed: "
     const val INIT_COMPLETE = "[初期化] 準備完了"

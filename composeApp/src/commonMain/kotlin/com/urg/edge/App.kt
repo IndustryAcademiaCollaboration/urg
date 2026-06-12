@@ -223,6 +223,8 @@ fun App(
                     onMicStart = onMicStart,
                     onMicStop = onMicStop,
                     onTestWavRecognize = onTestWavRecognize,
+                    onTriageYes = viewModel::answerTriageYes,
+                    onTriageNo = viewModel::answerTriageNo,
                     modifier = Modifier.padding(paddingValues)
                 )
                 // ★ 選択されたタブが 2（地図）の時、MapScreenを表示するよう追記
