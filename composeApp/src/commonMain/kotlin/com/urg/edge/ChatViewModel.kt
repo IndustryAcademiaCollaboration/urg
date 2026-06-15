@@ -13,6 +13,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlin.time.Clock
+import kotlin.time.ExperimentalTime
 
 class ChatViewModel(
     private val ioDispatcher: CoroutineDispatcher
@@ -74,6 +76,15 @@ class ChatViewModel(
 
     fun addSystemMessage(text: String) {
         appendMessage(Message("assistant", text, MessageType.SYSTEM))
+    }
+
+    fun updateLastSystemMessage(text: String) {
+        _uiState.update { state ->
+            val messages = state.messages.toMutableList()
+            val idx = messages.indexOfLast { it.type == MessageType.SYSTEM }
+            if (idx >= 0) messages[idx] = messages[idx].copy(text = text)
+            state.copy(messages = messages)
+        }
     }
 
     fun updatePrompt(text: String) {
@@ -183,6 +194,7 @@ class ChatViewModel(
         }
     }
 
+    @OptIn(ExperimentalTime::class)
     private fun generateTriageGuidance(actionPlan: TriageActionPlan) {
         val engine = llmEngine ?: return
         val r = retriever ?: return
@@ -199,10 +211,19 @@ class ChatViewModel(
                 val userPrompt = PromptBuilder.buildTriageUserPrompt(actionPlan, supplementText)
                 val prompt = config.chatTemplate.formatSinglePrompt(systemPrompt, userPrompt)
                 val accumulated = StringBuilder()
+                var lastUpdateTime = 0L
 
                 engine.generateStream(prompt) { partial, done ->
                     accumulated.append(partial)
-                    _uiState.update { it.copy(streamingText = accumulated.toString()) }
+
+                    val now = Clock.System.now().toEpochMilliseconds()
+                    if (done || now - lastUpdateTime > 100) {
+                        lastUpdateTime = now
+                        val textNow = accumulated.toString()
+
+                        _uiState.update {it.copy(streamingText = textNow)}
+                    }
+
                     if (done) {
                         // appendMessage 経由で speak される（appendMessage 内で発火）。
                         appendMessage(Message("assistant", accumulated.toString()))

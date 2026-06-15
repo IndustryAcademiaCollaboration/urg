@@ -32,7 +32,7 @@ kotlin {
             implementation(libs.compose.uiToolingPreview)
             implementation(libs.androidx.activity.compose)
 
-            implementation("com.google.mediapipe:tasks-genai:0.10.35")
+            implementation("com.google.ai.edge.litertlm:litertlm-android:latest.release")
             implementation("com.microsoft.onnxruntime:onnxruntime-android:1.20.0")
             implementation("ai.djl.huggingface:tokenizers:0.33.0")
             implementation("ai.djl.android:tokenizer-native:0.33.0")
@@ -40,6 +40,11 @@ kotlin {
             //DB
             implementation(libs.sqldelight.android)
             implementation("io.github.ayutaz:piper-plus-g2p-android:1.0.0")
+            // MapLibre Android (10.x = OpenGLES固定、Vulkan非対応エミュレーターでも動作)
+            implementation("org.maplibre.gl:android-sdk:10.3.1")
+            implementation("org.maplibre.gl:android-plugin-annotation-v9:1.0.0")
+            implementation("com.google.android.gms:play-services-location:21.3.0")
+            implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.7.3")
         }
         commonMain.dependencies {
             implementation(libs.compose.runtime)

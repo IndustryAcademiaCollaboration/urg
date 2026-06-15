@@ -39,7 +39,7 @@ import com.urg.edge.ui.ModeSelect
 import com.urg.edge.ui.PriorityScreen
 import com.urg.edge.ui.Result
 import com.urg.edge.ui.SafetyCheck
-import com.urg.edge.ui.TriageScreen
+import com.urg.edge.ui.MapScreen
 import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.painterResource
 import urg.composeapp.generated.resources.Res
@@ -249,6 +249,9 @@ fun App(
                     onTestWavRecognize = onTestWavRecognize,
                     onTriageYes = viewModel::answerTriageYes,
                     onTriageNo = viewModel::answerTriageNo,
+                    modifier = Modifier.padding(paddingValues)
+                )
+                selectedTab == 2 -> MapScreen(
                     modifier = Modifier.padding(paddingValues)
                 )
                 selectedTab == 3 -> PriorityScreen(
