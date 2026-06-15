@@ -40,6 +40,8 @@ import com.urg.edge.ui.PriorityScreen
 import com.urg.edge.ui.Result
 import com.urg.edge.ui.SafetyCheck
 import com.urg.edge.ui.MapScreen
+import com.urg.edge.ui.TriageFlowScreen
+import com.urg.edge.ui.TriageScreen
 import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.painterResource
 import urg.composeapp.generated.resources.Res
@@ -78,6 +80,7 @@ fun App(
     var showHurryMode by remember { mutableStateOf(false) }
     var showChatHistory by remember { mutableStateOf(false) }
     var showResult by remember { mutableStateOf(false) }
+    var showTriageFlow by remember { mutableStateOf(false) }
     var calmModeAnswers by remember { mutableStateOf<List<Boolean>>(emptyList()) }
 
 
@@ -115,6 +118,7 @@ fun App(
                                             showHurryMode = false
                                             showChatHistory = false
                                             showResult = false
+                                            showTriageFlow = false
                                         }
                                         .padding(horizontal = 12.dp)
                                 ) {
@@ -156,6 +160,10 @@ fun App(
             }
         ) { paddingValues ->
             when {
+                showTriageFlow -> TriageFlowScreen(
+                    onBack = { showTriageFlow = false },
+                    modifier = Modifier.padding(paddingValues)
+                )
                 showChatHistory -> ChatHistory(
                     onBack = {
                         showChatHistory = false
@@ -243,7 +251,7 @@ fun App(
                     uiState = uiState,
                     onPromptChange = viewModel::updatePrompt,
                     onSendClick = viewModel::onSendClick,
-                    onTriageClick = viewModel::startTriage,
+                    onTriageClick = { showTriageFlow = true },
                     onMicStart = onMicStart,
                     onMicStop = onMicStop,
                     onTestWavRecognize = onTestWavRecognize,
