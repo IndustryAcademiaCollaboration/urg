@@ -107,7 +107,7 @@ fun Result(
             modifier = Modifier
                 .fillMaxWidth()
                 .statusBarsPadding()
-                .padding(horizontal = 16.dp, vertical = 14.dp)
+                .padding(horizontal = 16.dp, vertical = 6.dp)
         ) {
             Icon(
                 painter = painterResource(Res.drawable.ic_back),
@@ -191,23 +191,6 @@ fun Result(
                 .padding(24.dp)
         ) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                // カラーバッジ
-                Box(
-                    contentAlignment = Alignment.Center,
-                    modifier = Modifier
-                        .background(level.labelColor, RoundedCornerShape(8.dp))
-                        .padding(horizontal = 20.dp, vertical = 6.dp)
-                ) {
-                    Text(
-                        text = level.colorLabel,
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(12.dp))
-
                 // 重症度ラベル
                 Text(
                     text = level.severityLabel,

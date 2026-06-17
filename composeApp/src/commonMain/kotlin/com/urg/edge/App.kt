@@ -31,13 +31,17 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.urg.edge.ui.CalmMode
+import com.urg.edge.ui.ChatHistory
 import com.urg.edge.ui.ChatScreen
 import com.urg.edge.ui.HomeScreen
+import com.urg.edge.ui.HurryMode
 import com.urg.edge.ui.ModeSelect
+import com.urg.edge.ui.PriorityScreen
 import com.urg.edge.ui.Result
 import com.urg.edge.ui.SafetyCheck
-// ★ MapScreen を呼び出すためのインポートを追加
 import com.urg.edge.ui.MapScreen
+import com.urg.edge.ui.TriageFlowScreen
+import com.urg.edge.ui.TriageScreen
 import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.painterResource
 import urg.composeapp.generated.resources.Res
@@ -73,8 +77,12 @@ fun App(
     var showSafetyCheck by remember { mutableStateOf(false) }
     var showModeSelect by remember { mutableStateOf(false) }
     var showCalmMode by remember { mutableStateOf(false) }
+    var showHurryMode by remember { mutableStateOf(false) }
+    var showChatHistory by remember { mutableStateOf(false) }
     var showResult by remember { mutableStateOf(false) }
+    var showTriageFlow by remember { mutableStateOf(false) }
     var calmModeAnswers by remember { mutableStateOf<List<Boolean>>(emptyList()) }
+
 
     val navItems = listOf(
         NavItem("ホーム",     Res.drawable.ic_home,     Res.drawable.ic_home_selected),
@@ -107,7 +115,10 @@ fun App(
                                             showSafetyCheck = false
                                             showModeSelect = false
                                             showCalmMode = false
+                                            showHurryMode = false
+                                            showChatHistory = false
                                             showResult = false
+                                            showTriageFlow = false
                                         }
                                         .padding(horizontal = 12.dp)
                                 ) {
@@ -149,6 +160,30 @@ fun App(
             }
         ) { paddingValues ->
             when {
+                showTriageFlow -> TriageFlowScreen(
+                    onBack = { showTriageFlow = false },
+                    modifier = Modifier.padding(paddingValues)
+                )
+                showChatHistory -> ChatHistory(
+                    onBack = {
+                        showChatHistory = false
+                        showHurryMode = true
+                    },
+                    modifier = Modifier.padding(paddingValues)
+                )
+                showHurryMode -> HurryMode(
+                    onBack = {
+                        showHurryMode = false
+                        showSafetyCheck = false
+                        showModeSelect = false
+                        selectedTab = 0
+                    },
+                    onHistoryClick = {
+                        showChatHistory = true
+                    },
+                    onMicClick = onMicStart,
+                    modifier = Modifier.padding(paddingValues)
+                )
                 showResult -> Result(
                     answers = calmModeAnswers,
                     onBack = {
@@ -187,9 +222,7 @@ fun App(
                     },
                     onHurryClick = {
                         showModeSelect = false
-                        showSafetyCheck = false
-                        selectedTab = 1
-                        viewModel.startTriage()
+                        showHurryMode = true
                     },
                     modifier = Modifier.padding(paddingValues)
                 )
@@ -205,8 +238,7 @@ fun App(
                     },
                     onDangerClick = {
                         showSafetyCheck = false
-                        selectedTab = 1
-                        viewModel.startTriage()
+                        showHurryMode = true
                     },
                     modifier = Modifier.padding(paddingValues)
                 )
@@ -219,7 +251,7 @@ fun App(
                     uiState = uiState,
                     onPromptChange = viewModel::updatePrompt,
                     onSendClick = viewModel::onSendClick,
-                    onTriageClick = viewModel::startTriage,
+                    onTriageClick = { showTriageFlow = true },
                     onMicStart = onMicStart,
                     onMicStop = onMicStop,
                     onTestWavRecognize = onTestWavRecognize,
@@ -227,8 +259,11 @@ fun App(
                     onTriageNo = viewModel::answerTriageNo,
                     modifier = Modifier.padding(paddingValues)
                 )
-                // ★ 選択されたタブが 2（地図）の時、MapScreenを表示するよう追記
                 selectedTab == 2 -> MapScreen(
+                    modifier = Modifier.padding(paddingValues)
+                )
+                selectedTab == 3 -> PriorityScreen(
+                    onBack = { selectedTab = 0 },
                     modifier = Modifier.padding(paddingValues)
                 )
                 else -> {

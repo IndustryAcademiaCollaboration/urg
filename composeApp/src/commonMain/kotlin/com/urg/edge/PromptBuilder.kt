@@ -36,9 +36,7 @@ Summarize the steps into a single, concise set of instructions.
 Do not phrase the instructions as questions.
 Do not use numbered lists.
 Do not include “Yes” or “Understood” in the instructions.
-End each sentence with “Please do.”
 Please pay attention to your use of conjunctions, such as “or” and “next,” to ensure your writing flows smoothly.
-Please make sure to end your sentences with “~てください.”
 Please prioritize generating output that sounds like natural Japanese.
 
 $safetySection
@@ -50,8 +48,10 @@ $supplementText
 
 
 [Output Requirements]
-Please provide your response in two sentences or fewer.
-Please refer to the [Action List] when writing your response.
+Write exactly one sentence per item in the [Action List], in order.
+Do not add any sentences beyond the [Action List] items.
+Use varied Japanese sentence endings. Do not use 〜してください in every sentence.
+Acceptable endings include: 〜しましょう、〜が重要です、〜を行います、〜する必要があります。
 
 """.trimIndent()
     }
