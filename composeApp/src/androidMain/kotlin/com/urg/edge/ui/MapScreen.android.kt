@@ -3,6 +3,9 @@ package com.urg.edge.ui
 import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
+import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.graphics.Paint
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -42,11 +45,17 @@ import com.mapbox.mapboxsdk.maps.MapboxMapOptions
 import com.mapbox.mapboxsdk.maps.Style
 import com.mapbox.mapboxsdk.plugins.annotation.SymbolManager
 import com.mapbox.mapboxsdk.plugins.annotation.SymbolOptions
-import com.mapbox.mapboxsdk.utils.BitmapUtils
 import com.urg.edge.map.MapDownloadManager
 import com.urg.edge.map.getPrefectureFileName
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
+
+/** CSVから読み込んだ施設1件分のデータ */
+data class Facility(
+    val name: String,
+    val lat: Double,
+    val lng: Double
+)
 
 @Composable
 actual fun MapScreen(modifier: Modifier) {
@@ -144,27 +153,20 @@ actual fun MapScreen(modifier: Modifier) {
                                     .zoom(10.0)
                                     .build()
 
-                                style.addImage(
-                                    "pin-icon",
-                                    BitmapUtils.getBitmapFromDrawable(
-                                        context.resources.getDrawable(
-                                            android.R.drawable.ic_menu_mylocation, null
-                                        )
-                                    )!!
-                                )
+                                // マーカー用アイコン(色付きの円)を登録
+                                style.addImage("hospital-icon", createCircleBitmap(0xFFE53935.toInt()))   // 赤
+                                style.addImage("aidstation-icon", createCircleBitmap(0xFF43A047.toInt())) // 緑
 
                                 val symbolManager = SymbolManager(mapView, map, style)
                                 symbolManager.iconAllowOverlap = true
                                 symbolManager.iconIgnorePlacement = true
-                                symbolManager.create(
-                                    SymbolOptions()
-                                        .withLatLng(LatLng(35.1802, 136.9066))
-                                        .withIconImage("pin-icon")
-                                        .withIconSize(2.0f)
-                                        .withTextField("名古屋駅")
-                                        .withTextOffset(arrayOf(0f, 1.5f))
-                                        .withTextColor("#FF0000")
-                                )
+
+                                // CSVから施設を読み込んで全件プロット
+                                val hospitals = loadFacilitiesFromAssets(context, "hospital.csv")
+                                val aidStations = loadFacilitiesFromAssets(context, "First-aidstation.csv")
+
+                                plotFacilities(symbolManager, hospitals, "hospital-icon")
+                                plotFacilities(symbolManager, aidStations, "aidstation-icon")
                             }
                         }
                     }
@@ -196,6 +198,72 @@ actual fun MapScreen(modifier: Modifier) {
     }
 }
 
+/**
+ * assetsフォルダ内のCSV(施設名,緯度,経度)を読み込む。
+ * 1行目はヘッダーとしてスキップ。パースできない行は無視する。
+ */
+private fun loadFacilitiesFromAssets(context: Context, fileName: String): List<Facility> {
+    return try {
+        context.assets.open(fileName).bufferedReader(Charsets.UTF_8).useLines { lines ->
+            lines.drop(1) // ヘッダー行をスキップ
+                .mapNotNull { line ->
+                    val cols = line.split(",")
+                    if (cols.size < 3) return@mapNotNull null
+                    val name = cols[0].trim()
+                    val lat = cols[1].trim().toDoubleOrNull() ?: return@mapNotNull null
+                    val lng = cols[2].trim().toDoubleOrNull() ?: return@mapNotNull null
+                    Facility(name, lat, lng)
+                }
+                .toList()
+        }
+    } catch (e: Exception) {
+        emptyList()
+    }
+}
+
+/** 施設リストをSymbolManagerで一括プロットする */
+private fun plotFacilities(
+    symbolManager: SymbolManager,
+    facilities: List<Facility>,
+    iconName: String
+) {
+    val options = facilities.map { facility ->
+        SymbolOptions()
+            .withLatLng(LatLng(facility.lat, facility.lng))
+            .withIconImage(iconName)
+            .withIconSize(1.0f)
+            .withTextField(facility.name)
+            .withTextSize(18f)
+            .withTextOffset(arrayOf(0f, 1.2f))
+            .withTextColor("#333333")
+            .withTextHaloColor("#FFFFFF")
+            .withTextHaloWidth(1.5f)
+    }
+    // create(List) で一括生成(1件ずつより高速)
+    symbolManager.create(options)
+}
+
+/** マーカー用の塗りつぶし円Bitmapを生成する(白フチ付き) */
+private fun createCircleBitmap(color: Int, sizePx: Int = 36): Bitmap {
+    val bitmap = Bitmap.createBitmap(sizePx, sizePx, Bitmap.Config.ARGB_8888)
+    val canvas = Canvas(bitmap)
+    val center = sizePx / 2f
+
+    val fill = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        this.color = color
+        style = Paint.Style.FILL
+    }
+    val stroke = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        this.color = android.graphics.Color.WHITE
+        style = Paint.Style.STROKE
+        strokeWidth = sizePx * 0.1f
+    }
+
+    canvas.drawCircle(center, center, center * 0.8f, fill)
+    canvas.drawCircle(center, center, center * 0.8f, stroke)
+    return bitmap
+}
+
 private suspend fun initializeMap(
     context: Context,
     downloadManager: MapDownloadManager,
@@ -204,6 +272,19 @@ private suspend fun initializeMap(
     onReady: (String) -> Unit
 ) {
     onStatus("現在地を取得中...")
+
+    // 権限チェック（Lint対策：呼び出し元で確認済みだが、この関数単体でも明示的にチェックする）
+    val hasFineLocation = ContextCompat.checkSelfPermission(
+        context, Manifest.permission.ACCESS_FINE_LOCATION
+    ) == PackageManager.PERMISSION_GRANTED
+    val hasCoarseLocation = ContextCompat.checkSelfPermission(
+        context, Manifest.permission.ACCESS_COARSE_LOCATION
+    ) == PackageManager.PERMISSION_GRANTED
+
+    if (!hasFineLocation && !hasCoarseLocation) {
+        onStatus("位置情報の権限がありません")
+        return
+    }
 
     try {
         val fusedClient = LocationServices.getFusedLocationProviderClient(context)
