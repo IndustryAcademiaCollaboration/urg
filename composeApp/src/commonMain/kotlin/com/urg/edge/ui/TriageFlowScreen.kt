@@ -1,0 +1,571 @@
+package com.urg.edge.ui
+
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Icon
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.urg.edge.TriageResult
+import com.urg.edge.TriageStep
+import org.jetbrains.compose.resources.painterResource
+import urg.composeapp.generated.resources.Res
+import urg.composeapp.generated.resources.ic_back
+
+// ─── Colors ───────────────────────────────────────────────────────────────────
+private val Teal     = Color(0xFF25B1BF)
+private val TealBg   = Color(0xFFE8F9FA)
+private val Green    = Color(0xFF1D9E75)
+private val GreenBg  = Color(0xFFE1F5EE)
+private val Red      = Color(0xFFE24B4A)
+private val RedBg    = Color(0xFFFCEBEB)
+private val Orange   = Color(0xFFEF9F27)
+private val OrangeBg = Color(0xFFFAEEDA)
+private val GrayLine = Color(0xFFCCCCCC)
+private val GrayBg   = Color(0xFFF5F5F5)
+private val GrayText = Color(0xFF9AACB4)
+private val BodyText = Color(0xFF2A3A45)
+
+// ─── Data ─────────────────────────────────────────────────────────────────────
+private enum class YesDir { DOWN, RIGHT }
+
+private data class StepInfo(
+    val step: TriageStep,
+    val num: String,
+    val label: String,
+    val question: String,
+    val yesDir: YesDir,
+    val yesResultId: String?,   // non-null when yes leads to leaf result
+    val noResultId: String?,    // null for WALK (no goes down)
+)
+
+private val FLOW_STEPS = listOf(
+    StepInfo(TriageStep.SAFETY_CHECK, "①", "安全確認",   "周囲は安全ですか？",         YesDir.DOWN,  null,            "danger"),
+    StepInfo(TriageStep.WALK,         "②", "歩行確認",   "自力で歩けますか？",         YesDir.RIGHT, "minor",         null),
+    StepInfo(TriageStep.BREATHING,    "③", "呼吸確認",   "呼吸はありますか？",         YesDir.DOWN,  null,            "severe_airway"),
+    StepInfo(TriageStep.CIRCULATION,  "④", "循環確認",   "脈はありますか？",           YesDir.DOWN,  null,            "severe_circ"),
+    StepInfo(TriageStep.CONSCIOUSNESS,"⑤", "意識確認",   "呼びかけに反応しますか？",   YesDir.RIGHT, "severe_injury", "severe_cons"),
+)
+
+private data class ResultInfo(
+    val label: String,
+    val subLines: List<String>,
+    val dot: Color,
+    val bg: Color,
+    val border: Color,
+)
+
+private val FLOW_RESULTS = mapOf(
+    "danger"        to ResultInfo("退避指示", listOf("安全確保・避難"),         Orange, OrangeBg, Orange),
+    "minor"         to ResultInfo("軽症",     listOf("救護所へ自力で"),         Green,  GreenBg,  Green),
+    "severe_airway" to ResultInfo("重症",     listOf("気道確保・CPR", "AED使用"), Red, RedBg, Red),
+    "severe_circ"   to ResultInfo("重症",     listOf("出血を圧迫", "圧迫を保持"), Red, RedBg, Red),
+    "severe_cons"   to ResultInfo("重症",     listOf("回復体位", "呼吸を確認"), Red, RedBg, Red),
+    "severe_injury" to ResultInfo("重症",     listOf("出血箇所を圧迫", "・安静"), Red, RedBg, Red),
+)
+
+// ─── Flow State ───────────────────────────────────────────────────────────────
+private data class FlowState(
+    val answers: Map<TriageStep, Boolean> = emptyMap(),
+    val currentStep: TriageStep? = TriageStep.SAFETY_CHECK,
+    val reachedResult: String? = null,
+    val finalResult: TriageResult? = null,
+)
+
+private fun FlowState.answer(yes: Boolean): FlowState {
+    val step = currentStep ?: return this
+    val next = answers + (step to yes)
+    return when {
+        step == TriageStep.SAFETY_CHECK && yes ->
+            copy(answers = next, currentStep = TriageStep.WALK)
+        step == TriageStep.SAFETY_CHECK && !yes ->
+            copy(answers = next, currentStep = null, reachedResult = "danger")
+        step == TriageStep.WALK && yes ->
+            copy(answers = next, currentStep = null, reachedResult = "minor", finalResult = TriageResult.MINOR)
+        step == TriageStep.WALK && !yes ->
+            copy(answers = next, currentStep = TriageStep.BREATHING)
+        step == TriageStep.BREATHING && !yes ->
+            copy(answers = next, currentStep = null, reachedResult = "severe_airway", finalResult = TriageResult.SEVERE)
+        step == TriageStep.BREATHING && yes ->
+            copy(answers = next, currentStep = TriageStep.CIRCULATION)
+        step == TriageStep.CIRCULATION && !yes ->
+            copy(answers = next, currentStep = null, reachedResult = "severe_circ", finalResult = TriageResult.SEVERE)
+        step == TriageStep.CIRCULATION && yes ->
+            copy(answers = next, currentStep = TriageStep.CONSCIOUSNESS)
+        step == TriageStep.CONSCIOUSNESS && !yes ->
+            copy(answers = next, currentStep = null, reachedResult = "severe_cons", finalResult = TriageResult.SEVERE)
+        step == TriageStep.CONSCIOUSNESS && yes ->
+            copy(answers = next, currentStep = null, reachedResult = "severe_injury", finalResult = TriageResult.SEVERE)
+        else -> this
+    }
+}
+
+// ─── Main Screen ──────────────────────────────────────────────────────────────
+@Composable
+fun TriageFlowScreen(
+    onBack: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    var state by remember { mutableStateOf(FlowState()) }
+
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .background(Color.White)
+    ) {
+        // ── Header ──
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .statusBarsPadding()
+                .padding(horizontal = 16.dp, vertical = 6.dp)
+        ) {
+            Icon(
+                painter = painterResource(Res.drawable.ic_back),
+                contentDescription = "戻る",
+                tint = Color.Unspecified,
+                modifier = Modifier
+                    .align(Alignment.CenterStart)
+                    .size(28.dp)
+                    .clip(RoundedCornerShape(50))
+                    .clickable { onBack() }
+            )
+            Text(
+                text = "トリアージ",
+                fontSize = 30.sp,
+                fontWeight = FontWeight.Bold,
+                color = Teal,
+                modifier = Modifier.align(Alignment.Center)
+            )
+        }
+
+        // ── Flowchart area ──
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 8.dp, vertical = 12.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            FLOW_STEPS.forEachIndexed { idx, info ->
+                val ans = state.answers[info.step]
+                val nodeState: String = when {
+                    ans == true  -> "yes"
+                    ans == false -> "no"
+                    state.currentStep == info.step -> "active"
+                    else -> "idle"
+                }
+
+                FlowStepRow(
+                    info       = info,
+                    nodeState  = nodeState,
+                    reachedResult = state.reachedResult,
+                )
+
+                // Vertical arrow between steps
+                if (idx < FLOW_STEPS.size - 1) {
+                    // Determine label and color for downward arrow
+                    val downIsYes   = info.yesDir == YesDir.DOWN          // true for safety/breathing/circ
+                    val activeDown  = (downIsYes && nodeState == "yes") || (!downIsYes && nodeState == "no")
+                    val downColor   = when {
+                        activeDown && downIsYes  -> Green
+                        activeDown && !downIsYes -> Red
+                        else                     -> GrayLine
+                    }
+                    val downLabel   = if (downIsYes) "はい" else "いいえ"
+
+                    VerticalArrowSection(
+                        color        = downColor,
+                        label        = downLabel,
+                        labelColor   = if (activeDown) downColor else GrayText,
+                        isDashed     = !activeDown,
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+        }
+
+        // ── Bottom panel ──
+        when {
+            state.currentStep != null -> {
+                val info = FLOW_STEPS.find { it.step == state.currentStep }
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(Color.White)
+                        .padding(horizontal = 20.dp, vertical = 14.dp)
+                ) {
+                    if (info != null) {
+                        Text(
+                            text = info.question,
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = BodyText,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp)
+                        )
+                    }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Box(
+                            contentAlignment = Alignment.Center,
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(38.dp)
+                                .clip(RoundedCornerShape(50))
+                                .background(Color(0xFFE8FAF3))
+                                .clickable { state = state.answer(true) }
+                        ) {
+                            Text("✓  はい", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF2E9E6E))
+                        }
+                        Box(
+                            contentAlignment = Alignment.Center,
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(38.dp)
+                                .clip(RoundedCornerShape(50))
+                                .background(Color(0xFFFFF0F0))
+                                .clickable { state = state.answer(false) }
+                        ) {
+                            Text("✕  いいえ", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFFD94444))
+                        }
+                    }
+                }
+            }
+            state.reachedResult != null -> {
+                val res = FLOW_RESULTS[state.reachedResult]
+                if (res != null) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(res.bg)
+                            .padding(horizontal = 20.dp, vertical = 16.dp)
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(modifier = Modifier.size(10.dp).clip(CircleShape).background(res.dot))
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(text = res.label, fontSize = 18.sp, fontWeight = FontWeight.Bold, color = res.dot)
+                        }
+                        Spacer(modifier = Modifier.height(4.dp))
+                        res.subLines.forEach {
+                            Text(text = it, fontSize = 13.sp, color = BodyText)
+                        }
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Box(
+                            contentAlignment = Alignment.Center,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(Color.White.copy(alpha = 0.6f))
+                                .clickable { state = FlowState() }
+                                .padding(vertical = 12.dp)
+                        ) {
+                            Text("↺  最初からやり直す", fontSize = 13.sp, color = GrayText)
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+// ─── Flow Step Row ────────────────────────────────────────────────────────────
+@Composable
+private fun FlowStepRow(
+    info: StepInfo,
+    nodeState: String,
+    reachedResult: String?,
+) {
+    val hasLeftResult  = info.noResultId != null               // いいえ goes to left result
+    val hasRightResult = info.yesDir == YesDir.RIGHT && info.yesResultId != null
+
+    val leftActive  = nodeState == "no"  && hasLeftResult
+    val rightActive = nodeState == "yes" && hasRightResult
+
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        // Left result node (88dp)
+        Box(modifier = Modifier.width(88.dp)) {
+            if (hasLeftResult) {
+                val res     = FLOW_RESULTS[info.noResultId!!]!!
+                val reached = reachedResult == info.noResultId
+                SmallResultNode(
+                    res     = res,
+                    reached = reached,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+        }
+
+        // Left arrow (question → left result)
+        Box(modifier = Modifier.width(28.dp).height(40.dp)) {
+            if (hasLeftResult) {
+                DashedHorizontalArrow(
+                    color    = if (leftActive || reachedResult == info.noResultId) Red else GrayLine,
+                    label    = "いいえ",
+                    toLeft   = true,
+                    isActive = leftActive || reachedResult == info.noResultId,
+                    modifier = Modifier.fillMaxSize(),
+                )
+            }
+        }
+
+        // Question node (flexible center)
+        QuestionNode(
+            info      = info,
+            nodeState = nodeState,
+            modifier  = Modifier.weight(1f),
+        )
+
+        // Right arrow (question → right result)
+        Box(modifier = Modifier.width(28.dp).height(40.dp)) {
+            if (hasRightResult) {
+                DashedHorizontalArrow(
+                    color    = if (rightActive || reachedResult == info.yesResultId) Green else GrayLine,
+                    label    = "はい",
+                    toLeft   = false,
+                    isActive = rightActive || reachedResult == info.yesResultId,
+                    modifier = Modifier.fillMaxSize(),
+                )
+            }
+        }
+
+        // Right result node (88dp)
+        Box(modifier = Modifier.width(88.dp)) {
+            if (hasRightResult) {
+                val res     = FLOW_RESULTS[info.yesResultId!!]!!
+                val reached = reachedResult == info.yesResultId
+                SmallResultNode(
+                    res     = res,
+                    reached = reached,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+        }
+    }
+}
+
+// ─── Question Node ────────────────────────────────────────────────────────────
+private data class NodeStyle(
+    val bg: Color,
+    val border: Color,
+    val borderW: Float,
+    val numBg: Color,
+    val titleColor: Color,
+    val subColor: Color,
+)
+
+private fun nodeStyle(nodeState: String) = when (nodeState) {
+    "active" -> NodeStyle(TealBg,      Teal,     2.5f, Teal,     Teal,     Color(0xFF0B7A8A))
+    "yes"    -> NodeStyle(GreenBg,     Green,    2.0f, Green,    Green,    Green)
+    "no"     -> NodeStyle(GrayBg,      GrayLine, 1.5f, GrayLine, GrayText, GrayText)
+    else     -> NodeStyle(Color.White, GrayLine, 1.0f, GrayLine, GrayText, GrayText)
+}
+
+@Composable
+private fun QuestionNode(
+    info: StepInfo,
+    nodeState: String,
+    modifier: Modifier = Modifier,
+) {
+    val s = nodeStyle(nodeState)
+
+    Box(
+        modifier = modifier
+            .clip(RoundedCornerShape(14.dp))
+            .border(width = s.borderW.dp, color = s.border, shape = RoundedCornerShape(14.dp))
+            .background(s.bg)
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier
+                    .size(26.dp)
+                    .clip(CircleShape)
+                    .background(s.numBg)
+            ) {
+                Text(
+                    text       = info.num,
+                    fontSize   = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    color      = Color.White,
+                )
+            }
+            Spacer(modifier = Modifier.width(8.dp))
+            Column {
+                Text(
+                    text       = info.label,
+                    fontSize   = 13.sp,
+                    fontWeight = FontWeight.Bold,
+                    color      = s.titleColor,
+                )
+                Text(
+                    text     = info.question,
+                    fontSize = 11.sp,
+                    color    = s.subColor,
+                )
+            }
+        }
+    }
+}
+
+// ─── Small Result Node ────────────────────────────────────────────────────────
+@Composable
+private fun SmallResultNode(
+    res: ResultInfo,
+    reached: Boolean,
+    modifier: Modifier = Modifier,
+) {
+    val bg     = if (reached) res.bg     else GrayBg
+    val border = if (reached) res.border else GrayLine
+    val dot    = if (reached) res.dot    else GrayLine
+    val tc     = if (reached) res.dot    else GrayText
+
+    Box(
+        modifier = modifier
+            .clip(RoundedCornerShape(10.dp))
+            .border(width = if (reached) 2.dp else 1.dp, color = border, shape = RoundedCornerShape(10.dp))
+            .background(bg)
+    ) {
+        Column(
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 7.dp)
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(modifier = Modifier.size(7.dp).clip(CircleShape).background(dot))
+                Spacer(modifier = Modifier.width(4.dp))
+                Text(text = res.label, fontSize = 11.sp, fontWeight = FontWeight.Bold, color = tc)
+            }
+            res.subLines.forEach { line ->
+                Text(text = line, fontSize = 9.sp, color = tc, lineHeight = 13.sp)
+            }
+        }
+    }
+}
+
+// ─── Dashed Horizontal Arrow ──────────────────────────────────────────────────
+@Composable
+private fun DashedHorizontalArrow(
+    color: Color,
+    label: String,
+    toLeft: Boolean,
+    isActive: Boolean,
+    modifier: Modifier = Modifier,
+) {
+    val dash = if (isActive) null else PathEffect.dashPathEffect(floatArrayOf(5f, 4f), 0f)
+    Box(modifier = modifier) {
+        Canvas(modifier = Modifier.matchParentSize()) {
+            val midY = size.height / 2f + 4.dp.toPx()  // slightly below center (label above)
+            drawLine(
+                color       = color,
+                start       = Offset(0f, midY),
+                end         = Offset(size.width, midY),
+                strokeWidth = 1.5.dp.toPx(),
+                pathEffect  = dash,
+            )
+            // Arrowhead
+            val arrowSize = 5.dp.toPx()
+            if (toLeft) {
+                // Arrow pointing left (at x=0)
+                drawLine(color = color, start = Offset(arrowSize, midY - arrowSize), end = Offset(0f, midY), strokeWidth = 1.5.dp.toPx())
+                drawLine(color = color, start = Offset(arrowSize, midY + arrowSize), end = Offset(0f, midY), strokeWidth = 1.5.dp.toPx())
+            } else {
+                // Arrow pointing right (at x=width)
+                drawLine(color = color, start = Offset(size.width - arrowSize, midY - arrowSize), end = Offset(size.width, midY), strokeWidth = 1.5.dp.toPx())
+                drawLine(color = color, start = Offset(size.width - arrowSize, midY + arrowSize), end = Offset(size.width, midY), strokeWidth = 1.5.dp.toPx())
+            }
+        }
+        // Label
+        Text(
+            text      = label,
+            fontSize  = 8.sp,
+            color     = color,
+            textAlign = TextAlign.Center,
+            modifier  = Modifier.align(Alignment.TopCenter).padding(top = 2.dp),
+        )
+    }
+}
+
+// ─── Vertical Arrow Section ───────────────────────────────────────────────────
+@Composable
+private fun VerticalArrowSection(
+    color: Color,
+    label: String,
+    labelColor: Color,
+    isDashed: Boolean,
+) {
+    val SIDE = 116.dp  // left result(88) + arrow(28) = side column width
+
+    Row(
+        modifier = Modifier.fillMaxWidth().height(52.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Spacer(modifier = Modifier.width(SIDE))
+        Box(modifier = Modifier.weight(1f).fillMaxSize()) {
+            Canvas(modifier = Modifier.matchParentSize()) {
+                val x   = size.width / 2f
+                val dash = if (isDashed) PathEffect.dashPathEffect(floatArrayOf(5f, 4f), 0f) else null
+                drawLine(
+                    color       = color,
+                    start       = Offset(x, 0f),
+                    end         = Offset(x, size.height - 8.dp.toPx()),
+                    strokeWidth = 1.5.dp.toPx(),
+                    pathEffect  = dash,
+                )
+                // Arrowhead pointing down
+                val ay  = size.height - 4.dp.toPx()
+                val aw  = 5.dp.toPx()
+                drawLine(color = color, start = Offset(x - aw, ay - aw), end = Offset(x, ay), strokeWidth = 1.5.dp.toPx())
+                drawLine(color = color, start = Offset(x + aw, ay - aw), end = Offset(x, ay), strokeWidth = 1.5.dp.toPx())
+            }
+            Text(
+                text     = label,
+                fontSize = 9.sp,
+                color    = labelColor,
+                modifier = Modifier
+                    .align(Alignment.Center)
+                    .padding(start = 14.dp),
+            )
+        }
+        Spacer(modifier = Modifier.width(SIDE))
+    }
+}

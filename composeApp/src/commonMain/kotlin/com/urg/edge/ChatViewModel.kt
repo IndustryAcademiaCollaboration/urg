@@ -53,6 +53,12 @@ class ChatViewModel(
         }
         println("STT_RECOGNIZE: enter samples=${samples.size}")
         if (samples.isEmpty()) return
+        // モデルが必要とする最小サンプル数 = 0.5秒 @ 16kHz
+        val minSamples = 8000
+        if (samples.size < minSamples) {
+            println("STT_RECOGNIZE: skipped (too short: ${samples.size} < $minSamples)")
+            return
+        }
 
         viewModelScope.launch(ioDispatcher) {
             try {
@@ -92,6 +98,7 @@ class ChatViewModel(
     fun startTriage() {
         _uiState.update { it.copy(promptText = "", showTriageButtons = false) }
         appendMessage(Message("assistant", triageController.start(), MessageType.TRIAGE))
+        _uiState.update { it.copy(showTriageButtons = true) }
     }
 
     fun answerTriageYes() {
@@ -169,7 +176,7 @@ class ChatViewModel(
             is TriageHandleResult.Ignored -> Unit
             is TriageHandleResult.InvalidAnswer -> {
                 appendMessage(Message("assistant", result.message, MessageType.TRIAGE))
-                if (result.showButtons) _uiState.update { it.copy(showTriageButtons = true) }
+                _uiState.update { it.copy(showTriageButtons = true) }
             }
             is TriageHandleResult.SafetyFailed -> {
                 appendMessage(Message("assistant", result.message, MessageType.TRIAGE))
@@ -177,7 +184,7 @@ class ChatViewModel(
             }
             is TriageHandleResult.NextQuestion -> {
                 appendMessage(Message("assistant", result.question, MessageType.TRIAGE))
-                _uiState.update { it.copy(showTriageButtons = false) }
+                _uiState.update { it.copy(showTriageButtons = true) }
             }
             is TriageHandleResult.Done -> {
                 appendMessage(Message("assistant", result.guidanceMessage, MessageType.TRIAGE))
