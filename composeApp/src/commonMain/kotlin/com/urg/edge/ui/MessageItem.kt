@@ -83,7 +83,7 @@ fun MessageItem(message: Message) {
             }
         }
 
-        // ─── アシスタントメッセージ（左・アバター付き） ─────────
+        // ─── アシスタントメッセージ（左） ──────────────────────
         else -> {
             Row(
                 modifier = Modifier
@@ -91,25 +91,10 @@ fun MessageItem(message: Message) {
                     .padding(vertical = 4.dp),
                 verticalAlignment = Alignment.Top
             ) {
-                // アバター
-                Box(
-                    contentAlignment = Alignment.Center,
-                    modifier = Modifier
-                        .size(34.dp)
-                        .background(Color(0xFF25B1BF), CircleShape)
-                ) {
-                    Text(
-                        text = "AI",
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White,
-                    )
-                }
-                Spacer(modifier = Modifier.width(8.dp))
                 // バブル
                 Box(
                     modifier = Modifier
-                        .widthIn(max = 260.dp)
+                        .widthIn(max = 280.dp)
                         .background(
                             Color.White,
                             RoundedCornerShape(4.dp, 16.dp, 16.dp, 16.dp)

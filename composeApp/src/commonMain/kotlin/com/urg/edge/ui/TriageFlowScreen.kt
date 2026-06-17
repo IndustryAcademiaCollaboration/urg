@@ -23,6 +23,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -43,6 +44,7 @@ import com.urg.edge.TriageStep
 import org.jetbrains.compose.resources.painterResource
 import urg.composeapp.generated.resources.Res
 import urg.composeapp.generated.resources.ic_back
+import urg.composeapp.generated.resources.ic_gray_close
 
 // ─── Colors ───────────────────────────────────────────────────────────────────
 private val Teal     = Color(0xFF25B1BF)
@@ -57,6 +59,7 @@ private val GrayLine = Color(0xFFCCCCCC)
 private val GrayBg   = Color(0xFFF5F5F5)
 private val GrayText = Color(0xFF9AACB4)
 private val BodyText = Color(0xFF2A3A45)
+private val DarkGrayText = Color(0xFF737678)
 
 // ─── Data ─────────────────────────────────────────────────────────────────────
 private enum class YesDir { DOWN, RIGHT }
@@ -94,6 +97,16 @@ private val FLOW_RESULTS = mapOf(
     "severe_circ"   to ResultInfo("重症",     listOf("出血を圧迫", "圧迫を保持"), Red, RedBg, Red),
     "severe_cons"   to ResultInfo("重症",     listOf("回復体位", "呼吸を確認"), Red, RedBg, Red),
     "severe_injury" to ResultInfo("重症",     listOf("出血箇所を圧迫", "・安静"), Red, RedBg, Red),
+)
+
+// ─── LLM Messages (TODO: replace with actual ChatViewModel call) ──────────────
+private val LLM_MESSAGES = mapOf(
+    "danger"        to "周囲が危険な状況です。まず自身の安全を確保し、速やかに安全な場所へ避難してください。救助活動は安全を確認してから実施してください。",
+    "minor"         to "患者は自力歩行が可能な軽症と判断されます。近くの救護所へ誘導し、症状の変化を引き続き観察してください。",
+    "severe_airway" to "呼吸停止の疑いがあります。直ちに気道を確保し、必要であればCPRを開始してください。AEDが利用可能な場合は速やかに使用してください。",
+    "severe_circ"   to "循環障害の可能性があります。出血部位をタオルなどで強く圧迫し、その状態を保持してください。救急隊の到着を待ちながら観察を続けてください。",
+    "severe_cons"   to "意識障害があります。患者を回復体位（横向き）に置き、呼吸状態を継続的に確認してください。嘔吐による窒息に注意してください。",
+    "severe_injury" to "重篤な外傷の可能性があります。出血箇所を強く圧迫止血し、患者を安静に保ってください。体を動かさないよう注意してください。",
 )
 
 // ─── Flow State ───────────────────────────────────────────────────────────────
@@ -139,163 +152,281 @@ fun TriageFlowScreen(
     modifier: Modifier = Modifier,
 ) {
     var state by remember { mutableStateOf(FlowState()) }
+    var showModal by remember { mutableStateOf(false) }
 
-    Column(
+    // Open modal automatically when diagnosis completes
+    LaunchedEffect(state.reachedResult) {
+        if (state.reachedResult != null) showModal = true
+    }
+
+    Box(
         modifier = modifier
             .fillMaxSize()
             .background(Color.White)
     ) {
-        // ── Header ──
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .statusBarsPadding()
-                .padding(horizontal = 16.dp, vertical = 6.dp)
-        ) {
-            Icon(
-                painter = painterResource(Res.drawable.ic_back),
-                contentDescription = "戻る",
-                tint = Color.Unspecified,
+        // ── Main content ──
+        Column(modifier = Modifier.fillMaxSize()) {
+            // ── Header ──
+            Box(
                 modifier = Modifier
-                    .align(Alignment.CenterStart)
-                    .size(28.dp)
-                    .clip(RoundedCornerShape(50))
-                    .clickable { onBack() }
-            )
-            Text(
-                text = "トリアージ",
-                fontSize = 30.sp,
-                fontWeight = FontWeight.Bold,
-                color = Teal,
-                modifier = Modifier.align(Alignment.Center)
-            )
-        }
-
-        // ── Flowchart area ──
-        Column(
-            modifier = Modifier
-                .weight(1f)
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 8.dp, vertical = 12.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            FLOW_STEPS.forEachIndexed { idx, info ->
-                val ans = state.answers[info.step]
-                val nodeState: String = when {
-                    ans == true  -> "yes"
-                    ans == false -> "no"
-                    state.currentStep == info.step -> "active"
-                    else -> "idle"
-                }
-
-                FlowStepRow(
-                    info       = info,
-                    nodeState  = nodeState,
-                    reachedResult = state.reachedResult,
+                    .fillMaxWidth()
+                    .statusBarsPadding()
+                    .padding(horizontal = 16.dp, vertical = 6.dp)
+            ) {
+                Icon(
+                    painter = painterResource(Res.drawable.ic_back),
+                    contentDescription = "戻る",
+                    tint = Color.Unspecified,
+                    modifier = Modifier
+                        .align(Alignment.CenterStart)
+                        .size(28.dp)
+                        .clip(RoundedCornerShape(50))
+                        .clickable { onBack() }
                 )
-
-                // Vertical arrow between steps
-                if (idx < FLOW_STEPS.size - 1) {
-                    // Determine label and color for downward arrow
-                    val downIsYes   = info.yesDir == YesDir.DOWN          // true for safety/breathing/circ
-                    val activeDown  = (downIsYes && nodeState == "yes") || (!downIsYes && nodeState == "no")
-                    val downColor   = when {
-                        activeDown && downIsYes  -> Green
-                        activeDown && !downIsYes -> Red
-                        else                     -> GrayLine
-                    }
-                    val downLabel   = if (downIsYes) "はい" else "いいえ"
-
-                    VerticalArrowSection(
-                        color        = downColor,
-                        label        = downLabel,
-                        labelColor   = if (activeDown) downColor else GrayText,
-                        isDashed     = !activeDown,
-                    )
-                }
+                Text(
+                    text = "トリアージ",
+                    fontSize = 30.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Teal,
+                    modifier = Modifier.align(Alignment.Center)
+                )
             }
 
-            Spacer(modifier = Modifier.height(8.dp))
-        }
+            // ── Flowchart area ──
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 8.dp, vertical = 12.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                FLOW_STEPS.forEachIndexed { idx, info ->
+                    val ans = state.answers[info.step]
+                    val nodeState: String = when {
+                        ans == true  -> "yes"
+                        ans == false -> "no"
+                        state.currentStep == info.step -> "active"
+                        else -> "idle"
+                    }
 
-        // ── Bottom panel ──
-        when {
-            state.currentStep != null -> {
-                val info = FLOW_STEPS.find { it.step == state.currentStep }
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(Color.White)
-                        .padding(horizontal = 20.dp, vertical = 14.dp)
-                ) {
-                    if (info != null) {
-                        Text(
-                            text = info.question,
-                            fontSize = 15.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = BodyText,
-                            textAlign = TextAlign.Center,
-                            modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp)
+                    FlowStepRow(
+                        info          = info,
+                        nodeState     = nodeState,
+                        reachedResult = state.reachedResult,
+                    )
+
+                    // Vertical arrow between steps
+                    if (idx < FLOW_STEPS.size - 1) {
+                        val downIsYes  = info.yesDir == YesDir.DOWN
+                        val activeDown = (downIsYes && nodeState == "yes") || (!downIsYes && nodeState == "no")
+                        val downColor  = when {
+                            activeDown && downIsYes  -> Green
+                            activeDown && !downIsYes -> Red
+                            else                     -> GrayLine
+                        }
+                        val downLabel = if (downIsYes) "はい" else "いいえ"
+
+                        VerticalArrowSection(
+                            color      = downColor,
+                            label      = downLabel,
+                            labelColor = if (activeDown) downColor else GrayText,
+                            isDashed   = !activeDown,
                         )
                     }
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+            }
+
+            // ── Bottom panel ──
+            when {
+                state.currentStep != null -> {
+                    // Active question: show question text + はい/いいえ buttons
+                    val info = FLOW_STEPS.find { it.step == state.currentStep }
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(Color.White)
+                            .padding(horizontal = 20.dp, vertical = 14.dp)
+                    ) {
+                        if (info != null) {
+                            Text(
+                                text = info.question,
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = BodyText,
+                                textAlign = TextAlign.Center,
+                                modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp)
+                            )
+                        }
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            Box(
+                                contentAlignment = Alignment.Center,
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(38.dp)
+                                    .clip(RoundedCornerShape(50))
+                                    .background(Color(0xFFE8FAF3))
+                                    .clickable { state = state.answer(true) }
+                            ) {
+                                Text("✓  はい", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF2E9E6E))
+                            }
+                            Box(
+                                contentAlignment = Alignment.Center,
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(38.dp)
+                                    .clip(RoundedCornerShape(50))
+                                    .background(Color(0xFFFFF0F0))
+                                    .clickable { state = state.answer(false) }
+                            ) {
+                                Text("✕  いいえ", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFFD94444))
+                            }
+                        }
+                    }
+                }
+                state.reachedResult != null && !showModal -> {
+                    // Modal was closed: show compact strip to re-open or restart
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 20.dp, vertical = 12.dp),
                         horizontalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
                         Box(
                             contentAlignment = Alignment.Center,
                             modifier = Modifier
                                 .weight(1f)
-                                .height(38.dp)
+                                .height(40.dp)
                                 .clip(RoundedCornerShape(50))
-                                .background(Color(0xFFE8FAF3))
-                                .clickable { state = state.answer(true) }
+                                .background(TealBg)
+                                .clickable { showModal = true }
                         ) {
-                            Text("✓  はい", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF2E9E6E))
+                            Text("結果を確認", fontSize = 13.sp, color = Teal, fontWeight = FontWeight.SemiBold)
                         }
                         Box(
                             contentAlignment = Alignment.Center,
                             modifier = Modifier
                                 .weight(1f)
-                                .height(38.dp)
+                                .height(40.dp)
                                 .clip(RoundedCornerShape(50))
-                                .background(Color(0xFFFFF0F0))
-                                .clickable { state = state.answer(false) }
+                                .background(GrayBg)
+                                .clickable { state = FlowState() }
                         ) {
-                            Text("✕  いいえ", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFFD94444))
+                            Text("↺ やり直す", fontSize = 13.sp, color = DarkGrayText)
                         }
                     }
                 }
             }
-            state.reachedResult != null -> {
-                val res = FLOW_RESULTS[state.reachedResult]
-                if (res != null) {
+        }
+
+        // ── Result modal overlay ──
+        if (showModal && state.reachedResult != null) {
+            val res    = FLOW_RESULTS[state.reachedResult!!]
+            val llmMsg = LLM_MESSAGES[state.reachedResult!!] ?: ""
+
+            if (res != null) {
+                // Dim background
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(Color.Black.copy(alpha = 0.35f))
+                        .clickable(enabled = false) { }
+                )
+
+                // Modal card
+                Box(
+                    contentAlignment = Alignment.Center,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 20.dp)
+                ) {
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .background(res.bg)
-                            .padding(horizontal = 20.dp, vertical = 16.dp)
+                            .clip(RoundedCornerShape(20.dp))
+                            .background(Color.White)
+                            .padding(20.dp)
                     ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Box(modifier = Modifier.size(10.dp).clip(CircleShape).background(res.dot))
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(text = res.label, fontSize = 18.sp, fontWeight = FontWeight.Bold, color = res.dot)
+                        // ── Modal header: result label + X button ──
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.weight(1f),
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(10.dp)
+                                        .clip(CircleShape)
+                                        .background(res.dot)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = res.label,
+                                    fontSize = 22.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = res.dot,
+                                )
+                                if (res.subLines.isNotEmpty()) {
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(
+                                        text = res.subLines.first(),
+                                        fontSize = 13.sp,
+                                        color = res.dot.copy(alpha = 0.75f),
+                                    )
+                                }
+                            }
+                            // X close button
+                            Icon(
+                                painter = painterResource(Res.drawable.ic_gray_close),
+                                contentDescription = "閉じる",
+                                tint = Color.Unspecified,
+                                modifier = Modifier
+                                    .size(24.dp)
+                                    .clip(CircleShape)
+                                    .clickable { showModal = false }
+                            )
                         }
-                        Spacer(modifier = Modifier.height(4.dp))
-                        res.subLines.forEach {
-                            Text(text = it, fontSize = 13.sp, color = BodyText)
-                        }
-                        Spacer(modifier = Modifier.height(12.dp))
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        // ── LLM response area ──
+                        Text(
+                            text = llmMsg,
+                            fontSize = 16.sp,
+                            color = BodyText,
+                            lineHeight = 22.sp,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+
+                        Spacer(modifier = Modifier.height(30.dp))
+
+                        // ── Restart button ──
                         Box(
                             contentAlignment = Alignment.Center,
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clip(RoundedCornerShape(10.dp))
-                                .background(Color.White.copy(alpha = 0.6f))
-                                .clickable { state = FlowState() }
-                                .padding(vertical = 12.dp)
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(Color(0xFFF0F0F0))
+                                .clickable {
+                                    state = FlowState()
+                                    showModal = false
+                                }
+                                .padding(vertical = 14.dp)
                         ) {
-                            Text("↺  最初からやり直す", fontSize = 13.sp, color = GrayText)
+                            Text(
+                                text = "↺  最初からやり直す",
+                                fontSize = 14.sp,
+                                color = DarkGrayText,
+                                fontWeight = FontWeight.Medium,
+                            )
                         }
                     }
                 }
