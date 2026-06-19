@@ -3,11 +3,11 @@ package com.urg.edge
 data class TriageInput(
     val canWalk: Boolean? = null,
     val isBreathing: Boolean? = null,
-    val hasCirculation: Boolean? = null,
+    val hasPulse: Boolean? = null,
     val isConscious: Boolean? = null
 )
 
-enum class TriageStep { SAFETY_CHECK, WALK, BREATHING, CIRCULATION, CONSCIOUSNESS, DONE }
+enum class TriageStep { WALK, BREATHING, CIRCULATION, CONSCIOUSNESS, DONE }
 
 enum class TriageResult { MINOR, SEVERE }
 
@@ -89,7 +89,7 @@ object StartRuleEngine {
             TriageStep.SAFETY_CHECK -> input
             TriageStep.WALK -> input.copy(canWalk = answer)
             TriageStep.BREATHING -> input.copy(isBreathing = answer)
-            TriageStep.CIRCULATION -> input.copy(hasCirculation = answer)
+            TriageStep.CIRCULATION -> input.copy(hasPulse = answer)
             TriageStep.CONSCIOUSNESS -> input.copy(isConscious = answer)
             TriageStep.DONE -> input
         }
@@ -128,7 +128,7 @@ object StartRuleEngine {
                 forbidden.add("首を無理に動かす")
                 forbidden.add("傷病者を一人にしない")
             }
-            input.hasCirculation == false -> {
+            input.hasPulse == false -> {
                 actions.add("出血部位を清潔な布で強く圧迫する")
                 actions.add("圧迫を緩めず保持し続ける")
                 forbidden.add("圧迫を途中で外す")
