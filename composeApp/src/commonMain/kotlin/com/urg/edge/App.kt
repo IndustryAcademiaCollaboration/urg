@@ -252,6 +252,7 @@ fun App(
                 selectedTab == 1 -> TriageScreen(
                     victims = victims,
                     onStartTriage = { showTriageFlow = true },
+                    onUpdateNote = { id, note -> viewModel.updateVictimNote(id, note) },
                     modifier = Modifier.padding(paddingValues)
                 )
                 selectedTab == 2 -> MapScreen(
@@ -260,6 +261,7 @@ fun App(
                 selectedTab == 3 -> PriorityScreen(
                     victims = victims,
                     onBack = { selectedTab = 0 },
+                    onUpdateNote = { id, note -> viewModel.updateVictimNote(id, note) },
                     modifier = Modifier.padding(paddingValues)
                 )
                 else -> {

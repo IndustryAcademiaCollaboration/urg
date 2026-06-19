@@ -61,6 +61,14 @@ class ChatViewModel(
         }
     }
 
+    fun updateVictimNote(victimId: String, note: PatientNote) {
+        val repo = repository ?: return
+        viewModelScope.launch(ioDispatcher) {
+            repo.updateVictimNote(victimId, note)
+            _victims.value = repo.getVictimsByPriority()
+        }
+    }
+
     @OptIn(ExperimentalUuidApi::class, ExperimentalTime::class)
     fun saveVictimFromFlow(result: TriageResult, input: TriageInput) {
         val repo = repository ?: return

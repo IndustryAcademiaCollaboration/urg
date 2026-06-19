@@ -17,7 +17,6 @@ class TriageSessionRepositoryImpl(
         return TriageSession(id = id, latitude = latitude, longitude = longitude, startedAt = now)
     }
 
-    @OptIn(ExperimentalTime::class)
     override fun saveVictim(victim: VictimRecord) {
         database.clVictimsQueries.insert(
             id = victim.id,
@@ -27,8 +26,17 @@ class TriageSessionRepositoryImpl(
             is_breathing = victim.triageInput.isBreathing?.toLong(),
             has_pulse = victim.triageInput.hasPulse?.toLong(),
             consciousness = victim.triageInput.isConscious?.toLong(),
-            memo = victim.memo,
+            location = victim.note?.location,
+            feature = victim.note?.feature,
             recorded_at = victim.recordedAt
+        )
+    }
+
+    override fun updateVictimNote(victimId: String, note: PatientNote) {
+        database.clVictimsQueries.updateNote(
+            location = note.location,
+            feature = note.feature,
+            id = victimId
         )
     }
 
@@ -49,13 +57,15 @@ class TriageSessionRepositoryImpl(
             "severe" -> TriageResult.SEVERE
             else -> TriageResult.MINOR
         }
+        val note = if (location == null && feature == null) null
+                   else PatientNote(location = location, feature = feature)
         return VictimRecord(
             id = id,
             sessionId = session_id,
             triageInput = input,
             result = result,
             actionPlan = StartRuleEngine.decideActions(result, input),
-            memo = memo,
+            note = note,
             recordedAt = recorded_at
         )
     }
