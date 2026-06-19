@@ -36,6 +36,7 @@ fun ChatScreen(
     onPromptChange: (String) -> Unit,
     onSendClick: () -> Unit,
     onTriageClick: () -> Unit,
+    onVoiceInputClick: () -> Unit,
     onMicStart: () -> Unit,
     onMicStop: () -> Unit,
     onTestWavRecognize: (String) -> Unit,
@@ -135,8 +136,7 @@ fun ChatScreen(
             ActionButtons(
                 isListening = uiState.isListening,
                 onTriageClick = onTriageClick,
-                onMicStart = onMicStart,
-                onMicStop = onMicStop,
+                onVoiceInputClick = onVoiceInputClick,
             )
         }
     }

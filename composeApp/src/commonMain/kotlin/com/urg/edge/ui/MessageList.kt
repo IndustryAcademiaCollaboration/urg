@@ -18,6 +18,13 @@ fun MessageList(
 ) {
     val listState = rememberLazyListState()
 
+    // 画面初回表示時（他画面から戻った時も含む）即座に最下部へ
+    LaunchedEffect(Unit) {
+        val total = messages.size + if (streamingText.isNotEmpty()) 1 else 0
+        if (total > 0) listState.scrollToItem(total - 1)
+    }
+
+    // メッセージ追加・ストリーミング中はアニメーションで最下部へ
     LaunchedEffect(messages.size, streamingText.isNotEmpty()) {
         val total = messages.size + if (streamingText.isNotEmpty()) 1 else 0
         if (total > 0) listState.animateScrollToItem(total - 1)

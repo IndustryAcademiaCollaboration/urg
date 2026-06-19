@@ -2,7 +2,7 @@ package com.urg.edge.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
@@ -15,7 +15,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -24,14 +23,13 @@ import androidx.compose.ui.unit.sp
 fun ActionButtons(
     isListening: Boolean,
     onTriageClick: () -> Unit,
-    onMicStart: () -> Unit,
-    onMicStop: () -> Unit,
+    onVoiceInputClick: () -> Unit,
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(10.dp)
     ) {
-        // ─── 音声入力ボタン（長押し）────────────────────────────
+        // ─── 音声入力ボタン（タップで録音オーバーレイ表示）───
         Box(
             contentAlignment = Alignment.Center,
             modifier = Modifier
@@ -41,15 +39,7 @@ fun ActionButtons(
                 .background(
                     if (isListening) Color(0xFF1A8A96) else Color(0xFF25B1BF)
                 )
-                .pointerInput(Unit) {
-                    detectTapGestures(
-                        onPress = {
-                            onMicStart()
-                            tryAwaitRelease()
-                            onMicStop()
-                        }
-                    )
-                }
+                .clickable { onVoiceInputClick() }
         ) {
             Text(
                 text = if (isListening) "録音中..." else "音声入力",
@@ -68,9 +58,7 @@ fun ActionButtons(
                 .clip(RoundedCornerShape(14.dp))
                 .border(1.5.dp, Color(0xFFEF8080), RoundedCornerShape(14.dp))
                 .background(Color.White)
-                .pointerInput(Unit) {
-                    detectTapGestures(onTap = { onTriageClick() })
-                }
+                .clickable { onTriageClick() }
         ) {
             Text(
                 text = "トリアージ開始",
