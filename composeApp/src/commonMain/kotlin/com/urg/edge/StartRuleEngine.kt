@@ -7,7 +7,7 @@ data class TriageInput(
     val isConscious: Boolean? = null
 )
 
-enum class TriageStep { WALK, BREATHING, CIRCULATION, CONSCIOUSNESS, DONE }
+enum class TriageStep { SAFETY_CHECK, WALK, BREATHING, CIRCULATION, CONSCIOUSNESS, DONE }
 
 enum class TriageResult { MINOR, SEVERE }
 

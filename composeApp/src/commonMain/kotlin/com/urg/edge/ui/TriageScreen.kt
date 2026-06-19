@@ -189,7 +189,7 @@ private fun TriageRecordCard(
                 modifier = Modifier.padding(horizontal = 16.dp)
             ) {
                 Text(
-                    text = "患者 #${String.format("%03d", number)}",
+                    text = "患者 #${number.toString().padStart(3, '0')}",
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color(0xFF1A1A1A),
