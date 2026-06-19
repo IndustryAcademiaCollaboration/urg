@@ -256,15 +256,15 @@ class ChatViewModel(
 
         viewModelScope.launch(ioDispatcher) {
             try {
+                // 修正後
                 val chunks = r.retrieve(text, topK = 3)
 
-                if (chunks.isEmpty()) {
-                    appendMessage(Message("assistant", Strings.NO_RELEVANT_INFO))
-                    _uiState.update { it.copy(isLoading = false) }
-                    return@launch
-                }
-
-                val ragSection = "\n\n[参考情報]\n" + chunks.joinToString("\n") { "・${it.title}: ${it.text}" }
+                val ragSection = if (chunks.isNotEmpty()) {
+                    "\n\n[参考情報]\n" + chunks.joinToString("\n") {
+                        val base = "・${it.title}: ${it.text}"
+                        if (it.guidance != null) "$base\n  推奨対応: ${it.guidance}" else base
+                    }
+                } else ""
                 val forbiddenList = StartRuleEngine.globalForbiddenSevere.joinToString("\n") { "- $it" }
                 val triageContext = buildTriageContext()
                 val systemPrompt = PromptBuilder.buildChatSystemPrompt(ragSection, forbiddenList, triageContext)
