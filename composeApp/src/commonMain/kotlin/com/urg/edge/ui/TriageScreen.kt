@@ -29,26 +29,15 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.urg.edge.TriageResult
+import com.urg.edge.VictimRecord
 import org.jetbrains.compose.resources.painterResource
 import urg.composeapp.generated.resources.Res
 import urg.composeapp.generated.resources.ic_triage_selected
 
-// ─── デフォルト履歴データ ─────────────────────────────────
-private data class TriageRecord(
-    val id: String,
-    val level: TriageLevel,
-)
-
-private val defaultRecords = listOf(
-    TriageRecord("患者 #001", TriageLevel.GREEN),
-    TriageRecord("患者 #002", TriageLevel.YELLOW),
-    TriageRecord("患者 #003", TriageLevel.RED),
-    TriageRecord("患者 #004", TriageLevel.BLACK),
-)
-
-// ─── トリアージ画面 ───────────────────────────────────────
 @Composable
 fun TriageScreen(
+    victims: List<VictimRecord>,
     onStartTriage: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -57,7 +46,6 @@ fun TriageScreen(
             .fillMaxSize()
             .background(Color.White)
     ) {
-        // トップバー
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -80,7 +68,6 @@ fun TriageScreen(
         ) {
             Spacer(modifier = Modifier.height(8.dp))
 
-            // ─── 新規トリアージ開始ボタン ───────────────────
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier
@@ -126,7 +113,6 @@ fun TriageScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // ─── 診断履歴セクション ──────────────────────────
             Text(
                 text = "診断履歴",
                 fontSize = 16.sp,
@@ -137,24 +123,44 @@ fun TriageScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            defaultRecords.forEach { record ->
-                TriageRecordCard(
-                    record = record,
-                    modifier = Modifier.padding(horizontal = 24.dp)
-                )
-                Spacer(modifier = Modifier.height(16.dp))
+            if (victims.isEmpty()) {
+                Box(
+                    contentAlignment = Alignment.Center,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 32.dp)
+                ) {
+                    Text(
+                        text = "トリアージ記録がありません",
+                        fontSize = 14.sp,
+                        color = Color(0xFF788E98)
+                    )
+                }
+            } else {
+                victims.forEachIndexed { index, victim ->
+                    TriageRecordCard(
+                        number = index + 1,
+                        victim = victim,
+                        modifier = Modifier.padding(horizontal = 24.dp)
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                }
             }
         }
     }
 }
 
-// ─── 診断履歴カード ───────────────────────────────────────
 @Composable
 private fun TriageRecordCard(
-    record: TriageRecord,
+    number: Int,
+    victim: VictimRecord,
     modifier: Modifier = Modifier,
 ) {
-    val level = record.level
+    val isSevere    = victim.result == TriageResult.SEVERE
+    val labelColor  = if (isSevere) Color(0xFFEF5350) else Color(0xFF4CAF50)
+    val shadowColor = if (isSevere) Color(0xFFFF8A80) else Color(0xFF69F0AE)
+    val label       = if (isSevere) "重症" else "軽症"
+
     Box(
         modifier = modifier
             .fillMaxWidth()
@@ -162,8 +168,8 @@ private fun TriageRecordCard(
             .shadow(
                 elevation = 10.dp,
                 shape = RoundedCornerShape(12.dp),
-                spotColor = level.shadowColor.copy(alpha = 0.5f),
-                ambientColor = level.shadowColor.copy(alpha = 0.25f),
+                spotColor = shadowColor.copy(alpha = 0.5f),
+                ambientColor = shadowColor.copy(alpha = 0.25f),
             )
             .clip(RoundedCornerShape(12.dp))
             .background(Color.White)
@@ -172,41 +178,45 @@ private fun TriageRecordCard(
             modifier = Modifier.fillMaxSize(),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // 左カラーバー
             Box(
                 modifier = Modifier
                     .fillMaxHeight()
                     .width(6.dp)
-                    .background(level.labelColor)
+                    .background(labelColor)
             )
-
-            // 患者ID + トリアージバッジ
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.padding(horizontal = 16.dp)
             ) {
                 Text(
-                    text = record.id,
+                    text = "患者 #${String.format("%03d", number)}",
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color(0xFF1A1A1A),
                 )
                 Spacer(modifier = Modifier.width(14.dp))
-                // トリアージレベルバッジ
                 Box(
                     contentAlignment = Alignment.Center,
                     modifier = Modifier
                         .background(
-                            level.labelColor.copy(alpha = 0.15f),
+                            labelColor.copy(alpha = 0.15f),
                             RoundedCornerShape(50)
                         )
                         .padding(horizontal = 14.dp, vertical = 4.dp)
                 ) {
                     Text(
-                        text = level.severityLabel,
+                        text = label,
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Bold,
-                        color = level.labelColor,
+                        color = labelColor,
+                    )
+                }
+                victim.memo?.let { memo ->
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Text(
+                        text = memo,
+                        fontSize = 12.sp,
+                        color = Color(0xFF788E98),
                     )
                 }
             }

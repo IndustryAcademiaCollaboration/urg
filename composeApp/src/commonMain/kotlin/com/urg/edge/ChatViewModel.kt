@@ -36,6 +36,9 @@ class ChatViewModel(
     private val _uiState = MutableStateFlow(ChatUiState())
     val uiState: StateFlow<ChatUiState> = _uiState.asStateFlow()
 
+    private val _victims = MutableStateFlow<List<VictimRecord>>(emptyList())
+    val victims: StateFlow<List<VictimRecord>> = _victims.asStateFlow()
+
     private val triageController = TriageController()
 
     fun setLlmEngine(engine: LlmEngine, config: LlmConfig) {
@@ -48,6 +51,14 @@ class ChatViewModel(
     fun setRepository(repo: TriageSessionRepository, session: TriageSession) {
         repository = repo
         currentSession = session
+        refreshVictims()
+    }
+
+    private fun refreshVictims() {
+        val repo = repository ?: return
+        viewModelScope.launch(ioDispatcher) {
+            _victims.value = repo.getVictimsByPriority()
+        }
     }
 
     @OptIn(ExperimentalUuidApi::class, ExperimentalTime::class)
@@ -65,6 +76,7 @@ class ChatViewModel(
         )
         viewModelScope.launch(ioDispatcher) {
             repo.saveVictim(victim)
+            _victims.value = repo.getVictimsByPriority()
         }
     }
 
