@@ -6,12 +6,13 @@ CREATE TABLE cl_victims (
   is_breathing  INTEGER,
   has_pulse     INTEGER,
   consciousness INTEGER,
+  memo          TEXT,
   recorded_at   INTEGER NOT NULL
 );
 
 insert:
-INSERT INTO cl_victims (id, session_id, severity, can_walk, is_breathing, has_pulse, consciousness, recorded_at)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?);
+INSERT INTO cl_victims (id, session_id, severity, can_walk, is_breathing, has_pulse, consciousness, memo, recorded_at)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);
 
 updateSeverity:
 UPDATE cl_victims SET severity = ? WHERE id = ?;
@@ -24,6 +25,6 @@ SELECT * FROM cl_victims
 ORDER BY
   CASE severity
     WHEN 'severe' THEN 0
-    WHEN 'mild'   THEN 1
+    WHEN 'minor'  THEN 1
     ELSE               2
   END;

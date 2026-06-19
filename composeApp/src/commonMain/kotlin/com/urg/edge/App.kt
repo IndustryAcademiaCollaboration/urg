@@ -162,6 +162,7 @@ fun App(
             when {
                 showTriageFlow -> TriageFlowScreen(
                     onBack = { showTriageFlow = false },
+                    onTriageComplete = { result, input -> viewModel.saveVictimFromFlow(result, input) },
                     modifier = Modifier.padding(paddingValues)
                 )
                 showChatHistory -> ChatHistory(

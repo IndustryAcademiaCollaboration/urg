@@ -38,6 +38,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.urg.edge.TriageInput
 import com.urg.edge.TriageResult
 import com.urg.edge.TriageStep
 import org.jetbrains.compose.resources.painterResource
@@ -133,9 +134,17 @@ private fun FlowState.answer(yes: Boolean): FlowState {
 }
 
 // ─── Main Screen ──────────────────────────────────────────────────────────────
+private fun FlowState.toTriageInput(): TriageInput = TriageInput(
+    canWalk = answers[TriageStep.WALK],
+    isBreathing = answers[TriageStep.BREATHING],
+    hasPulse = answers[TriageStep.CIRCULATION],
+    isConscious = answers[TriageStep.CONSCIOUSNESS]
+)
+
 @Composable
 fun TriageFlowScreen(
     onBack: () -> Unit,
+    onTriageComplete: (result: TriageResult, input: TriageInput) -> Unit = { _, _ -> },
     modifier: Modifier = Modifier,
 ) {
     var state by remember { mutableStateOf(FlowState()) }
@@ -249,7 +258,11 @@ fun TriageFlowScreen(
                                 .height(38.dp)
                                 .clip(RoundedCornerShape(50))
                                 .background(Color(0xFFE8FAF3))
-                                .clickable { state = state.answer(true) }
+                                .clickable {
+                                    val next = state.answer(true)
+                                    state = next
+                                    next.finalResult?.let { onTriageComplete(it, next.toTriageInput()) }
+                                }
                         ) {
                             Text("✓  はい", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF2E9E6E))
                         }
@@ -260,7 +273,11 @@ fun TriageFlowScreen(
                                 .height(38.dp)
                                 .clip(RoundedCornerShape(50))
                                 .background(Color(0xFFFFF0F0))
-                                .clickable { state = state.answer(false) }
+                                .clickable {
+                                    val next = state.answer(false)
+                                    state = next
+                                    next.finalResult?.let { onTriageComplete(it, next.toTriageInput()) }
+                                }
                         ) {
                             Text("✕  いいえ", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFFD94444))
                         }
@@ -295,7 +312,7 @@ fun TriageFlowScreen(
                                 .clickable { state = FlowState() }
                                 .padding(vertical = 12.dp)
                         ) {
-                            Text("↺  最初からやり直す", fontSize = 13.sp, color = GrayText)
+                            Text("↺  次の傷病者へ", fontSize = 13.sp, color = GrayText)
                         }
                     }
                 }
