@@ -22,6 +22,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -39,6 +40,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.urg.edge.ChatViewModel
+import com.urg.edge.MessageType
 import com.urg.edge.TriageResult
 import com.urg.edge.TriageStep
 import org.jetbrains.compose.resources.painterResource
@@ -149,14 +152,25 @@ private fun FlowState.answer(yes: Boolean): FlowState {
 @Composable
 fun TriageFlowScreen(
     onBack: () -> Unit,
+    chatViewModel: ChatViewModel,
     modifier: Modifier = Modifier,
 ) {
     var state by remember { mutableStateOf(FlowState()) }
     var showModal by remember { mutableStateOf(false) }
+    var llmStartMessageIndex by remember { mutableStateOf(0) }
+    val uiState by chatViewModel.uiState.collectAsState()
 
     // Open modal automatically when diagnosis completes
     LaunchedEffect(state.reachedResult) {
-        if (state.reachedResult != null) showModal = true
+        val reachedResult = state.reachedResult
+        if (reachedResult != null) {
+            showModal = true
+            chatViewModel.generateTriageFlowGuidanceFromReachedResult(reachedResult)
+        }
+    }
+
+    fun answerFromButton(yes: Boolean) {
+        state = state.answer(yes)
     }
 
     Box(
@@ -270,7 +284,7 @@ fun TriageFlowScreen(
                                     .height(38.dp)
                                     .clip(RoundedCornerShape(50))
                                     .background(Color(0xFFE8FAF3))
-                                    .clickable { state = state.answer(true) }
+                                    .clickable { answerFromButton(true) }
                             ) {
                                 Text("✓  はい", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF2E9E6E))
                             }
@@ -281,7 +295,7 @@ fun TriageFlowScreen(
                                     .height(38.dp)
                                     .clip(RoundedCornerShape(50))
                                     .background(Color(0xFFFFF0F0))
-                                    .clickable { state = state.answer(false) }
+                                    .clickable { answerFromButton(false) }
                             ) {
                                 Text("✕  いいえ", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFFD94444))
                             }
@@ -326,7 +340,11 @@ fun TriageFlowScreen(
         // ── Result modal overlay ──
         if (showModal && state.reachedResult != null) {
             val res    = FLOW_RESULTS[state.reachedResult!!]
-            val llmMsg = LLM_MESSAGES[state.reachedResult!!] ?: ""
+            val llmMsg = when {
+                uiState.triageFlowText.isNotBlank() -> uiState.triageFlowText
+                uiState.isTriageFlowLoading -> "案内文を生成中です..."
+                else -> "案内文を生成中です..."
+            }
 
             if (res != null) {
                 // Dim background

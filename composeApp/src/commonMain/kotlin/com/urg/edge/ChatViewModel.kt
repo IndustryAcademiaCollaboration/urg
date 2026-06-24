@@ -195,17 +195,29 @@ class ChatViewModel(
     }
 
     @OptIn(ExperimentalTime::class)
-    private fun generateTriageGuidance(actionPlan: TriageActionPlan) {
+    private fun generateTriageGuidance(
+        actionPlan: TriageActionPlan,
+        appendToChat: Boolean = false
+    ) {
         val engine = llmEngine ?: return
-        val r = retriever ?: return
-        _uiState.update { it.copy(isLoading = true) }
+
+        _uiState.update {
+            it.copy(
+                isLoading = true,
+                streamingText = ""
+            )
+        }
 
         viewModelScope.launch(ioDispatcher) {
             try {
-                val chunks = r.retrieve(actionPlan.actions.joinToString(" "), topK = 2)
+                val chunks = retriever?.retrieve(actionPlan.actions.joinToString(" "), topK = 2)
+                    ?: emptyList()
+
                 val supplementText = if (chunks.isNotEmpty()) {
                     "\n\n[補足知識]\n" + chunks.joinToString("\n") { "・${it.title}: ${it.text}" }
-                } else ""
+                } else {
+                    ""
+                }
 
                 val systemPrompt = PromptBuilder.buildTriageSystemPrompt()
                 val userPrompt = PromptBuilder.buildTriageUserPrompt(actionPlan, supplementText)
@@ -219,20 +231,173 @@ class ChatViewModel(
                     val now = Clock.System.now().toEpochMilliseconds()
                     if (done || now - lastUpdateTime > 100) {
                         lastUpdateTime = now
-                        val textNow = accumulated.toString()
-
-                        _uiState.update {it.copy(streamingText = textNow)}
+                        _uiState.update {
+                            it.copy(streamingText = accumulated.toString())
+                        }
                     }
 
                     if (done) {
-                        // appendMessage 経由で speak される（appendMessage 内で発火）。
-                        appendMessage(Message("assistant", accumulated.toString()))
-                        _uiState.update { it.copy(streamingText = "", isLoading = false) }
+                        val finalText = accumulated.toString()
+
+                        if (appendToChat) {
+                            appendMessage(Message("assistant", finalText))
+                            _uiState.update {
+                                it.copy(
+                                    streamingText = "",
+                                    isLoading = false
+                                )
+                            }
+                        } else {
+                            _uiState.update {
+                                it.copy(
+                                    streamingText = finalText,
+                                    isLoading = false
+                                )
+                            }
+                        }
                     }
                 }
             } catch (e: Exception) {
-                _uiState.update { it.copy(isLoading = false) }
+                _uiState.update {
+                    it.copy(
+                        streamingText = "案内文の生成に失敗しました。",
+                        isLoading = false
+                    )
+                }
             }
+        }
+    }
+
+    @OptIn(ExperimentalTime::class)
+    fun generateTriageFlowGuidanceFromReachedResult(reachedResult: String) {
+        val engine = llmEngine ?: run {
+            _uiState.update {
+                it.copy(
+                    triageFlowText = "LLMがまだ準備できていません。",
+                    isTriageFlowLoading = false
+                )
+            }
+            return
+        }
+
+        val actionPlan = buildActionPlanFromReachedResult(reachedResult)
+
+        _uiState.update {
+            it.copy(
+                triageFlowText = "",
+                isTriageFlowLoading = true
+            )
+        }
+
+        viewModelScope.launch(ioDispatcher) {
+            try {
+                val chunks = retriever?.retrieve(actionPlan.actions.joinToString(" "), topK = 2)
+                    ?: emptyList()
+
+                val supplementText = if (chunks.isNotEmpty()) {
+                    "\n\n[補足知識]\n" + chunks.joinToString("\n") { "・${it.title}: ${it.text}" }
+                } else {
+                    ""
+                }
+
+                val systemPrompt = PromptBuilder.buildTriageSystemPrompt()
+                val userPrompt = PromptBuilder.buildTriageUserPrompt(actionPlan, supplementText)
+                val prompt = config.chatTemplate.formatSinglePrompt(systemPrompt, userPrompt)
+
+                val accumulated = StringBuilder()
+                var lastUpdateTime = 0L
+
+                engine.generateStream(prompt) { partial, done ->
+                    accumulated.append(partial)
+
+                    val now = Clock.System.now().toEpochMilliseconds()
+                    if (done || now - lastUpdateTime > 100) {
+                        lastUpdateTime = now
+                        _uiState.update {
+                            it.copy(triageFlowText = accumulated.toString())
+                        }
+                    }
+
+                    if (done) {
+                        _uiState.update {
+                            it.copy(
+                                triageFlowText = accumulated.toString(),
+                                isTriageFlowLoading = false
+                            )
+                        }
+                    }
+                }
+            } catch (t: Throwable) {
+                _uiState.update {
+                    it.copy(
+                        triageFlowText = "案内文の生成に失敗しました。",
+                        isTriageFlowLoading = false
+                    )
+                }
+                println("TRIAGE_FLOW_LLM_FAILED: ${t::class.simpleName}: ${t.message}")
+            }
+        }
+    }
+
+    fun generateTriageGuidanceFromReachedResult(reachedResult: String) {
+        val actionPlan = buildActionPlanFromReachedResult(reachedResult)
+        generateTriageGuidance(
+            actionPlan = actionPlan,
+            appendToChat = false
+        )
+    }
+
+    //トリアージの結果からアクションリストを作成する箇所。この中身を変えるとLLMの出力が変わります。
+    private fun buildActionPlanFromReachedResult(reachedResult: String): TriageActionPlan {
+        return when (reachedResult) {
+            "danger" -> TriageActionPlan(
+                destination = "安全な場所",
+                safetyFirst = listOf("周囲の安全を確認する"),
+                actions = listOf("危険な場所から離れる", "安全な場所へ避難する"),
+                forbiddenActions = listOf("危険な場所で救助を続けない")
+            )
+
+            "minor" -> TriageActionPlan(
+                destination = "救護所",
+                safetyFirst = listOf("周囲の安全を確認する"),
+                actions = listOf("自力で救護所へ向かう", "症状の変化を観察する"),
+                forbiddenActions = listOf("無理に走らない")
+            )
+
+            "severe_airway" -> TriageActionPlan(
+                destination = "救護所",
+                safetyFirst = listOf("周囲の安全を確認する"),
+                actions = listOf("気道を確保する", "救助隊に知らせる"),
+                forbiddenActions = listOf("一人で搬送しない", "首を大きく動かさない")
+            )
+
+            "severe_circ" -> TriageActionPlan(
+                destination = "救護所",
+                safetyFirst = listOf("周囲の安全を確認する"),
+                actions = listOf("出血部位を圧迫する", "圧迫を続ける", "救助隊に知らせる"),
+                forbiddenActions = listOf("止血せずに動かさない", "一人で搬送しない")
+            )
+
+            "severe_cons" -> TriageActionPlan(
+                destination = "救護所",
+                safetyFirst = listOf("周囲の安全を確認する"),
+                actions = listOf("呼吸を確認する", "救助隊に知らせる"),
+                forbiddenActions = listOf("一人で搬送しない", "首を大きく動かさない")
+            )
+
+            "severe_injury" -> TriageActionPlan(
+                destination = "救護所",
+                safetyFirst = listOf("周囲の安全を確認する"),
+                actions = listOf("出血箇所を圧迫する", "安静にする", "救助隊に知らせる"),
+                forbiddenActions = listOf("無理に動かさない", "一人で搬送しない")
+            )
+
+            else -> TriageActionPlan(
+                destination = "救護所",
+                safetyFirst = listOf("周囲の安全を確認する"),
+                actions = listOf("救助隊に知らせる"),
+                forbiddenActions = listOf("無理に動かさない")
+            )
         }
     }
 
@@ -269,6 +434,7 @@ class ChatViewModel(
                 val triageContext = buildTriageContext()
                 val systemPrompt = PromptBuilder.buildChatSystemPrompt(ragSection, forbiddenList, triageContext)
                 val prompt = config.chatTemplate.formatChatPrompt(systemPrompt, currentMessages)
+                //Log.d("LLM",prompt)
 
                 val accumulated = StringBuilder()
                 engine.generateStream(prompt) { partial, done ->

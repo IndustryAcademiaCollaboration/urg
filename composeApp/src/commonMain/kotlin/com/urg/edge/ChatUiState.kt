@@ -7,4 +7,6 @@ data class ChatUiState(
     val promptText: String = "",
     val isListening: Boolean = false,
     val showTriageButtons: Boolean = false,
+    val triageFlowText: String = "",
+    val isTriageFlowLoading: Boolean = false,
 )

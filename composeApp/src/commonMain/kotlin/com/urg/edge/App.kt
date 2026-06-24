@@ -33,6 +33,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.urg.edge.ui.CalmMode
 import com.urg.edge.ui.ChatHistory
 import com.urg.edge.ui.ChatScreen
+import com.urg.edge.ChatViewModel
 import com.urg.edge.ui.HomeScreen
 import com.urg.edge.ui.HurryMode
 import com.urg.edge.ui.ModeSelect
@@ -162,6 +163,7 @@ fun App(
             when {
                 showTriageFlow -> TriageFlowScreen(
                     onBack = { showTriageFlow = false },
+                    chatViewModel = viewModel,
                     modifier = Modifier.padding(paddingValues)
                 )
                 showChatHistory -> ChatHistory(
