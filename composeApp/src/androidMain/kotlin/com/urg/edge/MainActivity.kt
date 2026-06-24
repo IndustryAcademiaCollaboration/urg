@@ -88,12 +88,31 @@ class MainActivity : ComponentActivity() {
             try {
                 val modelFile = File(getExternalFilesDir(null), "models/${Strings.LLM_MODEL_FILE_NAME}")
                 if (!modelFile.exists()) {
-                    downloadModel(modelFile)
+                    // Try downloading; if it fails, show ADB install instructions instead of crashing
+                    try {
+                        downloadModel(modelFile)
+                    } catch (downloadEx: Exception) {
+                        Log.w("LLM_INIT", "Download failed: ${downloadEx.message}")
+                        withContext(Dispatchers.Main) {
+                            chatViewModel.addSystemMessage(
+                                "⚠️ モデルの自動ダウンロードに失敗しました。\n" +
+                                "PCから次のコマンドで手動インストールしてください:\n\n" +
+                                "1. PCでモデルをダウンロード:\n" +
+                                "   ${Strings.LLM_MODEL_DOWNLOAD_URL}\n\n" +
+                                "2. ADBで端末に転送:\n" +
+                                "   adb push model.litertlm \\\n" +
+                                "   /sdcard/Android/data/com.urg.edge/files/models/model.litertlm\n\n" +
+                                "3. アプリを再起動してください"
+                            )
+                        }
+                        return@launch
+                    }
                 }
                 val config = LlmConfig(modelPath = modelFile.absolutePath)
                 val engine = createLlmEngine(config)
                 withContext(Dispatchers.Main) {
                     chatViewModel.setLlmEngine(engine, config)
+                    chatViewModel.addSystemMessage("✓ LLM 準備完了")
                     Log.d("LLM_INIT", "SUCCESS")
                 }
             } catch (e: Exception) {
