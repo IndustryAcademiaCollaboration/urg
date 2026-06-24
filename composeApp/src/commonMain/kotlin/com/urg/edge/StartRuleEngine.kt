@@ -3,7 +3,7 @@ package com.urg.edge
 data class TriageInput(
     val canWalk: Boolean? = null,
     val isBreathing: Boolean? = null,
-    val hasCirculation: Boolean? = null,
+    val hasPulse: Boolean? = null,
     val isConscious: Boolean? = null
 )
 
@@ -89,7 +89,7 @@ object StartRuleEngine {
             TriageStep.SAFETY_CHECK -> input
             TriageStep.WALK -> input.copy(canWalk = answer)
             TriageStep.BREATHING -> input.copy(isBreathing = answer)
-            TriageStep.CIRCULATION -> input.copy(hasCirculation = answer)
+            TriageStep.CIRCULATION -> input.copy(hasPulse = answer)
             TriageStep.CONSCIOUSNESS -> input.copy(isConscious = answer)
             TriageStep.DONE -> input
         }
@@ -101,7 +101,7 @@ object StartRuleEngine {
 
     fun toGuidance(result: TriageResult): String = when (result) {
         TriageResult.MINOR -> "【判定：軽症】傷病者は自力で最寄りの救護所へ向かうよう案内してください。"
-        TriageResult.SEVERE -> "【判定：重症】傷病者を最寄りの病院へ運んでください。"
+        TriageResult.SEVERE -> "【判定：重症】傷病者を救護所へ連れて行くか、救助隊に知らせてください。"
     }
 
     fun decideActions(result: TriageResult, input: TriageInput): TriageActionPlan {
@@ -128,7 +128,7 @@ object StartRuleEngine {
                 forbidden.add("首を無理に動かす")
                 forbidden.add("傷病者を一人にしない")
             }
-            input.hasCirculation == false -> {
+            input.hasPulse == false -> {
                 actions.add("出血部位を清潔な布で強く圧迫する")
                 actions.add("圧迫を緩めず保持し続ける")
                 forbidden.add("圧迫を途中で外す")
@@ -146,11 +146,11 @@ object StartRuleEngine {
             }
         }
 
-        actions.add("複数人で病院へ運ぶ")
+        actions.add("複数人で救護所へ運ぶ")
         forbidden.add("一人だけで搬送する")
 
         return TriageActionPlan(
-            destination = "病院（周囲の人が運ぶ）",
+            destination = "救護所（周囲の人が運ぶ）",
             safetyFirst = patientChecksSevere,
             actions = actions,
             forbiddenActions = forbidden

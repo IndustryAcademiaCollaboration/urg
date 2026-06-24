@@ -65,6 +65,7 @@ fun App(
     onTestWavRecognize: (String) -> Unit,
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val victims by viewModel.victims.collectAsStateWithLifecycle()
     var selectedTab    by remember { mutableStateOf(0) }
     var showChat       by remember { mutableStateOf(false) }
     var showVoiceInput by remember { mutableStateOf(false) }
@@ -192,7 +193,9 @@ fun App(
                     modifier = Modifier.padding(paddingValues)
                 )
                 selectedTab == 2 -> PriorityScreen(
+                    victims = victims,
                     onBack = { selectedTab = 0 },
+                    onUpdateNote = { id, note -> viewModel.updateVictimNote(id, note) },
                     modifier = Modifier.padding(paddingValues)
                 )
                 else -> Box(
