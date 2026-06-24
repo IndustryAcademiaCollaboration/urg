@@ -15,6 +15,8 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
+import kotlin.uuid.ExperimentalUuidApi
+import kotlin.uuid.Uuid
 
 class ChatViewModel(
     private val ioDispatcher: CoroutineDispatcher
@@ -28,9 +30,14 @@ class ChatViewModel(
     private var sttEngine: SttEngine? = null
     private var ttsEngine: TtsEngine? = null
     private var config: LlmConfig = LlmConfig()
+    private var repository: TriageSessionRepository? = null
+    private var currentSession: TriageSession? = null
 
     private val _uiState = MutableStateFlow(ChatUiState())
     val uiState: StateFlow<ChatUiState> = _uiState.asStateFlow()
+
+    private val _victims = MutableStateFlow<List<VictimRecord>>(emptyList())
+    val victims: StateFlow<List<VictimRecord>> = _victims.asStateFlow()
 
     private val triageController = TriageController()
 
@@ -41,6 +48,45 @@ class ChatViewModel(
     fun setRetriever(r: KnowledgeRetriever) { retriever = r }
     fun setSttEngine(engine: SttEngine) { sttEngine = engine }
     fun setTtsEngine(engine: TtsEngine) { ttsEngine = engine }
+    fun setRepository(repo: TriageSessionRepository, session: TriageSession) {
+        repository = repo
+        currentSession = session
+        refreshVictims()
+    }
+
+    private fun refreshVictims() {
+        val repo = repository ?: return
+        viewModelScope.launch(ioDispatcher) {
+            _victims.value = repo.getVictimsByPriority()
+        }
+    }
+
+    fun updateVictimNote(victimId: String, note: PatientNote) {
+        val repo = repository ?: return
+        viewModelScope.launch(ioDispatcher) {
+            repo.updateVictimNote(victimId, note)
+            _victims.value = repo.getVictimsByPriority()
+        }
+    }
+
+    @OptIn(ExperimentalUuidApi::class, ExperimentalTime::class)
+    fun saveVictimFromFlow(result: TriageResult, input: TriageInput) {
+        val repo = repository ?: return
+        val session = currentSession ?: return
+        val plan = StartRuleEngine.decideActions(result, input)
+        val victim = VictimRecord(
+            id = Uuid.random().toString(),
+            sessionId = session.id,
+            triageInput = input,
+            result = result,
+            actionPlan = plan,
+            recordedAt = Clock.System.now().toEpochMilliseconds()
+        )
+        viewModelScope.launch(ioDispatcher) {
+            repo.saveVictim(victim)
+            _victims.value = repo.getVictimsByPriority()
+        }
+    }
 
     fun setListening(listening: Boolean) {
         _uiState.update { it.copy(isListening = listening) }
@@ -189,6 +235,7 @@ class ChatViewModel(
             is TriageHandleResult.Done -> {
                 appendMessage(Message("assistant", result.guidanceMessage, MessageType.TRIAGE))
                 _uiState.update { it.copy(showTriageButtons = false) }
+                saveVictimFromFlow(result.result, result.input)
                 generateTriageGuidance(result.actionPlan)
             }
         }

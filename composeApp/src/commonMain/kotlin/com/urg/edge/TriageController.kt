@@ -65,7 +65,7 @@ class TriageController {
         val plan = StartRuleEngine.decideActions(result, input)
         lastResult = result
         lastActionPlan = plan
-        return TriageHandleResult.Done(StartRuleEngine.toGuidance(result), result, plan)
+        return TriageHandleResult.Done(StartRuleEngine.toGuidance(result), result, plan, input)
     }
 }
 
@@ -77,6 +77,7 @@ sealed class TriageHandleResult {
     data class Done(
         val guidanceMessage: String,
         val result: TriageResult,
-        val actionPlan: TriageActionPlan
+        val actionPlan: TriageActionPlan,
+        val input: TriageInput
     ) : TriageHandleResult()
 }

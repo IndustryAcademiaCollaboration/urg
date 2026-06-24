@@ -11,6 +11,8 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
+import com.urg.edge.core.database.DatabaseDriverFactory
+import com.urg.edge.core.database.DatabaseFactory
 import com.urg.edge.llm.LlmConfig
 import com.urg.edge.llm.createLlmEngine
 import java.io.File
@@ -42,6 +44,7 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
 
+        initRepository()
         initLlmEngine()
         initKnowledgeRetriever()
         initSttEngine()
@@ -71,6 +74,13 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+    }
+
+    private fun initRepository() {
+        val database = DatabaseFactory(DatabaseDriverFactory(this)).createDatabase()
+        val repository = TriageSessionRepositoryImpl(database)
+        val session = repository.startSession(latitude = null, longitude = null)
+        chatViewModel.setRepository(repository, session)
     }
 
     private fun initLlmEngine() {
