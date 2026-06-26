@@ -11,10 +11,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -26,48 +24,27 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.urg.edge.ChatUiState
 import com.urg.edge.Strings
-import org.jetbrains.compose.resources.painterResource
-import urg.composeapp.generated.resources.Res
-import urg.composeapp.generated.resources.ic_triage_selected
 
 @Composable
 fun ChatScreen(
     uiState: ChatUiState,
     onPromptChange: (String) -> Unit,
     onSendClick: () -> Unit,
-    onTriageClick: () -> Unit,
     onVoiceInputClick: () -> Unit,
     onMicStart: () -> Unit,
     onMicStop: () -> Unit,
     onTestWavRecognize: (String) -> Unit,
     onTriageYes: () -> Unit = {},
     onTriageNo: () -> Unit = {},
+    applyStatusBarPadding: Boolean = true,
     modifier: Modifier = Modifier,
 ) {
     Column(
         modifier = modifier
             .fillMaxSize()
             .background(Color(0xFFF2F4F6))
-            .statusBarsPadding()
+            .then(if (applyStatusBarPadding) Modifier.statusBarsPadding() else Modifier)
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 10.dp),
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            WavButton(
-                label = "Test WAV1",
-                onClick = { onTestWavRecognize("test_wavs/1.wav") },
-                modifier = Modifier.weight(1f)
-            )
-            WavButton(
-                label = "Test WAV2",
-                onClick = { onTestWavRecognize("test_wavs/2.wav") },
-                modifier = Modifier.weight(1f)
-            )
-        }
-
         MessageList(
             messages = uiState.messages,
             streamingText = uiState.streamingText,
@@ -87,7 +64,6 @@ fun ChatScreen(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    // はい：緑アウトライン ピル型
                     Box(
                         contentAlignment = Alignment.Center,
                         modifier = Modifier
@@ -104,7 +80,6 @@ fun ChatScreen(
                             color = Color(0xFF2E9E6E),
                         )
                     }
-                    // いいえ：赤アウトライン ピル型
                     Box(
                         contentAlignment = Alignment.Center,
                         modifier = Modifier
@@ -135,41 +110,7 @@ fun ChatScreen(
 
             ActionButtons(
                 isListening = uiState.isListening,
-                onTriageClick = onTriageClick,
                 onVoiceInputClick = onVoiceInputClick,
-            )
-        }
-    }
-}
-
-@Composable
-private fun WavButton(
-    label: String,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    Box(
-        contentAlignment = Alignment.Center,
-        modifier = modifier
-            .background(Color.White, RoundedCornerShape(50))
-            .clip(RoundedCornerShape(50))
-            .clickable { onClick() }
-            .padding(horizontal = 12.dp, vertical = 8.dp)
-    ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.Center
-        ) {
-            Text(
-                text = "▶",
-                fontSize = 11.sp,
-                color = Color(0xFF788E98),
-            )
-            Text(
-                text = "  $label",
-                fontSize = 13.sp,
-                color = Color(0xFF555555),
-                fontWeight = FontWeight.Medium,
             )
         }
     }

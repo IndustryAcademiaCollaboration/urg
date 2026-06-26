@@ -23,9 +23,10 @@ fun PromptInput(
     value: String,
     onValueChange: (String) -> Unit,
     onSendClick: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     Box(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .background(Color(0xFFF2F4F6), RoundedCornerShape(24.dp))
             .padding(horizontal = 18.dp, vertical = 12.dp),
