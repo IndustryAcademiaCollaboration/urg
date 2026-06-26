@@ -20,5 +20,4 @@ node_modules/
 *.task
 composeApp/src/androidMain/assets/models/
 composeApp/src/androidMain/assets/sherpa-onnx-zipformer-ja-reazonspeech-2024-08-01/
-composeApp/src/androidMain/assets/open_jtalk_dic/
 composeApp/src/androidMain/assets/piper/
