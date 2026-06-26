@@ -143,8 +143,9 @@ private fun FlowState.answer(yes: Boolean): FlowState {
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 @Composable
 fun TriageFlowScreen(
-    onBack: () -> Unit,
+    onBack: () -> Unit = {},
     onNavigateToMap: () -> Unit = {},
+    showHeader: Boolean = true,
     modifier: Modifier = Modifier,
 ) {
     var state            by remember { mutableStateOf(FlowState()) }
@@ -160,34 +161,36 @@ fun TriageFlowScreen(
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(Color.White)
+            .background(Color(0xFFF2F4F6))
     ) {
         // ── Main content ──
         Column(modifier = Modifier.fillMaxSize()) {
             // ── Header ──
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .statusBarsPadding()
-                    .padding(horizontal = 16.dp, vertical = 4.dp)
-            ) {
-                Icon(
-                    painter = painterResource(Res.drawable.ic_back),
-                    contentDescription = "戻る",
-                    tint = Color.Unspecified,
+            if (showHeader) {
+                Box(
                     modifier = Modifier
-                        .align(Alignment.CenterStart)
-                        .size(28.dp)
-                        .clip(RoundedCornerShape(50))
-                        .clickable { onBack() }
-                )
-                Text(
-                    text = "トリアージ",
-                    fontSize = 30.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Teal,
-                    modifier = Modifier.align(Alignment.Center)
-                )
+                        .fillMaxWidth()
+                        .statusBarsPadding()
+                        .padding(horizontal = 16.dp, vertical = 4.dp)
+                ) {
+                    Icon(
+                        painter = painterResource(Res.drawable.ic_back),
+                        contentDescription = "戻る",
+                        tint = Color.Unspecified,
+                        modifier = Modifier
+                            .align(Alignment.CenterStart)
+                            .size(28.dp)
+                            .clip(RoundedCornerShape(50))
+                            .clickable { onBack() }
+                    )
+                    Text(
+                        text = "トリアージ",
+                        fontSize = 30.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Teal,
+                        modifier = Modifier.align(Alignment.Center)
+                    )
+                }
             }
 
             // ── Flowchart area ──

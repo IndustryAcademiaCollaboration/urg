@@ -45,7 +45,6 @@ import com.urg.edge.VictimRecord
 import com.urg.edge.toTimeString
 import org.jetbrains.compose.resources.painterResource
 import urg.composeapp.generated.resources.Res
-import urg.composeapp.generated.resources.ic_back
 
 private val SevereBorderColor = Color(0xFFF47C7C)
 private val MinorBorderColor  = Color(0xFF6AE2A7)
@@ -63,7 +62,7 @@ fun PriorityScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(Color.White)
+            .background(Color(0xFFF2F4F6))
     ) {
         Box(
             modifier = Modifier
@@ -71,16 +70,6 @@ fun PriorityScreen(
                 .statusBarsPadding()
                 .padding(horizontal = 16.dp, vertical = 4.dp)
         ) {
-            Icon(
-                painter = painterResource(Res.drawable.ic_back),
-                contentDescription = "戻る",
-                tint = Color.Unspecified,
-                modifier = Modifier
-                    .align(Alignment.CenterStart)
-                    .size(28.dp)
-                    .clip(RoundedCornerShape(50))
-                    .clickable { onBack() }
-            )
             Text(
                 text = "優先度",
                 fontSize = 30.sp,
