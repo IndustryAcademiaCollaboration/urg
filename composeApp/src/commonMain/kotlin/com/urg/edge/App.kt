@@ -74,6 +74,8 @@ fun App(
     onTestWavRecognize: (String) -> Unit,
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val victims by viewModel.victims.collectAsStateWithLifecycle()
+    var showVoiceInput by remember { mutableStateOf(false) }
     var selectedTab by remember { mutableStateOf(0) }
     var showSafetyCheck by remember { mutableStateOf(false) }
     var showModeSelect by remember { mutableStateOf(false) }
@@ -245,8 +247,16 @@ fun App(
                     modifier = Modifier.padding(paddingValues)
                 )
                 selectedTab == 0 -> HomeScreen(
-                    uiState = uiState,
-                    onDisasterClick = { showSafetyCheck = true },
+                    onTriageClick = {
+                        selectedTab = 1
+                        showSafetyCheck = false
+                        showModeSelect = false
+                        showCalmMode = false
+                        showHurryMode = false
+                        showChatHistory = false
+                        showResult = false
+                        showTriageFlow = false
+                    },
                     modifier = Modifier.padding(paddingValues)
                 )
                 selectedTab == 1 -> ChatScreen(
@@ -254,6 +264,10 @@ fun App(
                     onPromptChange = viewModel::updatePrompt,
                     onSendClick = viewModel::onSendClick,
                     onTriageClick = { showTriageFlow = true },
+                    onVoiceInputClick = {
+                        showVoiceInput = true
+                        onMicStart()
+                    },
                     onMicStart = onMicStart,
                     onMicStop = onMicStop,
                     onTestWavRecognize = onTestWavRecognize,
@@ -265,7 +279,9 @@ fun App(
                     modifier = Modifier.padding(paddingValues)
                 )
                 selectedTab == 3 -> PriorityScreen(
+                    victims = victims,
                     onBack = { selectedTab = 0 },
+                    onUpdateNote = { id, note -> viewModel.updateVictimNote(id, note) },
                     modifier = Modifier.padding(paddingValues)
                 )
                 else -> {
