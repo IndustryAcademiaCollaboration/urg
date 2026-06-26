@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.ui.zIndex
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -20,9 +21,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.urg.edge.ChatUiState
+import com.urg.edge.ChatViewModel
 
 @Composable
 fun TriageTabScreen(
+    chatViewModel: ChatViewModel,
     showChat: Boolean,
     onToggle: (Boolean) -> Unit,
     uiState: ChatUiState,
@@ -92,8 +95,21 @@ fun TriageTabScreen(
             }
         }
 
-        // ── コンテンツ ───────────────────────────────────────────────────
-        if (showChat) {
+        // ── コンテンツ（両方常に描画して zIndex で前面切り替え）──────
+        Box(
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxWidth()
+                .background(Color(0xFFF2F4F6))
+        ) {
+            TriageFlowScreen(
+                chatViewModel = chatViewModel,
+                showHeader = false,
+                onNavigateToMap = onNavigateToMap,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .zIndex(if (!showChat) 1f else 0f),
+            )
             ChatScreen(
                 uiState = uiState,
                 onPromptChange = onPromptChange,
@@ -105,13 +121,9 @@ fun TriageTabScreen(
                 onTriageYes = onTriageYes,
                 onTriageNo = onTriageNo,
                 applyStatusBarPadding = false,
-                modifier = Modifier.weight(1f),
-            )
-        } else {
-            TriageFlowScreen(
-                showHeader = false,
-                onNavigateToMap = onNavigateToMap,
-                modifier = Modifier.weight(1f),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .zIndex(if (showChat) 1f else 0f),
             )
         }
     }

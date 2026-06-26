@@ -163,6 +163,7 @@ fun App(
 
                 // ── タブコンテンツ ─────────────────────────────────────
                 selectedTab == 0 -> TriageTabScreen(
+                    chatViewModel = viewModel,
                     showChat = showTriageChat,
                     onToggle = { showTriageChat = it },
                     uiState = uiState,
