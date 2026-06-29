@@ -14,7 +14,11 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -30,6 +34,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
@@ -41,21 +46,42 @@ import com.mapbox.mapboxsdk.Mapbox
 import com.mapbox.mapboxsdk.camera.CameraPosition
 import com.mapbox.mapboxsdk.geometry.LatLng
 import com.mapbox.mapboxsdk.maps.MapView
+import com.mapbox.mapboxsdk.maps.MapboxMap
 import com.mapbox.mapboxsdk.maps.MapboxMapOptions
 import com.mapbox.mapboxsdk.maps.Style
-import com.mapbox.mapboxsdk.plugins.annotation.SymbolManager
-import com.mapbox.mapboxsdk.plugins.annotation.SymbolOptions
+import com.mapbox.mapboxsdk.style.layers.LineLayer
+import com.mapbox.mapboxsdk.style.layers.PropertyFactory
+import com.mapbox.mapboxsdk.style.sources.GeoJsonSource
+import com.urg.edge.routing.BRouterEngine
+import com.mapbox.mapboxsdk.utils.BitmapUtils
 import com.urg.edge.map.MapDownloadManager
+import com.urg.edge.map.Rd5DownloadManager
 import com.urg.edge.map.getPrefectureFileName
+import com.urg.edge.shelter.Shelter
+import com.urg.edge.shelter.ShelterRepository
+import com.urg.edge.shelter.ShelterType
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
+import org.json.JSONArray
+import org.json.JSONObject
 
-/** CSVから読み込んだ施設1件分のデータ */
-data class Facility(
-    val name: String,
-    val lat: Double,
-    val lng: Double
-)
+// 施設フィルター選択肢
+enum class FacilityFilter(val displayName: String) {
+    ALL("全て"),
+    EVACUATION_CENTER("指定避難所"),
+    EMERGENCY_SHELTER("指定緊急避難場所"),
+    FIRST_AID_STATION("救護所"),
+    HOSPITAL("病院")
+}
+
+// GeoJSONソースID・レイヤーID定数
+private const val SOURCE_SHELTERS = "source-shelters"
+private const val SOURCE_CURRENT_LOCATION = "source-current-location"
+private const val LAYER_SHELTERS = "layer-shelters"
+private const val LAYER_SHELTER_LABELS = "layer-shelter-labels"
+private const val LAYER_CURRENT_LOCATION = "layer-current-location"
+private const val SOURCE_ROUTE = "source-route"
+private const val LAYER_ROUTE = "layer-route"
 
 @Composable
 actual fun MapScreen(modifier: Modifier) {
@@ -63,11 +89,121 @@ actual fun MapScreen(modifier: Modifier) {
     val lifecycleOwner = LocalLifecycleOwner.current
     val scope = rememberCoroutineScope()
     val downloadManager = remember { MapDownloadManager(context) }
+    val shelterRepository = remember { ShelterRepository(context) }
 
     var downloadProgress by remember { mutableStateOf(-1) }
     var statusMessage by remember { mutableStateOf("") }
     var mbtilesPath by remember { mutableStateOf("") }
     var mapReady by remember { mutableStateOf(false) }
+
+    var currentLat by remember { mutableStateOf(0.0) }
+    var currentLng by remember { mutableStateOf(0.0) }
+
+    var selectedFilter by remember { mutableStateOf(FacilityFilter.ALL) }
+    var dropdownExpanded by remember { mutableStateOf(false) }
+
+    var sheltersByType by remember { mutableStateOf<Map<ShelterType, List<Shelter>>>(emptyMap()) }
+    var filteredShelters by remember { mutableStateOf<List<Shelter>>(emptyList()) }
+
+    // MapboxMapへの参照（GeoJsonSource更新用）
+    var mapRef by remember { mutableStateOf<MapboxMap?>(null) }
+
+    val brouterEngine = remember { BRouterEngine(context) }
+    val rd5Manager = remember { Rd5DownloadManager(context) }
+    var showingRoute by remember { mutableStateOf(false) }
+    var calculatingRoute by remember { mutableStateOf(false) }
+
+    // 避難所GeoJSONを更新する関数
+    // 選択肢変更時は必ず一度クリアしてから新しいデータをセットする
+    fun updateShelterSource(
+        lat: Double,
+        lng: Double,
+        filter: FacilityFilter,
+        byType: Map<ShelterType, List<Shelter>>,
+        filtered: List<Shelter>
+    ) {
+        val map = mapRef ?: return
+        val style = map.style ?: return
+
+        // まず空のFeatureCollectionでクリア
+        (style.getSource(SOURCE_SHELTERS) as? GeoJsonSource)
+            ?.setGeoJson(emptyFeatureCollection())
+
+        val shelters: List<Shelter> = when (filter) {
+            FacilityFilter.ALL -> byType.values.flatten()
+            else -> filtered
+        }
+
+        // GeoJSON FeatureCollection を構築
+        val features = JSONArray()
+
+        // 避難所フィーチャー
+        shelters.forEach { shelter ->
+            val feature = JSONObject().apply {
+                put("type", "Feature")
+                put("geometry", JSONObject().apply {
+                    put("type", "Point")
+                    put("coordinates", JSONArray().apply {
+                        put(shelter.longitude)
+                        put(shelter.latitude)
+                    })
+                })
+                put("properties", JSONObject().apply {
+                    put("name", shelter.name)
+                    put("icon", shelter.type.iconName())
+                })
+            }
+            features.put(feature)
+        }
+
+        val geojson = JSONObject().apply {
+            put("type", "FeatureCollection")
+            put("features", features)
+        }.toString()
+
+        // GeoJsonSource を更新
+        (style.getSource(SOURCE_SHELTERS) as? GeoJsonSource)?.setGeoJson(geojson)
+
+        // 現在地ソースも更新
+        if (lat != 0.0) {
+            val currentLocationGeoJson = JSONObject().apply {
+                put("type", "FeatureCollection")
+                put("features", JSONArray().apply {
+                    put(JSONObject().apply {
+                        put("type", "Feature")
+                        put("geometry", JSONObject().apply {
+                            put("type", "Point")
+                            put("coordinates", JSONArray().apply {
+                                put(lng)
+                                put(lat)
+                            })
+                        })
+                        put("properties", JSONObject())
+                    })
+                })
+            }.toString()
+            (style.getSource(SOURCE_CURRENT_LOCATION) as? GeoJsonSource)
+                ?.setGeoJson(currentLocationGeoJson)
+        }
+    }
+
+    // フィルター変更時
+    LaunchedEffect(selectedFilter) {
+        if (currentLat == 0.0) return@LaunchedEffect
+        when (selectedFilter) {
+            FacilityFilter.ALL -> {
+                val newData = shelterRepository.getNearestShelters(currentLat, currentLng)
+                sheltersByType = newData
+                updateShelterSource(currentLat, currentLng, selectedFilter, newData, filteredShelters)
+            }
+            else -> {
+                val shelterType = selectedFilter.toShelterType() ?: return@LaunchedEffect
+                val newData = shelterRepository.getNearestSheltersByType(shelterType, currentLat, currentLng)
+                filteredShelters = newData
+                updateShelterSource(currentLat, currentLng, selectedFilter, sheltersByType, newData)
+            }
+        }
+    }
 
     val locationPermissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -78,8 +214,10 @@ actual fun MapScreen(modifier: Modifier) {
                     context, downloadManager,
                     onStatus = { statusMessage = it },
                     onProgress = { downloadProgress = it },
-                    onReady = { path ->
+                    onReady = { path, lat, lng ->
                         mbtilesPath = path
+                        currentLat = lat
+                        currentLng = lng
                         mapReady = true
                     }
                 )
@@ -90,22 +228,44 @@ actual fun MapScreen(modifier: Modifier) {
     }
 
     LaunchedEffect(Unit) {
+        // rd5セグメントファイルをassetsからexternalFilesにコピー（未配置の場合のみ）
+        if (!rd5Manager.areAllSegmentsDownloaded()) {
+            rd5Manager.downloadAllSegments { current, total, fileName ->
+                android.util.Log.d("MapScreen", "Copying rd5: $fileName ($current/$total)")
+            }
+        }
         val saved = downloadManager.getDownloadedPrefecture()
         if (saved != null && downloadManager.isMbtilesDownloaded(saved)) {
+            val hasFine = ContextCompat.checkSelfPermission(
+                context, Manifest.permission.ACCESS_FINE_LOCATION
+            ) == PackageManager.PERMISSION_GRANTED
+            if (hasFine) {
+                val fusedClient = LocationServices.getFusedLocationProviderClient(context)
+                var loc = fusedClient.lastLocation.await()
+                if (loc == null) {
+                    val cts = CancellationTokenSource()
+                    loc = fusedClient.getCurrentLocation(
+                        Priority.PRIORITY_BALANCED_POWER_ACCURACY, cts.token
+                    ).await()
+                }
+                currentLat = loc?.latitude ?: 35.1802
+                currentLng = loc?.longitude ?: 136.9066
+            }
             mbtilesPath = downloadManager.getMbtilesPath(saved)
             mapReady = true
         } else {
             val hasPermission = ContextCompat.checkSelfPermission(
                 context, Manifest.permission.ACCESS_FINE_LOCATION
             ) == PackageManager.PERMISSION_GRANTED
-
             if (hasPermission) {
                 initializeMap(
                     context, downloadManager,
                     onStatus = { statusMessage = it },
                     onProgress = { downloadProgress = it },
-                    onReady = { path ->
+                    onReady = { path, lat, lng ->
                         mbtilesPath = path
+                        currentLat = lat
+                        currentLng = lng
                         mapReady = true
                     }
                 )
@@ -113,6 +273,14 @@ actual fun MapScreen(modifier: Modifier) {
                 locationPermissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
             }
         }
+    }
+
+    // mapReady後に避難所データ取得＆ソース更新
+    LaunchedEffect(mapReady) {
+        if (!mapReady || currentLat == 0.0) return@LaunchedEffect
+        val newData = shelterRepository.getNearestShelters(currentLat, currentLng)
+        sheltersByType = newData
+        updateShelterSource(currentLat, currentLng, FacilityFilter.ALL, newData, filteredShelters)
     }
 
     val mapView = remember {
@@ -146,34 +314,193 @@ actual fun MapScreen(modifier: Modifier) {
                 factory = {
                     mapView.apply {
                         getMapAsync { map ->
+                            mapRef = map
                             val styleJson = buildOfflineStyleJson(mbtilesPath)
                             map.setStyle(Style.Builder().fromJson(styleJson)) { style ->
+
                                 map.cameraPosition = CameraPosition.Builder()
-                                    .target(LatLng(35.1802, 136.9066))
-                                    .zoom(10.0)
+                                    .target(LatLng(
+                                        currentLat.takeIf { it != 0.0 } ?: 35.1802,
+                                        currentLng.takeIf { it != 0.0 } ?: 136.9066
+                                    ))
+                                    .zoom(13.0)
                                     .build()
 
-                                // マーカー用アイコン(色付きの円)を登録
-                                style.addImage("hospital-icon", createCircleBitmap(0xFFE53935.toInt()))   // 赤
-                                style.addImage("aidstation-icon", createCircleBitmap(0xFF43A047.toInt())) // 緑
+                                // アイコン画像をスタイルに登録
+                                style.addImage("current-location-icon",
+                                    createCircleBitmap(0xFF1565C0.toInt(), sizePx = 48))
+                                style.addImage(ShelterType.EVACUATION_CENTER.iconName(),
+                                    createCircleBitmap(0xFF388E3C.toInt()))
+                                style.addImage(ShelterType.EMERGENCY_SHELTER.iconName(),
+                                    createCircleBitmap(0xFF1976D2.toInt()))
+                                style.addImage(ShelterType.FIRST_AID_STATION.iconName(),
+                                    createCircleBitmap(0xFFD32F2F.toInt()))
+                                style.addImage(ShelterType.HOSPITAL.iconName(),
+                                    createCircleBitmap(0xFF7B1FA2.toInt()))
 
-                                val symbolManager = SymbolManager(mapView, map, style)
-                                symbolManager.iconAllowOverlap = true
-                                symbolManager.iconIgnorePlacement = true
+                                // 空のGeoJsonSourceを登録（レイヤーはスタイルJSON内で定義済み）
+                                style.addSource(GeoJsonSource(SOURCE_SHELTERS, emptyFeatureCollection()))
+                                style.addSource(GeoJsonSource(SOURCE_CURRENT_LOCATION, emptyFeatureCollection()))
 
-                                // CSVから施設を読み込んで全件プロット
-                                val hospitals = loadFacilitiesFromAssets(context, "hospital.csv")
-                                val aidStations = loadFacilitiesFromAssets(context, "First-aidstation.csv")
+                                // 現在地ピンを即時セット
+                                if (currentLat != 0.0) {
+                                    val currentLocGeoJson = singlePointFeatureCollection(currentLng, currentLat)
+                                    (style.getSource(SOURCE_CURRENT_LOCATION) as? GeoJsonSource)
+                                        ?.setGeoJson(currentLocGeoJson)
+                                }
 
-                                plotFacilities(symbolManager, hospitals, "hospital-icon")
-                                plotFacilities(symbolManager, aidStations, "aidstation-icon")
+                                // ピンタップ
+                                // ルートソースを追加
+                                style.addSource(GeoJsonSource(SOURCE_ROUTE, emptyFeatureCollection()))
+
+                                // ルートラインレイヤーを追加（避難所レイヤーより下に描画）
+                                style.addLayerBelow(
+                                    LineLayer(LAYER_ROUTE, SOURCE_ROUTE).apply {
+                                        minZoom = 0f
+                                        setProperties(
+                                            PropertyFactory.lineColor("#1976D2"),
+                                            PropertyFactory.lineWidth(5f),
+                                            PropertyFactory.lineOpacity(0.85f),
+                                            PropertyFactory.lineCap(
+                                                com.mapbox.mapboxsdk.style.layers.Property.LINE_CAP_ROUND
+                                            ),
+                                            PropertyFactory.lineJoin(
+                                                com.mapbox.mapboxsdk.style.layers.Property.LINE_JOIN_ROUND
+                                            )
+                                        )
+                                    },
+                                    LAYER_SHELTERS
+                                )
+
+                                map.addOnMapClickListener { point ->
+                                    val screenPoint = map.projection.toScreenLocation(point)
+                                    val features = map.queryRenderedFeatures(screenPoint, LAYER_SHELTERS)
+                                    if (features.isNotEmpty()) {
+                                        val feature = features[0]
+                                        val name = feature.getStringProperty("name") ?: ""
+                                        val toLat = feature.geometry()?.let {
+                                            (it as? com.mapbox.geojson.Point)?.latitude()
+                                        } ?: 0.0
+                                        val toLng = feature.geometry()?.let {
+                                            (it as? com.mapbox.geojson.Point)?.longitude()
+                                        } ?: 0.0
+                                        if (toLat != 0.0 && currentLat != 0.0) {
+                                            scope.launch {
+                                                calculatingRoute = true
+                                                val route = brouterEngine.calculateRoute(
+                                                    currentLat, currentLng, toLat, toLng
+                                                )
+                                                calculatingRoute = false
+                                                if (route != null && route.points.isNotEmpty()) {
+                                                    // ルートをGeoJsonSourceにセット
+                                                    val coords = JSONArray()
+                                                    route.points.forEach { (lat, lng) ->
+                                                        coords.put(JSONArray().apply {
+                                                            put(lng)
+                                                            put(lat)
+                                                        })
+                                                    }
+                                                    val routeGeoJson = JSONObject().apply {
+                                                        put("type", "FeatureCollection")
+                                                        put("features", JSONArray().apply {
+                                                            put(JSONObject().apply {
+                                                                put("type", "Feature")
+                                                                put("geometry", JSONObject().apply {
+                                                                    put("type", "LineString")
+                                                                    put("coordinates", coords)
+                                                                })
+                                                                put("properties", JSONObject())
+                                                            })
+                                                        })
+                                                    }.toString()
+                                                    val style = map.style
+                                                    (style?.getSource(SOURCE_ROUTE) as? GeoJsonSource)
+                                                        ?.setGeoJson(routeGeoJson)
+                                                    showingRoute = true
+                                                } else {
+                                                    android.util.Log.w("MapScreen", "Route not found to $name")
+                                                }
+                                            }
+                                        }
+                                        true
+                                    } else {
+                                        false
+                                    }
+                                }
                             }
                         }
                     }
                 }
             )
+
+            // 右上：フィルタープルダウン
+            Box(
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(12.dp)
+            ) {
+                FilledTonalButton(onClick = { dropdownExpanded = true }) {
+                    Text(text = selectedFilter.displayName, fontSize = 13.sp)
+                    Text(text = " ▼", fontSize = 11.sp)
+                }
+                DropdownMenu(
+                    expanded = dropdownExpanded,
+                    onDismissRequest = { dropdownExpanded = false }
+                ) {
+                    FacilityFilter.entries.forEach { filter ->
+                        DropdownMenuItem(
+                            text = {
+                                Text(
+                                    text = filter.displayName,
+                                    color = if (filter == selectedFilter) Color(0xFF1976D2)
+                                    else Color.Unspecified
+                                )
+                            },
+                            onClick = {
+                                selectedFilter = filter
+                                dropdownExpanded = false
+                            }
+                        )
+                    }
+                }
+            }
+
+            // 左上：ルート解除ボタン（ルート表示中のみ）
+            if (showingRoute) {
+                FilledTonalButton(
+                    onClick = {
+                        showingRoute = false
+                        // ルートソースをクリア
+                        val style = mapRef?.style
+                        (style?.getSource(SOURCE_ROUTE) as? GeoJsonSource)
+                            ?.setGeoJson(emptyFeatureCollection())
+                    },
+                    modifier = Modifier
+                        .align(Alignment.TopStart)
+                        .padding(12.dp)
+                ) {
+                    Text("✕ ルート解除", fontSize = 13.sp)
+                }
+            }
         }
 
+        // ルート計算中オーバーレイ
+        if (calculatingRoute) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color(0xCC000000)),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    CircularProgressIndicator(color = Color.White)
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Text("ルートを計算中...", color = Color.White)
+                }
+            }
+        }
+
+        // ダウンロード中オーバーレイ
         if (downloadProgress in 0..100 || statusMessage.isNotEmpty()) {
             Box(
                 modifier = Modifier
@@ -198,57 +525,42 @@ actual fun MapScreen(modifier: Modifier) {
     }
 }
 
-/**
- * assetsフォルダ内のCSV(施設名,緯度,経度)を読み込む。
- * 1行目はヘッダーとしてスキップ。パースできない行は無視する。
- */
-private fun loadFacilitiesFromAssets(context: Context, fileName: String): List<Facility> {
-    return try {
-        context.assets.open(fileName).bufferedReader(Charsets.UTF_8).useLines { lines ->
-            lines.drop(1) // ヘッダー行をスキップ
-                .mapNotNull { line ->
-                    val cols = line.split(",")
-                    if (cols.size < 3) return@mapNotNull null
-                    val name = cols[0].trim()
-                    val lat = cols[1].trim().toDoubleOrNull() ?: return@mapNotNull null
-                    val lng = cols[2].trim().toDoubleOrNull() ?: return@mapNotNull null
-                    Facility(name, lat, lng)
-                }
-                .toList()
-        }
-    } catch (e: Exception) {
-        emptyList()
-    }
+// ShelterType のアイコン名
+private fun ShelterType.iconName(): String = when (this) {
+    ShelterType.EVACUATION_CENTER  -> "evacuation-center-icon"
+    ShelterType.EMERGENCY_SHELTER  -> "emergency-shelter-icon"
+    ShelterType.FIRST_AID_STATION  -> "first-aid-icon"
+    ShelterType.HOSPITAL           -> "hospital-icon"
 }
 
-/** 施設リストをSymbolManagerで一括プロットする */
-private fun plotFacilities(
-    symbolManager: SymbolManager,
-    facilities: List<Facility>,
-    iconName: String
-) {
-    val options = facilities.map { facility ->
-        SymbolOptions()
-            .withLatLng(LatLng(facility.lat, facility.lng))
-            .withIconImage(iconName)
-            .withIconSize(1.0f)
-            .withTextField(facility.name)
-            .withTextSize(18f)
-            .withTextOffset(arrayOf(0f, 1.2f))
-            .withTextColor("#333333")
-            .withTextHaloColor("#FFFFFF")
-            .withTextHaloWidth(1.5f)
-    }
-    // create(List) で一括生成(1件ずつより高速)
-    symbolManager.create(options)
+// FacilityFilter → ShelterType 変換
+private fun FacilityFilter.toShelterType(): ShelterType? = when (this) {
+    FacilityFilter.EVACUATION_CENTER  -> ShelterType.EVACUATION_CENTER
+    FacilityFilter.EMERGENCY_SHELTER  -> ShelterType.EMERGENCY_SHELTER
+    FacilityFilter.FIRST_AID_STATION  -> ShelterType.FIRST_AID_STATION
+    FacilityFilter.HOSPITAL           -> ShelterType.HOSPITAL
+    FacilityFilter.ALL                -> null
 }
 
-/** マーカー用の塗りつぶし円Bitmapを生成する(白フチ付き) */
+// 空のFeatureCollectionを返す
+private fun emptyFeatureCollection(): String {
+    return """{"type":"FeatureCollection","features":[]}"""
+}
+
+// 1点のFeatureCollectionを返す
+private fun singlePointFeatureCollection(lng: Double, lat: Double): String {
+    return """
+        {"type":"FeatureCollection","features":[
+            {"type":"Feature","geometry":{"type":"Point","coordinates":[$lng,$lat]},"properties":{}}
+        ]}
+    """.trimIndent()
+}
+
+/** 色付き円Bitmapを生成 */
 private fun createCircleBitmap(color: Int, sizePx: Int = 36): Bitmap {
     val bitmap = Bitmap.createBitmap(sizePx, sizePx, Bitmap.Config.ARGB_8888)
     val canvas = Canvas(bitmap)
     val center = sizePx / 2f
-
     val fill = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         this.color = color
         style = Paint.Style.FILL
@@ -258,7 +570,6 @@ private fun createCircleBitmap(color: Int, sizePx: Int = 36): Bitmap {
         style = Paint.Style.STROKE
         strokeWidth = sizePx * 0.1f
     }
-
     canvas.drawCircle(center, center, center * 0.8f, fill)
     canvas.drawCircle(center, center, center * 0.8f, stroke)
     return bitmap
@@ -269,11 +580,10 @@ private suspend fun initializeMap(
     downloadManager: MapDownloadManager,
     onStatus: (String) -> Unit,
     onProgress: (Int) -> Unit,
-    onReady: (String) -> Unit
+    onReady: (String, Double, Double) -> Unit
 ) {
     onStatus("現在地を取得中...")
 
-    // 権限チェック（Lint対策：呼び出し元で確認済みだが、この関数単体でも明示的にチェックする）
     val hasFineLocation = ContextCompat.checkSelfPermission(
         context, Manifest.permission.ACCESS_FINE_LOCATION
     ) == PackageManager.PERMISSION_GRANTED
@@ -288,14 +598,11 @@ private suspend fun initializeMap(
 
     try {
         val fusedClient = LocationServices.getFusedLocationProviderClient(context)
-
-        // lastLocation が null の場合は currentLocation を試みる
         var location = fusedClient.lastLocation.await()
         if (location == null) {
             val cts = CancellationTokenSource()
             location = fusedClient.getCurrentLocation(
-                Priority.PRIORITY_BALANCED_POWER_ACCURACY,
-                cts.token
+                Priority.PRIORITY_BALANCED_POWER_ACCURACY, cts.token
             ).await()
         }
 
@@ -321,7 +628,7 @@ private suspend fun initializeMap(
 
         if (success) {
             onStatus("")
-            onReady(downloadManager.getMbtilesPath(fileName))
+            onReady(downloadManager.getMbtilesPath(fileName), lat, lng)
         } else {
             onStatus("ダウンロードに失敗しました。\nネット接続を確認してください。")
         }
@@ -357,7 +664,52 @@ private fun buildOfflineStyleJson(mbtilesPath: String): String {
         { "id": "railway", "type": "line", "source": "aichi", "source-layer": "transportation", "filter": ["in", "class", "rail", "transit"], "paint": { "line-color": "#a080c0", "line-width": 2, "line-dasharray": [3, 1] } },
         { "id": "boundary", "type": "line", "source": "aichi", "source-layer": "boundary", "paint": { "line-color": "#a0a0c0", "line-width": 1, "line-dasharray": [4, 2] } },
         { "id": "place-town", "type": "symbol", "source": "aichi", "source-layer": "place", "filter": ["in", "class", "town", "city"], "layout": { "text-field": "{name:latin}", "text-size": 13 }, "paint": { "text-color": "#303030", "text-halo-color": "#ffffff", "text-halo-width": 2 } },
-        { "id": "place-village", "type": "symbol", "source": "aichi", "source-layer": "place", "filter": ["in", "class", "village", "suburb"], "minzoom": 11, "layout": { "text-field": "{name:latin}", "text-size": 11 }, "paint": { "text-color": "#505050", "text-halo-color": "#ffffff", "text-halo-width": 1.5 } }
+        { "id": "place-village", "type": "symbol", "source": "aichi", "source-layer": "place", "filter": ["in", "class", "village", "suburb"], "minzoom": 11, "layout": { "text-field": "{name:latin}", "text-size": 11 }, "paint": { "text-color": "#505050", "text-halo-color": "#ffffff", "text-halo-width": 1.5 } },
+        {
+          "id": "layer-shelters",
+          "type": "symbol",
+          "source": "source-shelters",
+          "minzoom": 0,
+          "maxzoom": 24,
+          "layout": {
+            "icon-image": ["get", "icon"],
+            "icon-size": 1.2,
+            "icon-allow-overlap": true,
+            "icon-ignore-placement": true
+          }
+        },
+        {
+          "id": "layer-shelter-labels",
+          "type": "symbol",
+          "source": "source-shelters",
+          "minzoom": 12,
+          "maxzoom": 24,
+          "layout": {
+            "text-field": ["get", "name"],
+            "text-size": 13,
+            "text-offset": [0, 1.5],
+            "text-allow-overlap": false,
+            "text-ignore-placement": false
+          },
+          "paint": {
+            "text-color": "#333333",
+            "text-halo-color": "#FFFFFF",
+            "text-halo-width": 1.5
+          }
+        },
+        {
+          "id": "layer-current-location",
+          "type": "symbol",
+          "source": "source-current-location",
+          "minzoom": 0,
+          "maxzoom": 24,
+          "layout": {
+            "icon-image": "current-location-icon",
+            "icon-size": 1.5,
+            "icon-allow-overlap": true,
+            "icon-ignore-placement": true
+          }
+        }
       ]
     }
     """.trimIndent().replace("MBTILES_PATH", mbtilesPath)
