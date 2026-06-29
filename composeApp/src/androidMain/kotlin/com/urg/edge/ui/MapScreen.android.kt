@@ -55,6 +55,7 @@ import com.mapbox.mapboxsdk.style.sources.GeoJsonSource
 import com.urg.edge.routing.BRouterEngine
 import com.mapbox.mapboxsdk.utils.BitmapUtils
 import com.urg.edge.map.MapDownloadManager
+import com.urg.edge.map.Rd5DownloadManager
 import com.urg.edge.map.getPrefectureFileName
 import com.urg.edge.shelter.Shelter
 import com.urg.edge.shelter.ShelterRepository
@@ -108,6 +109,7 @@ actual fun MapScreen(modifier: Modifier) {
     var mapRef by remember { mutableStateOf<MapboxMap?>(null) }
 
     val brouterEngine = remember { BRouterEngine(context) }
+    val rd5Manager = remember { Rd5DownloadManager(context) }
     var showingRoute by remember { mutableStateOf(false) }
     var calculatingRoute by remember { mutableStateOf(false) }
 
@@ -226,6 +228,12 @@ actual fun MapScreen(modifier: Modifier) {
     }
 
     LaunchedEffect(Unit) {
+        // rd5セグメントファイルをassetsからexternalFilesにコピー（未配置の場合のみ）
+        if (!rd5Manager.areAllSegmentsDownloaded()) {
+            rd5Manager.downloadAllSegments { current, total, fileName ->
+                android.util.Log.d("MapScreen", "Copying rd5: $fileName ($current/$total)")
+            }
+        }
         val saved = downloadManager.getDownloadedPrefecture()
         if (saved != null && downloadManager.isMbtilesDownloaded(saved)) {
             val hasFine = ContextCompat.checkSelfPermission(
