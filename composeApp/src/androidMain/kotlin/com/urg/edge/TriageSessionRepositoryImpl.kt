@@ -44,7 +44,7 @@ class TriageSessionRepositoryImpl(
         database.clVictimsQueries.selectBySession(sessionId).executeAsList().map { it.toVictimRecord() }
 
     override fun getVictimsByPriority(): List<VictimRecord> =
-        database.clVictimsQueries.selectOrderedBySeverity().executeAsList().map { it.toVictimRecord() }
+        database.clVictimsQueries.selectOrderedByTime().executeAsList().map { it.toVictimRecord() }
 
     private fun com.urg.edge.database.Cl_victims.toVictimRecord(): VictimRecord {
         val input = TriageInput(

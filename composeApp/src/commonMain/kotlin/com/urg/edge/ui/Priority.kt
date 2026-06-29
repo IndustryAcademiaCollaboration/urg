@@ -46,9 +46,6 @@ import com.urg.edge.toTimeString
 import org.jetbrains.compose.resources.painterResource
 import urg.composeapp.generated.resources.Res
 
-private val SevereBorderColor = Color(0xFFF47C7C)
-private val MinorBorderColor  = Color(0xFF6AE2A7)
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PriorityScreen(
@@ -58,6 +55,11 @@ fun PriorityScreen(
     modifier: Modifier = Modifier,
 ) {
     var editingVictim by remember { mutableStateOf<VictimRecord?>(null) }
+    
+    // 作成時間でソート
+    val sortedVictims = remember(victims) {
+        victims.sortedBy { it.recordedAt }
+    }
 
     Column(
         modifier = modifier
@@ -81,7 +83,7 @@ fun PriorityScreen(
 
         Spacer(modifier = Modifier.height(32.dp))
 
-        if (victims.isEmpty()) {
+        if (sortedVictims.isEmpty()) {
             Box(
                 contentAlignment = Alignment.Center,
                 modifier = Modifier.fillMaxSize()
@@ -99,7 +101,7 @@ fun PriorityScreen(
                     .verticalScroll(rememberScrollState())
                     .padding(top = 32.dp, bottom = 24.dp)
             ) {
-                victims.forEachIndexed { index, victim ->
+                sortedVictims.forEachIndexed { index, victim ->
                     VictimCard(
                         number = index + 1,
                         victim = victim,
@@ -131,79 +133,96 @@ private fun VictimCard(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    // トリアージ結果: MINOR -> "軽症", SEVERE -> "重症"
     val isSevere = victim.result == TriageResult.SEVERE
-    val borderColor = if (isSevere) SevereBorderColor else MinorBorderColor
-    val badgeBg     = if (isSevere) Color(0xFFF8B4B4) else Color(0xFFA8E6C1)
-    val badgeColor  = if (isSevere) Color(0xFFC62828) else Color(0xFF2E7D32)
-    val label       = if (isSevere) "重症" else "軽症"
+    
+    val label = if (isSevere) "重症" else "軽症"
+    val stripColor = if (isSevere) Color(0xFFEE6055) else Color(0xFF60D394)
+    val badgeBgColor = if (isSevere) Color(0xFFFEE4E2) else Color(0xFFAFEBC6)
+    val badgeTextColor = if (isSevere) Color(0xFFEE6055) else Color(0xFF148752)
+
+    val shadowColor = if (isSevere) Color(0xFFEE6055).copy(alpha = 0.3f) else Color(0xFF60D394).copy(alpha = 0.3f)
 
     Box(
         modifier = modifier
             .fillMaxWidth()
+            .padding(bottom = 8.dp, end = 6.dp) // 陰影が表示されるスペースを確保
             .shadow(
                 elevation = 12.dp,
-                shape = RoundedCornerShape(12.dp),
-                spotColor = borderColor.copy(alpha = 0.6f),
-                ambientColor = borderColor.copy(alpha = 0.3f),
+                shape = RoundedCornerShape(16.dp),
+                spotColor = shadowColor,
+                ambientColor = shadowColor,
             )
-            .clip(RoundedCornerShape(12.dp))
-            .background(Color.White)
+            .background(Color.White, RoundedCornerShape(16.dp))
+            .clip(RoundedCornerShape(16.dp))
             .clickable { onClick() }
     ) {
         Row(
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(90.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
+            // 左側のカラーバー
             Box(
                 modifier = Modifier
                     .fillMaxHeight()
                     .width(6.dp)
-                    .background(borderColor)
+                    .background(stripColor)
             )
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
+            
+            Column(
                 modifier = Modifier
-                    .padding(horizontal = 16.dp, vertical = 12.dp)
+                    .padding(start = 20.dp, end = 16.dp)
                     .weight(1f)
             ) {
-                Column {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = "傷病者 #${number.toString().padStart(3, '0')}",
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF1A1A1A),
+                    )
+                    Spacer(modifier = Modifier.width(16.dp))
+                    
+                    // 優先度バッジ (影付き)
+                    Box(
+                        contentAlignment = Alignment.Center,
+                        modifier = Modifier
+                            .background(badgeBgColor, RoundedCornerShape(50))
+                            .padding(horizontal = 14.dp, vertical = 4.dp)
+                    ) {
                         Text(
-                            text = "傷病者 #${number.toString().padStart(3, '0')}",
-                            fontSize = 16.sp,
+                            text = label,
+                            fontSize = 12.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFF1A1A1A),
+                            color = badgeTextColor,
                         )
-                        Spacer(modifier = Modifier.width(16.dp))
-                        Box(
-                            contentAlignment = Alignment.Center,
-                            modifier = Modifier
-                                .background(badgeBg, RoundedCornerShape(50))
-                                .padding(horizontal = 14.dp, vertical = 3.dp)
-                        ) {
-                            Text(
-                                text = label,
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = badgeColor,
-                            )
-                        }
                     }
-                    Spacer(modifier = Modifier.height(4.dp))
-                    val noteText = listOfNotNull(victim.note?.location, victim.note?.feature)
-                        .joinToString(" · ")
-                    val subText = buildString {
-                        append(victim.recordedAt.toTimeString())
-                        if (noteText.isNotEmpty()) append("  $noteText")
-                    }
-                    Text(text = subText, fontSize = 12.sp, color = Color(0xFF788E98))
                 }
+                
+                Spacer(modifier = Modifier.height(4.dp))
+                
+                // サブテキスト (場所・特徴)
+                val noteText = listOfNotNull(victim.note?.location, victim.note?.feature)
+                    .joinToString(" · ")
+                val subText = buildString {
+                    append(victim.recordedAt.toTimeString())
+                    if (noteText.isNotEmpty()) append("  $noteText")
+                }
+                
+                Text(
+                    text = subText,
+                    fontSize = 12.sp,
+                    color = Color(0xFF788E98),
+                )
             }
+
             Text(
                 text = "編集",
                 fontSize = 11.sp,
                 color = Color(0xFF25B1BF),
-                modifier = Modifier.padding(end = 14.dp)
+                modifier = Modifier.padding(end = 16.dp)
             )
         }
     }

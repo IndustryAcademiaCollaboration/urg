@@ -41,6 +41,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.urg.edge.ChatViewModel
 import com.urg.edge.MessageType
+import com.urg.edge.TriageInput
 import com.urg.edge.TriageResult
 import com.urg.edge.TriageStep
 import org.jetbrains.compose.resources.painterResource
@@ -166,6 +167,17 @@ fun TriageFlowScreen(
         if (reachedResult != null) {
             showModal = true
             chatViewModel.generateTriageFlowGuidanceFromReachedResult(reachedResult)
+            // トリアージ結果をDBに保存して優先度画面に反映
+            val finalResult = state.finalResult
+            if (finalResult != null) {
+                val input = TriageInput(
+                    canWalk     = state.answers[TriageStep.WALK],
+                    isBreathing = state.answers[TriageStep.BREATHING],
+                    hasPulse    = state.answers[TriageStep.CIRCULATION],
+                    isConscious = state.answers[TriageStep.CONSCIOUSNESS],
+                )
+                chatViewModel.saveVictimFromFlow(finalResult, input)
+            }
         }
     }
 
