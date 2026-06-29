@@ -240,7 +240,9 @@ class MainActivity : ComponentActivity() {
             requestPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
             return
         }
-        val started = audioRecorder.start()
+        val started = audioRecorder.start { amplitude ->
+            chatViewModel.updateMicAmplitude(amplitude)
+        }
         if (!started) {
             chatViewModel.addSystemMessage(Strings.ERROR_RECORDING_FAILED)
             return

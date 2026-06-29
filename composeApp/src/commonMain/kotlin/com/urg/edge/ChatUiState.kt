@@ -9,4 +9,5 @@ data class ChatUiState(
     val showTriageButtons: Boolean = false,
     val triageFlowText: String = "",
     val isTriageFlowLoading: Boolean = false,
+    val micAmplitude: Float = 0f,
 )

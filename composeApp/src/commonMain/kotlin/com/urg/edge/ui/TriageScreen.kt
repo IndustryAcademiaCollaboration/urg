@@ -57,11 +57,16 @@ fun TriageScreen(
     modifier: Modifier = Modifier,
 ) {
     var editingVictim by remember { mutableStateOf<VictimRecord?>(null) }
+    
+    // 作成時間でソート
+    val sortedVictims = remember(victims) {
+        victims.sortedBy { it.recordedAt }
+    }
 
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(Color.White)
+            .background(Color(0xFFF2F4F6)) // 陰影を見やすくするために背景を薄いグレーに変更
     ) {
         Box(
             modifier = Modifier
@@ -91,10 +96,9 @@ fun TriageScreen(
                     .padding(horizontal = 24.dp)
                     .fillMaxWidth()
                     .shadow(
-                        elevation = 16.dp,
+                        elevation = 8.dp,
                         shape = RoundedCornerShape(16.dp),
-                        spotColor = Color(0xFF25B1BF).copy(alpha = 0.5f),
-                        ambientColor = Color(0xFF25B1BF).copy(alpha = 0.3f),
+                        spotColor = Color(0xFF25B1BF).copy(alpha = 0.2f),
                     )
                     .background(Color.White, RoundedCornerShape(16.dp))
                     .clip(RoundedCornerShape(16.dp))
@@ -140,7 +144,7 @@ fun TriageScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            if (victims.isEmpty()) {
+            if (sortedVictims.isEmpty()) {
                 Box(
                     contentAlignment = Alignment.Center,
                     modifier = Modifier
@@ -154,14 +158,14 @@ fun TriageScreen(
                     )
                 }
             } else {
-                victims.forEachIndexed { index, victim ->
+                sortedVictims.forEachIndexed { index, victim ->
                     TriageRecordCard(
                         number = index + 1,
                         victim = victim,
                         onClick = { editingVictim = victim },
                         modifier = Modifier.padding(horizontal = 24.dp)
                     )
-                    Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(modifier = Modifier.height(20.dp))
                 }
             }
         }
@@ -186,81 +190,93 @@ private fun TriageRecordCard(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val isSevere    = victim.result == TriageResult.SEVERE
-    val labelColor  = if (isSevere) Color(0xFFEF5350) else Color(0xFF4CAF50)
-    val shadowColor = if (isSevere) Color(0xFFFF8A80) else Color(0xFF69F0AE)
-    val label       = if (isSevere) "重症" else "軽症"
+    val isSevere = victim.result == TriageResult.SEVERE
+    
+    val label = if (isSevere) "重症" else "軽症"
+    val stripColor = if (isSevere) Color(0xFFEE6055) else Color(0xFF60D394)
+    val badgeBgColor = if (isSevere) Color(0xFFFEE4E2) else Color(0xFFAFEBC6)
+    val badgeTextColor = if (isSevere) Color(0xFFEE6055) else Color(0xFF60D394)
+    
+    // FigmaのX:4, Y:6, Blur:16を再現するための陰影設定
+    val shadowColor = if (isSevere) Color(0xFFEE6055).copy(alpha = 0.3f) else Color(0xFF60D394).copy(alpha = 0.3f)
 
     Box(
         modifier = modifier
             .fillMaxWidth()
+            .padding(bottom = 8.dp, end = 6.dp) // 陰影が表示されるスペースを確保
             .shadow(
-                elevation = 10.dp,
-                shape = RoundedCornerShape(12.dp),
-                spotColor = shadowColor.copy(alpha = 0.5f),
-                ambientColor = shadowColor.copy(alpha = 0.25f),
+                elevation = 12.dp,
+                shape = RoundedCornerShape(16.dp),
+                spotColor = shadowColor,
+                ambientColor = shadowColor,
             )
-            .clip(RoundedCornerShape(12.dp))
-            .background(Color.White)
+            .background(Color.White, RoundedCornerShape(16.dp))
+            .clip(RoundedCornerShape(16.dp))
             .clickable { onClick() }
     ) {
         Row(
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(90.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Box(
                 modifier = Modifier
                     .fillMaxHeight()
                     .width(6.dp)
-                    .background(labelColor)
+                    .background(stripColor)
             )
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
+            
+            Column(
                 modifier = Modifier
-                    .padding(horizontal = 16.dp, vertical = 12.dp)
+                    .padding(start = 20.dp, end = 16.dp)
                     .weight(1f)
             ) {
-                Column {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = "傷病者 #${number.toString().padStart(3, '0')}",
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF1A1A1A),
+                    )
+                    Spacer(modifier = Modifier.width(16.dp))
+                    
+                    Box(
+                        contentAlignment = Alignment.Center,
+                        modifier = Modifier
+                            .background(badgeBgColor, RoundedCornerShape(50))
+                            .padding(horizontal = 14.dp, vertical = 4.dp)
+                    ) {
                         Text(
-                            text = "傷病者 #${number.toString().padStart(3, '0')}",
-                            fontSize = 16.sp,
+                            text = label,
+                            fontSize = 12.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFF1A1A1A),
+                            color = badgeTextColor,
                         )
-                        Spacer(modifier = Modifier.width(14.dp))
-                        Box(
-                            contentAlignment = Alignment.Center,
-                            modifier = Modifier
-                                .background(
-                                    labelColor.copy(alpha = 0.15f),
-                                    RoundedCornerShape(50)
-                                )
-                                .padding(horizontal = 14.dp, vertical = 4.dp)
-                        ) {
-                            Text(
-                                text = label,
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = labelColor,
-                            )
-                        }
                     }
-                    Spacer(modifier = Modifier.height(4.dp))
-                    val noteText = listOfNotNull(victim.note?.location, victim.note?.feature)
-                        .joinToString(" · ")
-                    val subText = buildString {
-                        append(victim.recordedAt.toTimeString())
-                        if (noteText.isNotEmpty()) append("  $noteText")
-                    }
-                    Text(text = subText, fontSize = 12.sp, color = Color(0xFF788E98))
                 }
+                
+                Spacer(modifier = Modifier.height(4.dp))
+                
+                val noteText = listOfNotNull(victim.note?.location, victim.note?.feature)
+                    .joinToString(" · ")
+                val subText = buildString {
+                    append(victim.recordedAt.toTimeString())
+                    if (noteText.isNotEmpty()) append("  $noteText")
+                }
+                
+                Text(
+                    text = subText,
+                    fontSize = 12.sp,
+                    color = Color(0xFF788E98),
+                )
             }
+
             Text(
                 text = "編集",
                 fontSize = 11.sp,
                 color = Color(0xFF25B1BF),
-                modifier = Modifier.padding(end = 14.dp)
+                modifier = Modifier.padding(end = 16.dp)
             )
         }
     }
@@ -288,7 +304,7 @@ private fun PatientNoteEditSheet(
                 .padding(bottom = 28.dp)
         ) {
             Text(
-                text = "患者情報の追加",
+                text = "傷病者情報の追加",
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Bold,
                 color = Color(0xFF1A1A1A)

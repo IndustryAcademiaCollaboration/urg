@@ -89,7 +89,15 @@ class ChatViewModel(
     }
 
     fun setListening(listening: Boolean) {
-        _uiState.update { it.copy(isListening = listening) }
+        _uiState.update { it.copy(isListening = listening, micAmplitude = 0f) }
+    }
+
+    fun updateMicAmplitude(raw: Float) {
+        _uiState.update { state ->
+            // 指数平滑化でなめらかに変化させる
+            val smoothed = state.micAmplitude * 0.6f + raw * 0.4f
+            state.copy(micAmplitude = smoothed)
+        }
     }
 
     fun recognizeFromSamples(samples: FloatArray) {
