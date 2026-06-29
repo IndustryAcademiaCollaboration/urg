@@ -45,6 +45,12 @@ kotlin {
             implementation("org.maplibre.gl:android-plugin-annotation-v9:1.0.0")
             implementation("com.google.android.gms:play-services-location:21.3.0")
             implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.7.3")
+            // BRouter オフラインルーティング
+            implementation(files("libs/brouter-core-1.7.10-beta.jar"))
+            implementation(files("libs/brouter-mapaccess-1.7.10-beta.jar"))
+            implementation(files("libs/brouter-codec-1.7.10-beta.jar"))
+            implementation(files("libs/brouter-expressions-1.7.10-beta.jar"))
+            implementation(files("libs/brouter-util-1.7.10-beta.jar"))
         }
         commonMain.dependencies {
             implementation(libs.compose.runtime)
