@@ -48,7 +48,7 @@ fun SettingsScreen(
                 .padding(horizontal = 16.dp, vertical = 4.dp)
         ) {
             Text(
-                text = "設定",
+                text = "その他",
                 fontSize = 30.sp,
                 fontWeight = FontWeight.Bold,
                 color = teal,

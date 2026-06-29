@@ -5,8 +5,10 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -17,6 +19,9 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import org.jetbrains.compose.resources.painterResource
+import urg.composeapp.generated.resources.Res
+import urg.composeapp.generated.resources.ic_send
 
 @Composable
 fun PromptInput(
@@ -60,14 +65,16 @@ fun PromptInput(
             contentAlignment = Alignment.Center,
             modifier = Modifier
                 .align(Alignment.CenterEnd)
+                .size(32.dp)
                 .clip(RoundedCornerShape(50))
+                .background(Color(0xFF25B1BF))
                 .clickable { onSendClick() }
-                .padding(4.dp)
         ) {
-            Text(
-                text = "→",
-                fontSize = 20.sp,
-                color = Color(0xFF25B1BF),
+            Icon(
+                painter = painterResource(Res.drawable.ic_send),
+                contentDescription = "送信",
+                tint = Color.White,
+                modifier = Modifier.size(16.dp),
             )
         }
     }

@@ -5,6 +5,7 @@ import android.media.AudioRecord
 import android.media.MediaRecorder
 import android.util.Log
 import kotlin.concurrent.thread
+import kotlin.math.sqrt
 
 class AudioRecorder(
     private val sampleRate: Int = 16000,
@@ -14,7 +15,7 @@ class AudioRecorder(
     @Volatile private var isRecording = false
     private val chunks = mutableListOf<ShortArray>()
 
-    fun start(): Boolean {
+    fun start(onAmplitude: ((Float) -> Unit)? = null): Boolean {
         val minBufferSize = AudioRecord.getMinBufferSize(
             sampleRate,
             AudioFormat.CHANNEL_IN_MONO,
@@ -53,6 +54,15 @@ class AudioRecorder(
                 val n = record.read(readBuf, 0, readBuf.size)
                 if (n > 0) {
                     synchronized(chunks) { chunks.add(readBuf.copyOf(n)) }
+                    // RMS 振幅を計算してコールバックで通知
+                    if (onAmplitude != null) {
+                        var sumSq = 0f
+                        for (i in 0 until n) {
+                            val v = readBuf[i] / 32768.0f
+                            sumSq += v * v
+                        }
+                        onAmplitude(sqrt(sumSq / n))
+                    }
                 }
             }
         }

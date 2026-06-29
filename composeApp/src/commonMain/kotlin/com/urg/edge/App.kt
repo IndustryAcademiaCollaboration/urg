@@ -171,7 +171,6 @@ fun App(
                     onPromptChange = viewModel::updatePrompt,
                     onSendClick = viewModel::onSendClick,
                     onVoiceInputClick = {
-                        showVoiceInput = true
                         onMicStart()
                     },
                     onMicStart = onMicStart,
