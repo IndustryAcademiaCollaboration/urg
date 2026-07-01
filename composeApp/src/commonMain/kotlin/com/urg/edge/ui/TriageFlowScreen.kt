@@ -273,9 +273,9 @@ fun TriageFlowScreen(
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clip(RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp))
+                            .clip(RoundedCornerShape(topStart = 50.dp, topEnd = 50.dp))
                             .background(Color.White)
-                            .padding(start = 20.dp, end = 20.dp, top = 18.dp, bottom = 20.dp),
+                            .padding(start = 20.dp, end = 20.dp, top = 22.dp, bottom = 20.dp),
                         horizontalAlignment = Alignment.CenterHorizontally,
                     ) {
                         Text(
@@ -288,7 +288,7 @@ fun TriageFlowScreen(
                         )
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            horizontalArrangement = Arrangement.spacedBy(14.dp)
                         ) {
                             // 安全ボタン（緑・solid）
                             Box(
