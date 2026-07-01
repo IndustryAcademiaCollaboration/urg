@@ -1,9 +1,11 @@
 package com.urg.edge.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -13,17 +15,14 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
@@ -34,9 +33,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.urg.edge.PatientNote
@@ -45,6 +46,17 @@ import com.urg.edge.VictimRecord
 import com.urg.edge.toTimeString
 import org.jetbrains.compose.resources.painterResource
 import urg.composeapp.generated.resources.Res
+import urg.composeapp.generated.resources.ic_edit
+import urg.composeapp.generated.resources.ic_gray_close
+import urg.composeapp.generated.resources.ic_place
+import urg.composeapp.generated.resources.ic_tag
+
+// ─── Colors ───────────────────────────────────────────────────────────────────
+private val SevereColor = Color(0xFFE5463F)
+private val MinorColor  = Color(0xFF16A36B)
+private val PrioTeal    = Color(0xFF25B1BF)
+private val PrioGray    = Color(0xFF94A6B0)
+private val PrioInk     = Color(0xFF10202A)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -54,11 +66,25 @@ fun PriorityScreen(
     onUpdateNote: (victimId: String, note: PatientNote) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    var editingVictim by remember { mutableStateOf<VictimRecord?>(null) }
-    
-    // 作成時間でソート
-    val sortedVictims = remember(victims) {
+    var editingVictim  by remember { mutableStateOf<VictimRecord?>(null) }
+    var sortBySeverity by remember { mutableStateOf(false) }
+
+    // 作成時間順の通し番号マップ（ソートに関わらず固定）
+    val numberMap = remember(victims) {
         victims.sortedBy { it.recordedAt }
+            .mapIndexed { index, victim -> victim.id to (index + 1) }
+            .toMap()
+    }
+
+    val sortedVictims = remember(victims, sortBySeverity) {
+        if (sortBySeverity) {
+            victims.sortedWith(
+                compareByDescending<VictimRecord> { it.result == TriageResult.SEVERE }
+                    .thenBy { it.recordedAt }
+            )
+        } else {
+            victims.sortedBy { it.recordedAt }
+        }
     }
 
     Column(
@@ -66,21 +92,39 @@ fun PriorityScreen(
             .fillMaxSize()
             .background(Color(0xFFF2F4F6))
     ) {
-        Box(
+        // ── ヘッダー ─────────────────────────────────────────────────
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(start = 16.dp, end = 16.dp, top = 30.dp, bottom = 4.dp)
+                .padding(start = 20.dp, end = 20.dp, top = 16.dp, bottom = 0.dp)
         ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    modifier = Modifier
+                        .width(3.dp)
+                        .height(14.dp)
+                        .clip(RoundedCornerShape(2.dp))
+                        .background(PrioTeal)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "PRIORITY LIST",
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = PrioTeal,
+                    letterSpacing = 1.5.sp,
+                )
+            }
+            Spacer(modifier = Modifier.height(6.dp))
             Text(
                 text = "優先度",
-                fontSize = 30.sp,
+                fontSize = 36.sp,
                 fontWeight = FontWeight.Bold,
-                color = Color(0xFF25B1BF),
-                modifier = Modifier.align(Alignment.Center)
+                color = PrioInk,
             )
         }
 
-        Spacer(modifier = Modifier.height(32.dp))
+        Spacer(modifier = Modifier.height(16.dp))
 
         if (sortedVictims.isEmpty()) {
             Box(
@@ -89,8 +133,8 @@ fun PriorityScreen(
             ) {
                 Text(
                     text = "トリアージ記録がありません",
-                    fontSize = 16.sp,
-                    color = Color(0xFF788E98)
+                    fontSize = 14.sp,
+                    color = PrioGray,
                 )
             }
         } else {
@@ -98,17 +142,79 @@ fun PriorityScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .verticalScroll(rememberScrollState())
-                    .padding(top = 32.dp, bottom = 24.dp)
             ) {
-                sortedVictims.forEachIndexed { index, victim ->
+                // ── Sort By ───────────────────────────────────────────
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(start = 20.dp, end = 20.dp, bottom = 14.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = "SORT BY",
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = PrioGray,
+                        letterSpacing = 1.sp,
+                        modifier = Modifier.weight(1f),
+                    )
+                    // 時間
+                    Box(
+                        contentAlignment = Alignment.Center,
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(50))
+                            .background(if (!sortBySeverity) PrioTeal else Color.Transparent)
+                            .border(
+                                width = 1.dp,
+                                color = if (!sortBySeverity) Color.Transparent else PrioGray,
+                                shape = RoundedCornerShape(50),
+                            )
+                            .clickable { sortBySeverity = false }
+                            .padding(horizontal = 14.dp, vertical = 6.dp)
+                    ) {
+                        Text(
+                            text = "時間",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = if (!sortBySeverity) Color.White else PrioGray,
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(8.dp))
+                    // 重症度
+                    Box(
+                        contentAlignment = Alignment.Center,
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(50))
+                            .background(if (sortBySeverity) PrioTeal else Color.Transparent)
+                            .border(
+                                width = 1.dp,
+                                color = if (sortBySeverity) Color.Transparent else PrioGray,
+                                shape = RoundedCornerShape(50),
+                            )
+                            .clickable { sortBySeverity = true }
+                            .padding(horizontal = 14.dp, vertical = 6.dp)
+                    ) {
+                        Text(
+                            text = "重症度",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = if (sortBySeverity) Color.White else PrioGray,
+                        )
+                    }
+                }
+
+                // ── カードリスト ─────────────────────────────────────
+                sortedVictims.forEach { victim ->
                     VictimCard(
-                        number = index + 1,
+                        number = numberMap[victim.id] ?: 0,
                         victim = victim,
                         onClick = { editingVictim = victim },
-                        modifier = Modifier.padding(horizontal = 24.dp)
+                        modifier = Modifier.padding(horizontal = 20.dp),
                     )
-                    Spacer(modifier = Modifier.height(20.dp))
+                    Spacer(modifier = Modifier.height(12.dp))
                 }
+
+                Spacer(modifier = Modifier.height(24.dp))
             }
         }
     }
@@ -116,6 +222,7 @@ fun PriorityScreen(
     editingVictim?.let { victim ->
         PatientNoteEditSheet(
             victim = victim,
+            number = numberMap[victim.id] ?: 0,
             onDismiss = { editingVictim = null },
             onSave = { note ->
                 onUpdateNote(victim.id, note)
@@ -125,6 +232,7 @@ fun PriorityScreen(
     }
 }
 
+// ─── Victim Card ──────────────────────────────────────────────────────────────
 @Composable
 private fun VictimCard(
     number: Int,
@@ -132,158 +240,258 @@ private fun VictimCard(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    // トリアージ結果: MINOR -> "軽症", SEVERE -> "重症"
-    val isSevere = victim.result == TriageResult.SEVERE
-    
-    val label = if (isSevere) "重症" else "軽症"
-    val stripColor = if (isSevere) Color(0xFFEE6055) else Color(0xFF60D394)
-    val badgeBgColor = if (isSevere) Color(0xFFFEE4E2) else Color(0xFFAFEBC6)
-    val badgeTextColor = if (isSevere) Color(0xFFEE6055) else Color(0xFF148752)
+    val isSevere    = victim.result == TriageResult.SEVERE
+    val label       = if (isSevere) "重症" else "軽症"
+    val accentColor = if (isSevere) SevereColor else MinorColor
+    val numStr      = "#${number.toString().padStart(3, '0')}"
 
-    val shadowColor = if (isSevere) Color(0xFFEE6055).copy(alpha = 0.3f) else Color(0xFF60D394).copy(alpha = 0.3f)
-
-    Box(
+    Row(
         modifier = modifier
             .fillMaxWidth()
-            .padding(bottom = 8.dp, end = 6.dp) // 陰影が表示されるスペースを確保
-            .shadow(
-                elevation = 12.dp,
-                shape = RoundedCornerShape(16.dp),
-                spotColor = shadowColor,
-                ambientColor = shadowColor,
-            )
-            .background(Color.White, RoundedCornerShape(16.dp))
-            .clip(RoundedCornerShape(16.dp))
-            .clickable { onClick() }
+            .height(IntrinsicSize.Min)
+            .clip(RoundedCornerShape(14.dp))
+            .background(Color.White)
+            .clickable { onClick() },
+        verticalAlignment = Alignment.CenterVertically,
     ) {
-        Row(
+        // 左カラーボーダー
+        Box(
             modifier = Modifier
-                .fillMaxWidth()
-                .height(90.dp),
-            verticalAlignment = Alignment.CenterVertically
+                .fillMaxHeight()
+                .width(4.dp)
+                .background(accentColor)
+        )
+
+        Column(
+            modifier = Modifier
+                .padding(start = 16.dp, top = 20.dp, bottom = 20.dp)
+                .weight(1f)
         ) {
-            // 左側のカラーバー
-            Box(
-                modifier = Modifier
-                    .fillMaxHeight()
-                    .width(6.dp)
-                    .background(stripColor)
-            )
-            
-            Column(
-                modifier = Modifier
-                    .padding(start = 20.dp, end = 16.dp)
-                    .weight(1f)
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        text = "傷病者 #${number.toString().padStart(3, '0')}",
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color(0xFF1A1A1A),
-                    )
-                    Spacer(modifier = Modifier.width(16.dp))
-                    
-                    // 優先度バッジ (影付き)
-                    Box(
-                        contentAlignment = Alignment.Center,
-                        modifier = Modifier
-                            .background(badgeBgColor, RoundedCornerShape(50))
-                            .padding(horizontal = 14.dp, vertical = 4.dp)
-                    ) {
-                        Text(
-                            text = label,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = badgeTextColor,
-                        )
-                    }
-                }
-                
-                Spacer(modifier = Modifier.height(4.dp))
-                
-                // サブテキスト (場所・特徴)
-                val noteText = listOfNotNull(victim.note?.location, victim.note?.feature)
-                    .joinToString(" · ")
-                val subText = buildString {
-                    append(victim.recordedAt.toTimeString())
-                    if (noteText.isNotEmpty()) append("  $noteText")
-                }
-                
+            Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    text = subText,
-                    fontSize = 12.sp,
-                    color = Color(0xFF788E98),
+                    text = numStr,
+                    fontSize = 28.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = accentColor,
+                )
+                Spacer(modifier = Modifier.width(10.dp))
+                Box(
+                    contentAlignment = Alignment.Center,
+                    modifier = Modifier
+                        .background(accentColor, RoundedCornerShape(50))
+                        .padding(horizontal = 12.dp, vertical = 3.dp)
+                ) {
+                    Text(
+                        text = label,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White,
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.height(6.dp))
+            Text(
+                text = victim.recordedAt.toTimeString(),
+                fontSize = 14.sp,
+                color = PrioGray,
+            )
+            val noteText = listOfNotNull(victim.note?.location, victim.note?.feature)
+                .joinToString("・")
+            if (noteText.isNotEmpty()) {
+                Text(
+                    text = noteText,
+                    fontSize = 14.sp,
+                    color = PrioTeal,
                 )
             }
-
-            Text(
-                text = "編集",
-                fontSize = 11.sp,
-                color = Color(0xFF25B1BF),
-                modifier = Modifier.padding(end = 16.dp)
-            )
         }
+
+        // 右: 編集
+        Text(
+            text = "編集",
+            fontSize = 14.sp,
+            color = PrioGray,
+            fontWeight = FontWeight.Medium,
+            modifier = Modifier.padding(end = 16.dp),
+        )
     }
 }
 
+// ─── 患者ノート編集シート ──────────────────────────────────────────────────────
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun PatientNoteEditSheet(
     victim: VictimRecord,
+    number: Int,
     onDismiss: () -> Unit,
     onSave: (PatientNote) -> Unit,
 ) {
     var location by remember { mutableStateOf(victim.note?.location ?: "") }
     var feature  by remember { mutableStateOf(victim.note?.feature  ?: "") }
+    val numStr   = "#${number.toString().padStart(3, '0')}"
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+        containerColor = Color.White,
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .imePadding()
                 .padding(horizontal = 20.dp)
-                .padding(bottom = 28.dp)
+                .padding(bottom = 32.dp)
         ) {
-            Text(
-                text = "患者情報の追加",
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color(0xFF1A1A1A)
-            )
-            Spacer(modifier = Modifier.height(16.dp))
-            OutlinedTextField(
-                value = location,
-                onValueChange = { location = it },
-                label = { Text("場所メモ") },
-                placeholder = { Text("例：B棟前") },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth()
-            )
-            Spacer(modifier = Modifier.height(12.dp))
-            OutlinedTextField(
-                value = feature,
-                onValueChange = { feature = it },
-                label = { Text("特徴メモ") },
-                placeholder = { Text("例：赤い服の男性") },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth()
-            )
-            Spacer(modifier = Modifier.height(20.dp))
-            Button(
-                onClick = {
-                    onSave(PatientNote(
-                        location = location.ifBlank { null },
-                        feature  = feature.ifBlank { null }
-                    ))
-                },
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF25B1BF)),
+            // ── ヘッダー ────────────────────────────────────────────
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text("保存", fontSize = 15.sp)
+                // 編集アイコン（teal 角丸）
+                Box(
+                    contentAlignment = Alignment.Center,
+                    modifier = Modifier
+                        .size(40.dp)
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(Color(0xFFE2F5F7))
+                ) {
+                    Icon(
+                        painter = painterResource(Res.drawable.ic_edit),
+                        contentDescription = null,
+                        tint = PrioTeal,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+                Spacer(modifier = Modifier.width(12.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "EDIT RECORD",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = PrioTeal,
+                        letterSpacing = 1.sp,
+                    )
+                    Text(
+                        text = "$numStr の編集",
+                        fontSize = 22.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = PrioInk,
+                    )
+                }
+                // X ボタン
+                Icon(
+                    painter = painterResource(Res.drawable.ic_gray_close),
+                    contentDescription = "閉じる",
+                    tint = Color.Unspecified,
+                    modifier = Modifier
+                        .size(24.dp)
+                        .clickable { onDismiss() }
+                )
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // ── 場所メモ ─────────────────────────────────────────────
+            Text(
+                text = "場所メモ",
+                fontSize = 14.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = PrioGray,
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .border(1.dp, Color(0xFFDCE3E8), RoundedCornerShape(12.dp))
+                    .padding(horizontal = 14.dp, vertical = 14.dp)
+            ) {
+                Icon(
+                    painter = painterResource(Res.drawable.ic_place),
+                    contentDescription = null,
+                    tint = PrioTeal,
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(modifier = Modifier.width(10.dp))
+                BasicTextField(
+                    value = location,
+                    onValueChange = { location = it },
+                    singleLine = true,
+                    textStyle = TextStyle(fontSize = 16.sp, color = PrioInk),
+                    cursorBrush = SolidColor(PrioTeal),
+                    modifier = Modifier.weight(1f),
+                    decorationBox = { inner ->
+                        if (location.isEmpty()) {
+                            Text("例：B棟前", fontSize = 16.sp, color = PrioGray)
+                        }
+                        inner()
+                    }
+                )
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // ── 特徴メモ ─────────────────────────────────────────────
+            Text(
+                text = "特徴メモ",
+                fontSize = 14.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = PrioGray,
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .border(1.dp, Color(0xFFDCE3E8), RoundedCornerShape(12.dp))
+                    .padding(horizontal = 14.dp, vertical = 14.dp)
+            ) {
+                Icon(
+                    painter = painterResource(Res.drawable.ic_tag),
+                    contentDescription = null,
+                    tint = PrioTeal,
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(modifier = Modifier.width(10.dp))
+                BasicTextField(
+                    value = feature,
+                    onValueChange = { feature = it },
+                    singleLine = true,
+                    textStyle = TextStyle(fontSize = 16.sp, color = PrioInk),
+                    cursorBrush = SolidColor(PrioTeal),
+                    modifier = Modifier.weight(1f),
+                    decorationBox = { inner ->
+                        if (feature.isEmpty()) {
+                            Text("例：赤い服の男性", fontSize = 16.sp, color = PrioGray)
+                        }
+                        inner()
+                    }
+                )
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // ── 保存ボタン ────────────────────────────────────────────
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(PrioTeal)
+                    .clickable {
+                        onSave(PatientNote(
+                            location = location.ifBlank { null },
+                            feature  = feature.ifBlank { null }
+                        ))
+                    }
+                    .padding(vertical = 16.dp)
+            ) {
+                Text(
+                    text = "保存",
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White,
+                )
             }
         }
     }
