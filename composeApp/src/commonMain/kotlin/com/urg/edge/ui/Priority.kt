@@ -102,20 +102,20 @@ fun PriorityScreen(
                 Box(
                     modifier = Modifier
                         .width(3.dp)
-                        .height(14.dp)
+                        .height(20.dp)
                         .clip(RoundedCornerShape(2.dp))
                         .background(PrioTeal)
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
                     text = "PRIORITY LIST",
-                    fontSize = 13.sp,
+                    fontSize = 20.sp,
                     fontWeight = FontWeight.Bold,
                     color = PrioTeal,
                     letterSpacing = 1.5.sp,
                 )
             }
-            Spacer(modifier = Modifier.height(6.dp))
+            Spacer(modifier = Modifier.height(2.dp))
             Text(
                 text = "優先度",
                 fontSize = 36.sp,

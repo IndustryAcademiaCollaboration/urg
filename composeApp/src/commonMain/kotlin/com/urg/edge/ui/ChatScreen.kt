@@ -243,7 +243,7 @@ private fun VoiceRecordingPanel(
                         .background(Color(0xFFFF6366).copy(alpha = dotAlpha), CircleShape)
                 )
                 Text(
-                    text = "録音中",
+                    text = "REC",
                     fontSize = 12.sp,
                     color = Color(0xFFFF6366),
                     fontWeight = FontWeight.Bold,

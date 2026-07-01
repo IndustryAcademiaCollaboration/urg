@@ -94,7 +94,7 @@ fun App(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .navigationBarsPadding()
-                                .padding(vertical = 8.dp),
+                                .padding(vertical = 10.dp),
                             horizontalArrangement = Arrangement.SpaceAround,
                         ) {
                             navItems.forEachIndexed { index, item ->
