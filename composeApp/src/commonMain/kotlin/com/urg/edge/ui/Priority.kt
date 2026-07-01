@@ -69,8 +69,7 @@ fun PriorityScreen(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .statusBarsPadding()
-                .padding(horizontal = 16.dp, vertical = 4.dp)
+                .padding(start = 16.dp, end = 16.dp, top = 30.dp, bottom = 4.dp)
         ) {
             Text(
                 text = "優先度",
