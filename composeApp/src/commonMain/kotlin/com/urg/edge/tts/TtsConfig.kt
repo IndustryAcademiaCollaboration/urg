@@ -5,7 +5,7 @@ package com.urg.edge.tts
  *
  * テキスト→音素変換は piper-plus-g2p-android (OpenJTalk 内蔵)、
  * 音声合成は Piper-Plus の Tsukuyomi-chan ONNX を onnxruntime-android で実行する。
- * モデルは [modelDir] に手動配置し、巨大なため .gitignore 管理外とする。
+ * Androidではモデルを初回起動時に端末ストレージへダウンロードし、OpenJTalk 辞書は assets に同梱する。
  */
 data class TtsConfig(
     /** assets 配下の Piper モデルディレクトリ。 */
