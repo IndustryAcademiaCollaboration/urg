@@ -79,10 +79,11 @@ private data class StepInfo(
 )
 
 private val FLOW_STEPS = listOf(
-    StepInfo(TriageStep.WALK,         "01", "歩行確認",   "自力で歩けますか？",         YesDir.RIGHT, "minor",         null),
-    StepInfo(TriageStep.BREATHING,    "02", "呼吸確認",   "呼吸はありますか？",         YesDir.DOWN,  null,            "severe_airway"),
-    StepInfo(TriageStep.CIRCULATION,  "03", "循環確認",   "脈はありますか？",           YesDir.DOWN,  null,            "severe_circ"),
-    StepInfo(TriageStep.CONSCIOUSNESS,"04", "意識確認",   "呼びかけに反応しますか？",   YesDir.RIGHT, "severe_injury", "severe_cons"),
+    StepInfo(TriageStep.TRAPPED,      "①", "挟まれ確認", "体が倒壊物や家具などに挟まれていますか？", YesDir.RIGHT, "severe_trapped", null),
+    StepInfo(TriageStep.WALK,         "②", "歩行確認",   "自力で歩けますか？",         YesDir.RIGHT, "minor",         null),
+    StepInfo(TriageStep.BREATHING,    "③", "呼吸確認",   "呼吸はありますか？",         YesDir.DOWN,  null,            "severe_airway"),
+    StepInfo(TriageStep.CIRCULATION,  "④", "循環確認",   "手首の脈はありますか？",     YesDir.DOWN,  null,            "severe_circ"),
+    StepInfo(TriageStep.CONSCIOUSNESS,"⑤", "意識確認",   "呼びかけに反応しますか？",   YesDir.RIGHT, "severe_injury", "severe_cons"),
 )
 
 private data class ResultInfo(
@@ -96,6 +97,7 @@ private data class ResultInfo(
 private val FLOW_RESULTS = mapOf(
     "danger"        to ResultInfo("退避指示", listOf("安全確保・避難"),         Orange, OrangeBg, Orange),
     "minor"         to ResultInfo("軽症",     listOf("救護所へ自力で"),         Green,  GreenBg,  Green),
+    "severe_trapped" to ResultInfo("重症",     listOf("挟まれ・圧迫あり"),           Red,    RedBg,    Red),
     "severe_airway" to ResultInfo("重症",     listOf("気道確保・CPR", "AED使用"), Red, RedBg, Red),
     "severe_circ"   to ResultInfo("重症",     listOf("出血を圧迫", "圧迫を保持"), Red, RedBg, Red),
     "severe_cons"   to ResultInfo("重症",     listOf("回復体位", "呼吸を確認"), Red, RedBg, Red),
@@ -124,6 +126,9 @@ private fun FlowState.answer(yes: Boolean): FlowState {
     val step = currentStep ?: return this
     val next = answers + (step to yes)
     return when {
+        step == TriageStep.TRAPPED && yes ->
+            copy(answers = next,currentStep = null,reachedResult = "severe_trapped",finalResult = TriageResult.SEVERE)
+        step == TriageStep.TRAPPED && !yes ->copy(answers = next,currentStep = TriageStep.WALK)
         step == TriageStep.WALK && yes ->
             copy(answers = next, currentStep = null, reachedResult = "minor", finalResult = TriageResult.MINOR)
         step == TriageStep.WALK && !yes ->
@@ -225,7 +230,7 @@ fun TriageFlowScreen(
                 modifier = Modifier
                     .weight(1f)
                     .verticalScroll(rememberScrollState())
-                    .padding(start = 8.dp, end = 8.dp, top = 36.dp, bottom = 12.dp),
+                    .padding(start = 8.dp, end = 8.dp, top = 12.dp, bottom = 12.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
                 FLOW_STEPS.forEachIndexed { idx, info ->
@@ -300,7 +305,7 @@ fun TriageFlowScreen(
                                     .background(Green)
                                     .clickable {
                                         showSafetyPreCheck = false
-                                        state = state.copy(currentStep = TriageStep.WALK)
+                                        state = state.copy(currentStep = TriageStep.TRAPPED)
                                     }
                             ) {
                                 Text("✓  安全", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.White)
@@ -478,7 +483,7 @@ fun TriageFlowScreen(
 
                     // ── 説明テキスト ──
                     Text(
-                        text = "周囲が危険な状況です。まず自身の安全を確保し、速やかに安全な場所へ避難してください。\n\n現在周囲に危険がない場合は、できるだけ早く安全な場所へ移動してください。救助活動は安全を確認してから実施してください。",
+                        text = "周囲が危険な状況です。まず自身の安全を確保し、速やかに安全な場所へ避難してください。\n\n現在周囲に危険がない場合は、できるだけ早く安全な場所へ移動してください。救助活動は安全を確認してから実施してください。\n\nもし、体が倒壊した物に挟まれ動けない場合、無理に体を引き抜かず助けを呼んでください。",
                         fontSize = 15.sp,
                         color = BodyText,
                         lineHeight = 22.sp,
@@ -905,3 +910,4 @@ private fun VerticalArrowSection(
         Spacer(modifier = Modifier.width(side))
     }
 }
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          

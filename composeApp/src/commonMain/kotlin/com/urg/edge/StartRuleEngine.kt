@@ -1,13 +1,14 @@
 package com.urg.edge
 
 data class TriageInput(
+    val isTrapped: Boolean? = null,
     val canWalk: Boolean? = null,
     val isBreathing: Boolean? = null,
     val hasPulse: Boolean? = null,
     val isConscious: Boolean? = null
 )
 
-enum class TriageStep { SAFETY_CHECK, WALK, BREATHING, CIRCULATION, CONSCIOUSNESS, DONE }
+enum class TriageStep { SAFETY_CHECK,TRAPPED, WALK, BREATHING, CIRCULATION, CONSCIOUSNESS, DONE }
 
 enum class TriageResult { MINOR, SEVERE }
 
@@ -35,6 +36,7 @@ object StartRuleEngine {
 
     val stepQuestions = mapOf(
         TriageStep.SAFETY_CHECK to "【安全確認】周囲の状況は安全ですか？（はい / いいえ）",
+        TriageStep.TRAPPED to "【挟まれ確認】体が倒壊物や家具などに挟まれていますか？（はい / いいえ）",
         TriageStep.WALK to "【歩行確認】傷病者は自力で歩けますか？（はい / いいえ）",
         TriageStep.BREATHING to "【呼吸確認】普段通りの呼吸はありますか？（はい / いいえ）",
         TriageStep.CIRCULATION to "【循環確認】脈はありますか？（はい / いいえ）",
@@ -42,7 +44,8 @@ object StartRuleEngine {
     )
 
     fun nextStep(current: TriageStep): TriageStep = when (current) {
-        TriageStep.SAFETY_CHECK -> TriageStep.WALK
+        TriageStep.SAFETY_CHECK -> TriageStep.TRAPPED
+        TriageStep.TRAPPED -> TriageStep.WALK
         TriageStep.WALK -> TriageStep.BREATHING
         TriageStep.BREATHING -> TriageStep.CIRCULATION
         TriageStep.CIRCULATION -> TriageStep.CONSCIOUSNESS
@@ -87,6 +90,7 @@ object StartRuleEngine {
     fun applyAnswer(input: TriageInput, step: TriageStep, answer: Boolean): TriageInput =
         when (step) {
             TriageStep.SAFETY_CHECK -> input
+            TriageStep.TRAPPED -> input.copy(isTrapped = answer)
             TriageStep.WALK -> input.copy(canWalk = answer)
             TriageStep.BREATHING -> input.copy(isBreathing = answer)
             TriageStep.CIRCULATION -> input.copy(hasPulse = answer)
@@ -95,6 +99,7 @@ object StartRuleEngine {
         }
 
     fun evaluate(input: TriageInput): TriageResult {
+        if (input.isTrapped == true) return TriageResult.SEVERE
         if (input.canWalk == true) return TriageResult.MINOR
         return TriageResult.SEVERE
     }
@@ -121,6 +126,13 @@ object StartRuleEngine {
         val forbidden = mutableListOf<String>().also { it.addAll(globalForbiddenSevere) }
 
         when {
+            input.isTrapped == true -> {
+                actions.add("無理に体を引き抜かない")
+                actions.add("周囲に助けを求める")
+                actions.add("挟まれていることを救助者に伝える")
+                forbidden.add("無理に体を引き抜く")
+                forbidden.add("挟まれた部分を急に動かす")
+            }
             input.isBreathing == false -> {
                 actions.add("頭部を後ろに傾け気道を確保する")
                 actions.add("呼吸が戻らない場合は胸骨圧迫を行う")
