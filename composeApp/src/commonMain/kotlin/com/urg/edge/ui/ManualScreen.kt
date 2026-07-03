@@ -37,10 +37,12 @@ import urg.composeapp.generated.resources.ic_gray_close
 import urg.composeapp.generated.resources.ic_manual
 import urg.composeapp.generated.resources.ic_map_selected
 import urg.composeapp.generated.resources.ic_more_selected
+import urg.composeapp.generated.resources.ic_pencil
 import urg.composeapp.generated.resources.ic_place
 import urg.composeapp.generated.resources.ic_priority_selected
 import urg.composeapp.generated.resources.ic_settings
 import urg.composeapp.generated.resources.ic_tag
+import urg.composeapp.generated.resources.ic_trash
 import urg.composeapp.generated.resources.ic_triage_selected
 
 // ── カラー ───────────────────────────────────────────────────────────────
@@ -90,9 +92,10 @@ private val MANUAL_DATA: Map<ManualCategory, List<ManualStep>> = mapOf(
         ManualStep("3 / 3", "RESULT",        "判定結果の確認",             "「軽症」または「重症」の判定が表示されます。対応の案内文が生成され、結果は自動的に優先度リストに記録されます。"),
     ),
     ManualCategory.PRIORITY to listOf(
-        ManualStep("1 / 3", "VICTIM LIST",  "傷病者一覧",     "トリアージ完了後、傷病者が自動的に一覧に記録されます。"),
-        ManualStep("2 / 3", "SORT",         "並び替え",       "「時間」または「重症度」ボタンで一覧を並び替えられます。"),
-        ManualStep("3 / 3", "EDIT RECORD",  "記録を編集する", "カードの「編集」をタップすると、場所や特徴などのメモを追加できます。"),
+        ManualStep("1 / 4", "VICTIM LIST",   "傷病者一覧",     "トリアージ完了後、傷病者が自動的に一覧に記録されます。各カードに番号・重症度・記録時刻が表示されます。"),
+        ManualStep("2 / 4", "SORT",          "並び替え",       "「時間」または「重症度」ボタンを選択して、一覧の並び替えができます。重症者を上位に表示したいときは「重症度」を選んでください。"),
+        ManualStep("3 / 4", "EDIT RECORD",   "記録を編集する", "カード右上の「⋮」をタップして「編集」を選ぶと、場所メモや特徴メモを入力できます。入力後「保存」を押して確定してください。"),
+        ManualStep("4 / 4", "DELETE RECORD", "記録を削除する", "カードの「⋮」メニューから「削除」を選ぶと確認ダイアログが表示されます。削除は取り消せないため、「削除」ボタンで最終確定してください。"),
     ),
     ManualCategory.MAP to listOf(
         ManualStep("1 / 3", "CURRENT LOCATION", "現在地を確認",   "地図上に現在地がリアルタイムで表示されます。"),
@@ -682,7 +685,7 @@ private fun SpotlightPriority(stepIndex: Int) {
                     }
                 }
             }
-        else ->
+        2 ->
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -691,7 +694,29 @@ private fun SpotlightPriority(stepIndex: Int) {
                     .padding(16.dp),
             ) {
                 Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Text("EDIT RECORD", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = ManualTeal, letterSpacing = 1.sp)
+                    // ヘッダー（編集シートと同じ構成）
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            contentAlignment = Alignment.Center,
+                            modifier = Modifier
+                                .size(32.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(Color(0xFFE2F5F7))
+                        ) {
+                            Icon(
+                                painter = painterResource(Res.drawable.ic_pencil),
+                                contentDescription = null,
+                                tint = ManualTeal,
+                                modifier = Modifier.size(16.dp),
+                            )
+                        }
+                        Spacer(Modifier.width(10.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text("EDIT RECORD", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = ManualTeal, letterSpacing = 1.sp)
+                            Text("#001 の編集", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = ManualTextDark)
+                        }
+                    }
+                    // 場所メモ
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -703,6 +728,7 @@ private fun SpotlightPriority(stepIndex: Int) {
                         Spacer(Modifier.width(8.dp))
                         Text("場所を入力...", fontSize = 13.sp, color = Color(0xFFBBBBBB))
                     }
+                    // 特徴メモ
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -713,6 +739,64 @@ private fun SpotlightPriority(stepIndex: Int) {
                         Icon(painterResource(Res.drawable.ic_tag), null, tint = Color.Unspecified, modifier = Modifier.size(18.dp))
                         Spacer(Modifier.width(8.dp))
                         Text("特徴を入力...", fontSize = 13.sp, color = Color(0xFFBBBBBB))
+                    }
+                }
+            }
+        else ->
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(Color.White)
+                    .padding(horizontal = 16.dp, vertical = 18.dp),
+            ) {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    // ゴミ箱アイコン（薄ピンク丸）
+                    Box(
+                        contentAlignment = Alignment.Center,
+                        modifier = Modifier
+                            .size(44.dp)
+                            .clip(RoundedCornerShape(50))
+                            .background(Color(0xFFFFE5E4))
+                    ) {
+                        Icon(
+                            painter = painterResource(Res.drawable.ic_trash),
+                            contentDescription = null,
+                            tint = Color(0xFFDE3F39),
+                            modifier = Modifier.size(20.dp),
+                        )
+                    }
+                    Text("記録を削除しますか？", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = ManualTextDark)
+                    Text("この操作は取り消せません。", fontSize = 11.sp, color = ManualTextGray)
+                    // ボタン行
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        Box(
+                            contentAlignment = Alignment.Center,
+                            modifier = Modifier
+                                .weight(1f)
+                                .clip(RoundedCornerShape(50))
+                                .background(Color(0xFFF2F4F6))
+                                .padding(vertical = 8.dp)
+                        ) {
+                            Text("キャンセル", fontSize = 11.sp, color = Color(0xFF566876), fontWeight = FontWeight.Medium)
+                        }
+                        Box(
+                            contentAlignment = Alignment.Center,
+                            modifier = Modifier
+                                .weight(1f)
+                                .clip(RoundedCornerShape(50))
+                                .background(Color(0xFFDE3F39))
+                                .padding(vertical = 8.dp)
+                        ) {
+                            Text("削除", fontSize = 11.sp, color = Color.White, fontWeight = FontWeight.Bold)
+                        }
                     }
                 }
             }

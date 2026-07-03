@@ -79,11 +79,11 @@ private data class StepInfo(
 )
 
 private val FLOW_STEPS = listOf(
-    StepInfo(TriageStep.TRAPPED,      "①", "挟まれ確認", "体が倒壊物や家具などに挟まれていますか？", YesDir.RIGHT, "severe_trapped", null),
-    StepInfo(TriageStep.WALK,         "②", "歩行確認",   "自力で歩けますか？",         YesDir.RIGHT, "minor",         null),
-    StepInfo(TriageStep.BREATHING,    "③", "呼吸確認",   "呼吸はありますか？",         YesDir.DOWN,  null,            "severe_airway"),
-    StepInfo(TriageStep.CIRCULATION,  "④", "循環確認",   "手首の脈はありますか？",     YesDir.DOWN,  null,            "severe_circ"),
-    StepInfo(TriageStep.CONSCIOUSNESS,"⑤", "意識確認",   "呼びかけに反応しますか？",   YesDir.RIGHT, "severe_injury", "severe_cons"),
+    StepInfo(TriageStep.TRAPPED,      "01", "挟まれ確認", "体が倒壊物や家具などに挟まれていますか？", YesDir.RIGHT, "severe_trapped", null),
+    StepInfo(TriageStep.WALK,         "02", "歩行確認",   "自力で歩けますか？",         YesDir.RIGHT, "minor",         null),
+    StepInfo(TriageStep.BREATHING,    "03", "呼吸確認",   "呼吸はありますか？",         YesDir.DOWN,  null,            "severe_airway"),
+    StepInfo(TriageStep.CIRCULATION,  "04", "循環確認",   "手首の脈はありますか？",     YesDir.DOWN,  null,            "severe_circ"),
+    StepInfo(TriageStep.CONSCIOUSNESS,"05", "意識確認",   "呼びかけに反応しますか？",   YesDir.RIGHT, "severe_injury", "severe_cons"),
 )
 
 private data class ResultInfo(
@@ -910,4 +910,3 @@ private fun VerticalArrowSection(
         Spacer(modifier = Modifier.width(side))
     }
 }
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          
