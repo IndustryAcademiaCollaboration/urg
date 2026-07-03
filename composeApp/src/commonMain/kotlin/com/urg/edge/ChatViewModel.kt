@@ -411,6 +411,13 @@ class ChatViewModel(
                 forbiddenActions = listOf("無理に走らない")
             )
 
+            "severe_trapped" -> TriageActionPlan(
+                destination = "その場で救助を待つ",
+                safetyFirst = listOf("周囲の安全を確認する", "落下物や余震に注意する"),
+                actions = listOf("無理に引き抜かない", "周囲に助けを求める"),
+                forbiddenActions = listOf("無理に引き抜く","一人で搬送する")
+            )
+
             "severe_airway" -> TriageActionPlan(
                 destination = "救護所",
                 safetyFirst = listOf("周囲の安全を確認する"),
