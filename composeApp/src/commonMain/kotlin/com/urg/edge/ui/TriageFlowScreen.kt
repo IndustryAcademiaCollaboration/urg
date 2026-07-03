@@ -79,11 +79,11 @@ private data class StepInfo(
 )
 
 private val FLOW_STEPS = listOf(
-    StepInfo(TriageStep.TRAPPED,      "①", "挟まれ確認", "体が倒壊物や家具などに挟まれていますか？", YesDir.RIGHT, "severe_trapped", null),
-    StepInfo(TriageStep.WALK,         "②", "歩行確認",   "自力で歩けますか？",         YesDir.RIGHT, "minor",         null),
-    StepInfo(TriageStep.BREATHING,    "③", "呼吸確認",   "呼吸はありますか？",         YesDir.DOWN,  null,            "severe_airway"),
-    StepInfo(TriageStep.CIRCULATION,  "④", "循環確認",   "手首の脈はありますか？",           YesDir.DOWN,  null,            "severe_circ"),
-    StepInfo(TriageStep.CONSCIOUSNESS,"⑤", "意識確認",   "呼びかけに反応しますか？",   YesDir.RIGHT, "severe_injury", "severe_cons"),
+    StepInfo(TriageStep.TRAPPED,      "01", "挟まれ確認", "体が倒壊物や家具などに挟まれていますか？", YesDir.RIGHT, "severe_trapped", null),
+    StepInfo(TriageStep.WALK,         "02", "歩行確認",   "自力で歩けますか？",         YesDir.RIGHT, "minor",         null),
+    StepInfo(TriageStep.BREATHING,    "03", "呼吸確認",   "呼吸はありますか？",         YesDir.DOWN,  null,            "severe_airway"),
+    StepInfo(TriageStep.CIRCULATION,  "04", "循環確認",   "手首の脈はありますか？",     YesDir.DOWN,  null,            "severe_circ"),
+    StepInfo(TriageStep.CONSCIOUSNESS,"05", "意識確認",   "呼びかけに反応しますか？",   YesDir.RIGHT, "severe_injury", "severe_cons"),
 )
 
 private data class ResultInfo(
@@ -278,47 +278,49 @@ fun TriageFlowScreen(
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
+                            .clip(RoundedCornerShape(topStart = 50.dp, topEnd = 50.dp))
                             .background(Color.White)
-                            .padding(horizontal = 20.dp, vertical = 14.dp)
+                            .padding(start = 20.dp, end = 20.dp, top = 22.dp, bottom = 20.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
                     ) {
                         Text(
                             text = "あなた自身は安全ですか？",
-                            fontSize = 15.sp,
-                            fontWeight = FontWeight.Medium,
+                            fontSize = 20.sp,
+                            fontWeight = FontWeight.Bold,
                             color = BodyText,
                             textAlign = TextAlign.Center,
-                            modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp)
+                            modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)
                         )
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            horizontalArrangement = Arrangement.spacedBy(14.dp)
                         ) {
-                            // 安全ボタン（緑）
+                            // 安全ボタン（緑・solid）
                             Box(
                                 contentAlignment = Alignment.Center,
                                 modifier = Modifier
                                     .weight(1f)
-                                    .height(38.dp)
+                                    .height(52.dp)
                                     .clip(RoundedCornerShape(50))
-                                    .background(Color(0xFFE8FAF3))
+                                    .background(Green)
                                     .clickable {
                                         showSafetyPreCheck = false
                                         state = state.copy(currentStep = TriageStep.TRAPPED)
                                     }
                             ) {
-                                Text("✓  安全", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF2E9E6E))
+                                Text("✓  安全", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.White)
                             }
-                            // 危険ボタン（赤）
+                            // 危険ボタン（アンバー・solid）
                             Box(
                                 contentAlignment = Alignment.Center,
                                 modifier = Modifier
                                     .weight(1f)
-                                    .height(38.dp)
+                                    .height(52.dp)
                                     .clip(RoundedCornerShape(50))
-                                    .background(RedBg)
+                                    .background(Orange)
                                     .clickable { showDangerModal = true }
                             ) {
-                                Text("⚠  危険", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = Red)
+                                Text("⚠  危険", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.White)
                             }
                         }
                     }
@@ -329,17 +331,19 @@ fun TriageFlowScreen(
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
+                            .clip(RoundedCornerShape(topStart = 50.dp, topEnd = 50.dp))
                             .background(Color.White)
-                            .padding(horizontal = 20.dp, vertical = 14.dp)
+                            .padding(start = 20.dp, end = 20.dp, top = 18.dp, bottom = 20.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
                     ) {
                         if (info != null) {
                             Text(
                                 text = info.question,
-                                fontSize = 15.sp,
-                                fontWeight = FontWeight.Medium,
+                                fontSize = 20.sp,
+                                fontWeight = FontWeight.Bold,
                                 color = BodyText,
                                 textAlign = TextAlign.Center,
-                                modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp)
+                                modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)
                             )
                         }
                         Row(
@@ -350,23 +354,23 @@ fun TriageFlowScreen(
                                 contentAlignment = Alignment.Center,
                                 modifier = Modifier
                                     .weight(1f)
-                                    .height(38.dp)
+                                    .height(52.dp)
                                     .clip(RoundedCornerShape(50))
-                                    .background(Color(0xFFE8FAF3))
+                                    .background(Green)
                                     .clickable { answerFromButton(true) }
                             ) {
-                                Text("✓  はい", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF2E9E6E))
+                                Text("✓  はい", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.White)
                             }
                             Box(
                                 contentAlignment = Alignment.Center,
                                 modifier = Modifier
                                     .weight(1f)
-                                    .height(38.dp)
+                                    .height(52.dp)
                                     .clip(RoundedCornerShape(50))
-                                    .background(Color(0xFFFFF0F0))
+                                    .background(Red)
                                     .clickable { answerFromButton(false) }
                             ) {
-                                Text("✕  いいえ", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFFD94444))
+                                Text("✕  いいえ", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.White)
                             }
                         }
                     }
@@ -376,25 +380,27 @@ fun TriageFlowScreen(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 20.dp, vertical = 12.dp),
+                            .clip(RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp))
+                            .background(Color.White)
+                            .padding(start = 20.dp, end = 20.dp, top = 18.dp, bottom = 20.dp),
                         horizontalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
                         Box(
                             contentAlignment = Alignment.Center,
                             modifier = Modifier
                                 .weight(1f)
-                                .height(40.dp)
+                                .height(52.dp)
                                 .clip(RoundedCornerShape(50))
-                                .background(TealBg)
+                                .background(Teal)
                                 .clickable { showModal = true }
                         ) {
-                            Text("結果を確認", fontSize = 13.sp, color = Teal, fontWeight = FontWeight.SemiBold)
+                            Text("結果を確認", fontSize = 16.sp, color = Color.White, fontWeight = FontWeight.Bold)
                         }
                         Box(
                             contentAlignment = Alignment.Center,
                             modifier = Modifier
                                 .weight(1f)
-                                .height(40.dp)
+                                .height(52.dp)
                                 .clip(RoundedCornerShape(50))
                                 .background(GrayBg)
                                 .clickable {
@@ -402,7 +408,7 @@ fun TriageFlowScreen(
                                     showSafetyPreCheck = true
                                 }
                         ) {
-                            Text("↺ やり直す", fontSize = 13.sp, color = DarkGrayText)
+                            Text("↺  やり直す", fontSize = 16.sp, color = DarkGrayText, fontWeight = FontWeight.SemiBold)
                         }
                     }
                 }
@@ -756,12 +762,12 @@ private fun QuestionNode(
                 contentAlignment = Alignment.Center,
                 modifier = Modifier
                     .size(26.dp)
-                    .clip(CircleShape)
+                    .clip(RoundedCornerShape(6.dp))
                     .background(s.numBg)
             ) {
                 Text(
                     text       = info.num,
-                    fontSize   = 11.sp,
+                    fontSize   = 10.sp,
                     fontWeight = FontWeight.Bold,
                     color      = Color.White,
                 )

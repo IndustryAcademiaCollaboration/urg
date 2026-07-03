@@ -43,6 +43,10 @@ class TriageSessionRepositoryImpl(
     override fun getVictimsBySession(sessionId: String): List<VictimRecord> =
         database.clVictimsQueries.selectBySession(sessionId).executeAsList().map { it.toVictimRecord() }
 
+    override fun deleteVictim(victimId: String) {
+        database.clVictimsQueries.deleteById(victimId)
+    }
+
     override fun getVictimsByPriority(): List<VictimRecord> =
         database.clVictimsQueries.selectOrderedByTime().executeAsList().map { it.toVictimRecord() }
 

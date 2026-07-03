@@ -45,6 +45,23 @@ class ChatViewModel(
     private val _victims = MutableStateFlow<List<VictimRecord>>(emptyList())
     val victims: StateFlow<List<VictimRecord>> = _victims.asStateFlow()
 
+    // 安定番号マップ：一度割り当てた番号はセッション中変わらない
+    private var victimSeqCounter = 0
+    private val victimSeqMap = mutableMapOf<String, Int>()
+    private val _victimNumbers = MutableStateFlow<Map<String, Int>>(emptyMap())
+    val victimNumbers: StateFlow<Map<String, Int>> = _victimNumbers.asStateFlow()
+
+    private fun assignNumbers(victims: List<VictimRecord>) {
+        var changed = false
+        victims.sortedBy { it.recordedAt }.forEach { v ->
+            if (!victimSeqMap.containsKey(v.id)) {
+                victimSeqMap[v.id] = ++victimSeqCounter
+                changed = true
+            }
+        }
+        if (changed) _victimNumbers.value = victimSeqMap.toMap()
+    }
+
     private val triageController = TriageController()
 
     fun setLlmEngine(engine: LlmEngine, config: LlmConfig) {
@@ -63,7 +80,22 @@ class ChatViewModel(
     private fun refreshVictims() {
         val repo = repository ?: return
         viewModelScope.launch(ioDispatcher) {
-            _victims.value = repo.getVictimsByPriority()
+            val list = repo.getVictimsByPriority()
+            assignNumbers(list)
+            _victims.value = list
+        }
+    }
+
+    fun deleteVictim(victimId: String) {
+        val repo = repository
+        if (repo == null) {
+            _victims.update { list -> list.filter { it.id != victimId } }
+            return
+        }
+        viewModelScope.launch(ioDispatcher) {
+            repo.deleteVictim(victimId)
+            // 番号マップはそのまま保持（削除しても他の番号は変わらない）
+            _victims.update { list -> list.filter { it.id != victimId } }
         }
     }
 
@@ -90,7 +122,9 @@ class ChatViewModel(
         )
         viewModelScope.launch(ioDispatcher) {
             repo.saveVictim(victim)
-            _victims.value = repo.getVictimsByPriority()
+            val list = repo.getVictimsByPriority()
+            assignNumbers(list)
+            _victims.value = list
         }
     }
 
