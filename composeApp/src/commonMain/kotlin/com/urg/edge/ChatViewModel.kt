@@ -269,7 +269,7 @@ class ChatViewModel(
                     ?: emptyList()
 
                 val supplementText = if (chunks.isNotEmpty()) {
-                    "\n\n[補足知識]\n" + chunks.joinToString("\n") { "・${it.title}: ${it.text}" }
+                    "\n\n[補足知識]\n" + chunks.joinToString("\n") { "・${it.toPromptText()}" }
                 } else {
                     ""
                 }
@@ -350,7 +350,7 @@ class ChatViewModel(
                     ?: emptyList()
 
                 val supplementText = if (chunks.isNotEmpty()) {
-                    "\n\n[補足知識]\n" + chunks.joinToString("\n") { "・${it.title}: ${it.text}" }
+                    "\n\n[補足知識]\n" + chunks.joinToString("\n") { "・${it.toPromptText()}" }
                 } else {
                     ""
                 }
@@ -480,10 +480,7 @@ class ChatViewModel(
                 val chunks = r.retrieve(text, topK = 3)
 
                 val ragSection = if (chunks.isNotEmpty()) {
-                    "\n\n[参考情報]\n" + chunks.joinToString("\n") {
-                        val base = "・${it.title}: ${it.text}"
-                        if (it.guidance != null) "$base\n  推奨対応: ${it.guidance}" else base
-                    }
+                    "\n\n[参考情報]\n" + chunks.joinToString("\n") { "・${it.toPromptText()}" }
                 } else ""
                 val forbiddenList = StartRuleEngine.globalForbiddenSevere.joinToString("\n") { "- $it" }
                 val triageContext = buildTriageContext()
