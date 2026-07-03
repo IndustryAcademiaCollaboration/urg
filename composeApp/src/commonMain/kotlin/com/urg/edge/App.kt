@@ -64,8 +64,9 @@ fun App(
     onMicStop: () -> Unit,
     onTestWavRecognize: (String) -> Unit,
 ) {
-    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-    val victims by viewModel.victims.collectAsStateWithLifecycle()
+    val uiState       by viewModel.uiState.collectAsStateWithLifecycle()
+    val victims       by viewModel.victims.collectAsStateWithLifecycle()
+    val victimNumbers by viewModel.victimNumbers.collectAsStateWithLifecycle()
     var selectedTab    by remember { mutableStateOf(0) }
     var showVoiceInput by remember { mutableStateOf(false) }
     var showManual     by remember { mutableStateOf(false) }
@@ -94,7 +95,7 @@ fun App(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .navigationBarsPadding()
-                                .padding(vertical = 8.dp),
+                                .padding(vertical = 10.dp),
                             horizontalArrangement = Arrangement.SpaceAround,
                         ) {
                             navItems.forEachIndexed { index, item ->
@@ -188,8 +189,10 @@ fun App(
                 // tab 1: 優先度
                 selectedTab == 1 -> PriorityScreen(
                     victims = victims,
+                    victimNumbers = victimNumbers,
                     onBack = { selectedTab = 0 },
                     onUpdateNote = { id, note -> viewModel.updateVictimNote(id, note) },
+                    onDeleteVictim = { id -> viewModel.deleteVictim(id) },
                     modifier = Modifier.padding(paddingValues)
                 )
 
