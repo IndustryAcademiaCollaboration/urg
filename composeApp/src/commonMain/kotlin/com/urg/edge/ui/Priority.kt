@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -20,7 +21,10 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
@@ -38,6 +42,7 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.urg.edge.PatientNote
@@ -46,10 +51,11 @@ import com.urg.edge.VictimRecord
 import com.urg.edge.toTimeString
 import org.jetbrains.compose.resources.painterResource
 import urg.composeapp.generated.resources.Res
-import urg.composeapp.generated.resources.ic_edit
 import urg.composeapp.generated.resources.ic_gray_close
+import urg.composeapp.generated.resources.ic_pencil
 import urg.composeapp.generated.resources.ic_place
 import urg.composeapp.generated.resources.ic_tag
+import urg.composeapp.generated.resources.ic_trash
 
 // ─── Colors ───────────────────────────────────────────────────────────────────
 private val SevereColor = Color(0xFFE5463F)
@@ -62,19 +68,18 @@ private val PrioInk     = Color(0xFF10202A)
 @Composable
 fun PriorityScreen(
     victims: List<VictimRecord>,
+    victimNumbers: Map<String, Int> = emptyMap(),
     onBack: () -> Unit,
     onUpdateNote: (victimId: String, note: PatientNote) -> Unit,
+    onDeleteVictim: (victimId: String) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
-    var editingVictim  by remember { mutableStateOf<VictimRecord?>(null) }
-    var sortBySeverity by remember { mutableStateOf(false) }
+    var editingVictim       by remember { mutableStateOf<VictimRecord?>(null) }
+    var deleteConfirmTarget by remember { mutableStateOf<VictimRecord?>(null) }
+    var sortBySeverity      by remember { mutableStateOf(false) }
 
-    // 作成時間順の通し番号マップ（ソートに関わらず固定）
-    val numberMap = remember(victims) {
-        victims.sortedBy { it.recordedAt }
-            .mapIndexed { index, victim -> victim.id to (index + 1) }
-            .toMap()
-    }
+    // 番号は ViewModel から渡された victimNumbers を使用（削除後も安定）
+    val numberMap = victimNumbers
 
     val sortedVictims = remember(victims, sortBySeverity) {
         if (sortBySeverity) {
@@ -208,7 +213,8 @@ fun PriorityScreen(
                     VictimCard(
                         number = numberMap[victim.id] ?: 0,
                         victim = victim,
-                        onClick = { editingVictim = victim },
+                        onEdit = { editingVictim = victim },
+                        onDelete = { deleteConfirmTarget = victim },
                         modifier = Modifier.padding(horizontal = 20.dp),
                     )
                     Spacer(modifier = Modifier.height(12.dp))
@@ -230,6 +236,17 @@ fun PriorityScreen(
             }
         )
     }
+
+    deleteConfirmTarget?.let { victim ->
+        DeleteConfirmDialog(
+            number = numberMap[victim.id] ?: 0,
+            onDismiss = { deleteConfirmTarget = null },
+            onConfirm = {
+                onDeleteVictim(victim.id)
+                deleteConfirmTarget = null
+            }
+        )
+    }
 }
 
 // ─── Victim Card ──────────────────────────────────────────────────────────────
@@ -237,21 +254,22 @@ fun PriorityScreen(
 private fun VictimCard(
     number: Int,
     victim: VictimRecord,
-    onClick: () -> Unit,
+    onEdit: () -> Unit,
+    onDelete: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val isSevere    = victim.result == TriageResult.SEVERE
     val label       = if (isSevere) "重症" else "軽症"
     val accentColor = if (isSevere) SevereColor else MinorColor
     val numStr      = "#${number.toString().padStart(3, '0')}"
+    var menuExpanded by remember { mutableStateOf(false) }
 
     Row(
         modifier = modifier
             .fillMaxWidth()
             .height(IntrinsicSize.Min)
             .clip(RoundedCornerShape(14.dp))
-            .background(Color.White)
-            .clickable { onClick() },
+            .background(Color.White),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         // 左カラーボーダー
@@ -306,14 +324,66 @@ private fun VictimCard(
             }
         }
 
-        // 右: 編集
-        Text(
-            text = "編集",
-            fontSize = 14.sp,
-            color = PrioGray,
-            fontWeight = FontWeight.Medium,
-            modifier = Modifier.padding(end = 16.dp),
-        )
+        // 右: ⋮ メニュー
+        Box(contentAlignment = Alignment.TopEnd) {
+            Text(
+                text = "⋮",
+                fontSize = 24.sp,
+                color = PrioGray,
+                modifier = Modifier
+                    .clickable { menuExpanded = true }
+                    .padding(horizontal = 16.dp, vertical = 20.dp),
+            )
+            DropdownMenu(
+                expanded = menuExpanded,
+                onDismissRequest = { menuExpanded = false },
+                modifier = Modifier
+                    .background(Color.White, RoundedCornerShape(12.dp))
+                    .clip(RoundedCornerShape(12.dp)),
+            ) {
+                DropdownMenuItem(
+                    text = {
+                        Text(text = "編集", fontSize = 15.sp, color = Color(0xFF566876))
+                    },
+                    leadingIcon = {
+                        Icon(
+                            painter = painterResource(Res.drawable.ic_pencil),
+                            contentDescription = null,
+                            tint = Color(0xFF566876),
+                            modifier = Modifier.size(18.dp),
+                        )
+                    },
+                    onClick = {
+                        menuExpanded = false
+                        onEdit()
+                    },
+                    modifier = Modifier.background(Color.White),
+                )
+                HorizontalDivider(
+                    color = Color(0xFFEEEEEE),
+                    thickness = 0.5.dp,
+                    modifier = Modifier.padding(horizontal = 8.dp),
+                )
+                DropdownMenuItem(
+                    text = {
+                        Text(text = "削除", fontSize = 15.sp, color = Color(0xFFDE3F39))
+                    },
+                    leadingIcon = {
+                        Icon(
+                            painter = painterResource(Res.drawable.ic_trash),
+                            contentDescription = null,
+                            tint = Color(0xFFDE3F39),
+                            modifier = Modifier.size(18.dp),
+                        )
+                    },
+                    onClick = {
+                        menuExpanded = false
+                        onDelete()
+                    },
+                    modifier = Modifier.background(Color.White),
+                )
+            }
+        }
     }
 }
 
@@ -356,7 +426,7 @@ private fun PatientNoteEditSheet(
                         .background(Color(0xFFE2F5F7))
                 ) {
                     Icon(
-                        painter = painterResource(Res.drawable.ic_edit),
+                        painter = painterResource(Res.drawable.ic_pencil),
                         contentDescription = null,
                         tint = PrioTeal,
                         modifier = Modifier.size(20.dp)
@@ -384,7 +454,7 @@ private fun PatientNoteEditSheet(
                     contentDescription = "閉じる",
                     tint = Color.Unspecified,
                     modifier = Modifier
-                        .size(24.dp)
+                        .size(22.dp)
                         .clickable { onDismiss() }
                 )
             }
@@ -492,6 +562,103 @@ private fun PatientNoteEditSheet(
                     fontWeight = FontWeight.Bold,
                     color = Color.White,
                 )
+            }
+        }
+    }
+}
+
+// ─── 削除確認ダイアログ ────────────────────────────────────────────────────────
+@Composable
+private fun DeleteConfirmDialog(
+    number: Int,
+    onDismiss: () -> Unit,
+    onConfirm: () -> Unit,
+) {
+    val numStr = "#${number.toString().padStart(3, '0')}"
+    Dialog(onDismissRequest = onDismiss) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(Color.White, RoundedCornerShape(20.dp))
+                .padding(horizontal = 24.dp, vertical = 28.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            // ゴミ箱アイコン（薄ピンク丸 + 赤アイコン）
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier
+                    .size(64.dp)
+                    .clip(RoundedCornerShape(50))
+                    .background(Color(0xFFFFE5E4))
+            ) {
+                Icon(
+                    painter = painterResource(Res.drawable.ic_trash),
+                    contentDescription = null,
+                    tint = Color(0xFFDE3F39),
+                    modifier = Modifier.size(28.dp),
+                )
+            }
+
+            Spacer(modifier = Modifier.height(18.dp))
+
+            Text(
+                text = "記録を削除しますか？",
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold,
+                color = PrioInk,
+                textAlign = TextAlign.Center,
+            )
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            Text(
+                text = "傷病者 $numStr の記録を削除します。この操作は取り消せません。",
+                fontSize = 13.sp,
+                color = Color(0xFF566876),
+                textAlign = TextAlign.Center,
+                lineHeight = 20.sp,
+            )
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                // キャンセル
+                Box(
+                    contentAlignment = Alignment.Center,
+                    modifier = Modifier
+                        .weight(1f)
+                        .clip(RoundedCornerShape(50))
+                        .background(Color(0xFFF2F4F6))
+                        .clickable { onDismiss() }
+                        .padding(vertical = 14.dp)
+                ) {
+                    Text(
+                        text = "キャンセル",
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = Color(0xFF566876),
+                    )
+                }
+                // 削除
+                Box(
+                    contentAlignment = Alignment.Center,
+                    modifier = Modifier
+                        .weight(1f)
+                        .clip(RoundedCornerShape(50))
+                        .background(Color(0xFFDE3F39))
+                        .clickable { onConfirm() }
+                        .padding(vertical = 14.dp)
+                ) {
+                    Text(
+                        text = "削除",
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White,
+                    )
+                }
             }
         }
     }

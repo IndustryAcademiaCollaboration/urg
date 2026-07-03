@@ -6,4 +6,5 @@ interface TriageSessionRepository {
     fun getVictimsBySession(sessionId: String): List<VictimRecord>
     fun getVictimsByPriority(): List<VictimRecord>
     fun updateVictimNote(victimId: String, note: PatientNote)
+    fun deleteVictim(victimId: String)
 }
