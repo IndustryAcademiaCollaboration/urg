@@ -469,35 +469,35 @@ class ChatViewModel(
             "severe_airway" -> TriageActionPlan(
                 destination = "救護所",
                 safetyFirst = listOf("周囲の安全を確認する"),
-                actions = listOf("気道を確保する", "救助隊に知らせる"),
+                actions = listOf("気道を確保する", "周囲に助けを求める"),
                 forbiddenActions = listOf("一人で搬送しない", "首を大きく動かさない")
             )
 
             "severe_circ" -> TriageActionPlan(
                 destination = "救護所",
                 safetyFirst = listOf("周囲の安全を確認する"),
-                actions = listOf("出血部位を圧迫する", "圧迫を続ける", "救助隊に知らせる"),
+                actions = listOf("出血部位を圧迫する", "圧迫を続ける", "周囲に助けを求める"),
                 forbiddenActions = listOf("止血せずに動かさない", "一人で搬送しない")
             )
 
             "severe_cons" -> TriageActionPlan(
                 destination = "救護所",
                 safetyFirst = listOf("周囲の安全を確認する"),
-                actions = listOf("呼吸を確認する", "救助隊に知らせる"),
+                actions = listOf("呼吸を確認する", "周囲に助けを求める"),
                 forbiddenActions = listOf("一人で搬送しない", "首を大きく動かさない")
             )
 
             "severe_injury" -> TriageActionPlan(
                 destination = "救護所",
                 safetyFirst = listOf("周囲の安全を確認する"),
-                actions = listOf("出血箇所を圧迫する", "安静にする", "救助隊に知らせる"),
+                actions = listOf("出血箇所を圧迫する", "安静にする", "周囲に助けを求める"),
                 forbiddenActions = listOf("無理に動かさない", "一人で搬送しない")
             )
 
             else -> TriageActionPlan(
                 destination = "救護所",
                 safetyFirst = listOf("周囲の安全を確認する"),
-                actions = listOf("救助隊に知らせる"),
+                actions = listOf("周囲に助けを求める"),
                 forbiddenActions = listOf("無理に動かさない")
             )
         }
