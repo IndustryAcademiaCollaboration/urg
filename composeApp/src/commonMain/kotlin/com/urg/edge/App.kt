@@ -47,6 +47,8 @@ import urg.composeapp.generated.resources.ic_priority
 import urg.composeapp.generated.resources.ic_priority_selected
 import urg.composeapp.generated.resources.ic_more
 import urg.composeapp.generated.resources.ic_more_selected
+import urg.composeapp.generated.resources.ic_guide
+import urg.composeapp.generated.resources.ic_guide_selected
 
 private val NavUnselectedColor = Color(0xFF788E98)
 private val NavSelectedColor = Color(0xFF25B1BF)
@@ -66,6 +68,7 @@ fun App(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val victims by viewModel.victims.collectAsStateWithLifecycle()
+    val allChunks by viewModel.allChunks.collectAsStateWithLifecycle()
     var selectedTab    by remember { mutableStateOf(0) }
     var showVoiceInput by remember { mutableStateOf(false) }
     var showManual     by remember { mutableStateOf(false) }
@@ -76,6 +79,7 @@ fun App(
         NavItem("トリアージ", Res.drawable.ic_triage,    Res.drawable.ic_triage_selected),
         NavItem("優先度",    Res.drawable.ic_priority,   Res.drawable.ic_priority_selected),
         NavItem("地図",      Res.drawable.ic_map,        Res.drawable.ic_map_selected),
+        NavItem("辞書",      Res.drawable.ic_guide,      Res.drawable.ic_guide_selected),
         NavItem("その他",    Res.drawable.ic_more,       Res.drawable.ic_more_selected),
     )
 

@@ -27,6 +27,12 @@ class ChatViewModel(
 
     private var llmEngine: LlmEngine? = null
     private var retriever: KnowledgeRetriever? = null
+    private val _allChunks = MutableStateFlow<List<KnowledgeChunk>>(emptyList())
+    val allChunks: StateFlow<List<KnowledgeChunk>> = _allChunks.asStateFlow()
+
+    fun setChunks(chunks: List<KnowledgeChunk>) {
+        _allChunks.value = chunks
+    }
     private var sttEngine: SttEngine? = null
     private var ttsEngine: TtsEngine? = null
     private var config: LlmConfig = LlmConfig()
@@ -493,7 +499,7 @@ class ChatViewModel(
                 val triageContext = buildTriageContext()
                 val systemPrompt = PromptBuilder.buildChatSystemPrompt(ragSection, forbiddenList, triageContext)
                 val prompt = config.chatTemplate.formatChatPrompt(systemPrompt, currentMessages)
-                //Log.d("LLM",prompt)
+                println("[LLM] $prompt")
 
                 val accumulated = StringBuilder()
                 engine.generateStream(prompt) { partial, done ->
