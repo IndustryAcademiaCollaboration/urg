@@ -27,6 +27,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import com.urg.edge.ui.InitProgressBanner
 import com.urg.edge.ui.ManualScreen
 import com.urg.edge.ui.MapScreen
 import com.urg.edge.ui.PriorityScreen
@@ -146,66 +147,88 @@ fun App(
                 }
             }
         ) { paddingValues ->
-            when {
-                // ── 録音オーバーレイ ───────────────────────────────────
-                showVoiceInput -> RecordingOverlay(
-                    onClose = {
-                        showVoiceInput = false
-                        onMicStop()
-                    },
-                    modifier = Modifier.padding(paddingValues)
-                )
+            Box(modifier = Modifier.fillMaxSize()) {
+                // ── 各タブ・オーバーレイのコンテンツ ─────────────────────
+                when {
+                    // ── 録音オーバーレイ ───────────────────────────────────
+                    showVoiceInput -> RecordingOverlay(
+                        onClose = {
+                            showVoiceInput = false
+                            onMicStop()
+                        },
+                        modifier = Modifier.padding(paddingValues)
+                    )
 
-                // ── マニュアル画面 ─────────────────────────────────────
-                showManual -> ManualScreen(
-                    onBack = { showManual = false },
-                    modifier = Modifier.padding(paddingValues)
-                )
+                    // ── マニュアル画面 ─────────────────────────────────────
+                    showManual -> ManualScreen(
+                        onBack = { showManual = false },
+                        modifier = Modifier.padding(paddingValues)
+                    )
 
-                // ── タブコンテンツ ─────────────────────────────────────
-                // tab 0: トリアージ
-                selectedTab == 0 -> TriageTabScreen(
-                    chatViewModel = viewModel,
-                    showChat = showTriageChat,
-                    onToggle = { showTriageChat = it },
-                    uiState = uiState,
-                    onPromptChange = viewModel::updatePrompt,
-                    onSendClick = viewModel::onSendClick,
-                    onVoiceInputClick = {
-                        onMicStart()
-                    },
-                    onMicStart = onMicStart,
-                    onMicStop = onMicStop,
-                    onTestWavRecognize = onTestWavRecognize,
-                    onTriageYes = viewModel::answerTriageYes,
-                    onTriageNo = viewModel::answerTriageNo,
-                    onNavigateToMap = {
-                        selectedTab = 2   // 地図は index 2 へ
-                        showTriageChat = false
-                    },
-                    modifier = Modifier.padding(paddingValues)
-                )
+                    // ── タブコンテンツ ─────────────────────────────────────
+                    // tab 0: トリアージ
+                    selectedTab == 0 -> TriageTabScreen(
+                        chatViewModel = viewModel,
+                        showChat = showTriageChat,
+                        onToggle = { showTriageChat = it },
+                        uiState = uiState,
+                        onPromptChange = viewModel::updatePrompt,
+                        onSendClick = viewModel::onSendClick,
+                        onVoiceInputClick = {
+                            onMicStart()
+                        },
+                        onMicStart = onMicStart,
+                        onMicStop = onMicStop,
+                        onTestWavRecognize = onTestWavRecognize,
+                        onTriageYes = viewModel::answerTriageYes,
+                        onTriageNo = viewModel::answerTriageNo,
+                        onNavigateToMap = {
+                            selectedTab = 2   // 地図は index 2 へ
+                            showTriageChat = false
+                        },
+                        modifier = Modifier.padding(paddingValues)
+                    )
 
-                // tab 1: 優先度
-                selectedTab == 1 -> PriorityScreen(
-                    victims = victims,
-                    victimNumbers = victimNumbers,
-                    onBack = { selectedTab = 0 },
-                    onUpdateNote = { id, note -> viewModel.updateVictimNote(id, note) },
-                    onDeleteVictim = { id -> viewModel.deleteVictim(id) },
-                    modifier = Modifier.padding(paddingValues)
-                )
+                    // tab 1: 優先度
+                    selectedTab == 1 -> PriorityScreen(
+                        victims = victims,
+                        victimNumbers = victimNumbers,
+                        onBack = { selectedTab = 0 },
+                        onUpdateNote = { id, note -> viewModel.updateVictimNote(id, note) },
+                        onDeleteVictim = { id -> viewModel.deleteVictim(id) },
+                        modifier = Modifier.padding(paddingValues)
+                    )
 
-                // tab 2: 地図
-                selectedTab == 2 -> MapScreen(
-                    modifier = Modifier.padding(paddingValues)
-                )
+                    // tab 2: 地図
+                    selectedTab == 2 -> MapScreen(
+                        modifier = Modifier.padding(paddingValues)
+                    )
 
-                // tab 3: その他（設定）
-                else -> SettingsScreen(
-                    onManualClick = { showManual = true },
-                    modifier = Modifier.padding(paddingValues),
-                )
+                    // tab 3: その他（設定）
+                    else -> SettingsScreen(
+                        onManualClick = { showManual = true },
+                        modifier = Modifier.padding(paddingValues),
+                    )
+                }
+
+                // ── モデル初期化バナー（全タブ共通・statusBar 直下に固定） ──
+                if (uiState.showInitBanner) {
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.TopStart)
+                            .fillMaxWidth()
+                            .padding(top = paddingValues.calculateTopPadding())
+                    ) {
+                        InitProgressBanner(
+                            llmProgress = uiState.llmProgress,
+                            sttProgress = uiState.sttProgress,
+                            ttsProgress = uiState.ttsProgress,
+                            expanded    = uiState.initBannerExpanded,
+                            onToggle    = viewModel::toggleInitBanner,
+                            onDismiss   = viewModel::dismissInitBanner,
+                        )
+                    }
+                }
             }
         }
     }

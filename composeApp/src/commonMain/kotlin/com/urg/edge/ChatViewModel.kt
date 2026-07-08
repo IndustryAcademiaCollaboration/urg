@@ -122,6 +122,26 @@ class ChatViewModel(
         }
     }
 
+    // ── モデル初期化バナー ─────────────────────────────────────────────────────
+    fun showInitBanner() {
+        _uiState.update { it.copy(showInitBanner = true) }
+    }
+    fun updateLlmProgress(progress: Float) {
+        _uiState.update { it.copy(llmProgress = progress.coerceIn(0f, 1f)) }
+    }
+    fun updateSttProgress(progress: Float) {
+        _uiState.update { it.copy(sttProgress = progress.coerceIn(0f, 1f)) }
+    }
+    fun updateTtsProgress(progress: Float) {
+        _uiState.update { it.copy(ttsProgress = progress.coerceIn(0f, 1f)) }
+    }
+    fun dismissInitBanner() {
+        _uiState.update { it.copy(showInitBanner = false) }
+    }
+    fun toggleInitBanner() {
+        _uiState.update { it.copy(initBannerExpanded = !it.initBannerExpanded) }
+    }
+
     fun setListening(listening: Boolean) {
         _uiState.update { it.copy(isListening = listening, micAmplitude = 0f) }
     }
