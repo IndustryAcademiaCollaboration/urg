@@ -189,6 +189,8 @@ fun App(
                         selectedTab = 2
                         showTriageChat = false
                     },
+                    victims = victims,
+                    onScopeChange = viewModel::setChatScope,
                     modifier = Modifier.padding(paddingValues)
                 )
 

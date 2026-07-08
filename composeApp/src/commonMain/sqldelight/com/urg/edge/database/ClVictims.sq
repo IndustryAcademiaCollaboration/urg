@@ -1,6 +1,7 @@
 CREATE TABLE cl_victims (
   id            TEXT    PRIMARY KEY NOT NULL,
   session_id    TEXT    NOT NULL REFERENCES cl_sessions(id),
+  display_no    INTEGER NOT NULL DEFAULT 0,
   severity      TEXT,
   can_walk      INTEGER,
   is_breathing  INTEGER,
@@ -12,8 +13,8 @@ CREATE TABLE cl_victims (
 );
 
 insert:
-INSERT INTO cl_victims (id, session_id, severity, can_walk, is_breathing, has_pulse, consciousness, location, feature, recorded_at)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+INSERT INTO cl_victims (id, session_id, display_no, severity, can_walk, is_breathing, has_pulse, consciousness, location, feature, recorded_at)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
 
 updateNote:
 UPDATE cl_victims SET location = ?, feature = ? WHERE id = ?;

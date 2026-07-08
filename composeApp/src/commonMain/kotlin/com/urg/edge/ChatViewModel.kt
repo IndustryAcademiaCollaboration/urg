@@ -45,21 +45,24 @@ class ChatViewModel(
     private val _victims = MutableStateFlow<List<VictimRecord>>(emptyList())
     val victims: StateFlow<List<VictimRecord>> = _victims.asStateFlow()
 
-    // 安定番号マップ：一度割り当てた番号はセッション中変わらない
-    private var victimSeqCounter = 0
-    private val victimSeqMap = mutableMapOf<String, Int>()
+    // 安定番号マップ：DB の display_no（登録時に確定・以後不変）から導出する
     private val _victimNumbers = MutableStateFlow<Map<String, Int>>(emptyMap())
     val victimNumbers: StateFlow<Map<String, Int>> = _victimNumbers.asStateFlow()
 
-    private fun assignNumbers(victims: List<VictimRecord>) {
-        var changed = false
-        victims.sortedBy { it.recordedAt }.forEach { v ->
-            if (!victimSeqMap.containsKey(v.id)) {
-                victimSeqMap[v.id] = ++victimSeqCounter
-                changed = true
-            }
+    private fun updateVictims(list: List<VictimRecord>) {
+        _victimNumbers.value = list.associate { it.id to it.displayNo }
+        _victims.value = list
+        pruneCustomScopeIfNeeded(list)
+    }
+
+    // 選択中の個別スコープから消えた対象者のdisplayNoを除去し、空になったら全員に戻す
+    private fun pruneCustomScopeIfNeeded(list: List<VictimRecord>) {
+        val scope = _uiState.value.chatScope
+        if (scope !is ChatScope.Custom) return
+        val alive = scope.displayNos intersect list.map { it.displayNo }.toSet()
+        if (alive != scope.displayNos) {
+            _uiState.update { it.copy(chatScope = if (alive.isEmpty()) ChatScope.All else ChatScope.Custom(alive)) }
         }
-        if (changed) _victimNumbers.value = victimSeqMap.toMap()
     }
 
     private val triageController = TriageController()
@@ -79,31 +82,30 @@ class ChatViewModel(
 
     private fun refreshVictims() {
         val repo = repository ?: return
+        val session = currentSession ?: return
         viewModelScope.launch(ioDispatcher) {
-            val list = repo.getVictimsByPriority()
-            assignNumbers(list)
-            _victims.value = list
+            updateVictims(repo.getVictimsBySession(session.id))
         }
     }
 
     fun deleteVictim(victimId: String) {
         val repo = repository
         if (repo == null) {
-            _victims.update { list -> list.filter { it.id != victimId } }
+            updateVictims(_victims.value.filter { it.id != victimId })
             return
         }
         viewModelScope.launch(ioDispatcher) {
             repo.deleteVictim(victimId)
-            // 番号マップはそのまま保持（削除しても他の番号は変わらない）
-            _victims.update { list -> list.filter { it.id != victimId } }
+            updateVictims(_victims.value.filter { it.id != victimId })
         }
     }
 
     fun updateVictimNote(victimId: String, note: PatientNote) {
         val repo = repository ?: return
+        val session = currentSession ?: return
         viewModelScope.launch(ioDispatcher) {
             repo.updateVictimNote(victimId, note)
-            _victims.value = repo.getVictimsByPriority()
+            updateVictims(repo.getVictimsBySession(session.id))
         }
     }
 
@@ -122,9 +124,7 @@ class ChatViewModel(
         )
         viewModelScope.launch(ioDispatcher) {
             repo.saveVictim(victim)
-            val list = repo.getVictimsByPriority()
-            assignNumbers(list)
-            _victims.value = list
+            updateVictims(repo.getVictimsBySession(session.id))
         }
     }
 
@@ -530,7 +530,7 @@ class ChatViewModel(
                     "\n\n[参考情報]\n" + chunks.joinToString("\n") { "・${it.toPromptText()}" }
                 } else ""
                 val forbiddenList = StartRuleEngine.globalForbiddenSevere.joinToString("\n") { "- $it" }
-                val triageContext = buildTriageContext()
+                val triageContext = PromptBuilder.buildVictimsContext(_victims.value, _uiState.value.chatScope)
                 val systemPrompt = PromptBuilder.buildChatSystemPrompt(ragSection, forbiddenList, triageContext)
                 val prompt = config.chatTemplate.formatChatPrompt(systemPrompt, currentMessages)
                 println("[LLM] $prompt")
@@ -552,12 +552,8 @@ class ChatViewModel(
         }
     }
 
-    private fun buildTriageContext(): String {
-        val result = triageController.lastResult ?: return ""
-        val plan = triageController.lastActionPlan ?: return ""
-        val label = if (result == TriageResult.MINOR) "軽症" else "重症"
-        val actions = (plan.safetyFirst + plan.actions).joinToString("、")
-        return "\n\n[トリアージ済み情報]\n判定：$label\n搬送先：${plan.destination}\n確認済み行動：$actions"
+    fun setChatScope(scope: ChatScope) {
+        _uiState.update { it.copy(chatScope = scope) }
     }
 
     private fun speak(text: String) {

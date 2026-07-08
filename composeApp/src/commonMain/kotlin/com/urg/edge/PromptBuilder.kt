@@ -2,6 +2,62 @@ package com.urg.edge
 
 object PromptBuilder {
 
+    // ローカルLLMのコンテキスト超過（ネイティブクラッシュ）を防ぐための対象者行数の上限
+    const val MAX_CONTEXT_VICTIMS = 10
+    // location / feature の1項目あたりの最大文字数（プロンプト肥大化防止）
+    const val MAX_NOTE_LENGTH = 40
+
+    /**
+     * スコープで絞った対象者一覧をチャット用のコンテキスト文字列にする。
+     * 書式は1人=1行・「｜」区切り・「キー:値」。null の属性はキーごと省略する
+     * （将来 位置:緯度,経度 を行末に足しても崩れない前方互換書式）。
+     */
+    fun buildVictimsContext(
+        victims: List<VictimRecord>,
+        scope: ChatScope,
+        maxVictims: Int = MAX_CONTEXT_VICTIMS,
+    ): String {
+        val scoped = victims.filter { scope.matches(it) }
+        if (scoped.isEmpty()) return ""
+
+        // 上限超過時は重症優先→記録が新しい順に採用し、省略した人はラベルを明示する
+        val selected = scoped
+            .sortedWith(compareBy<VictimRecord> { it.result != TriageResult.SEVERE }
+                .thenByDescending { it.recordedAt })
+            .take(maxVictims)
+            .sortedBy { it.displayNo }
+        val omitted = scoped.filter { v -> selected.none { it.id == v.id } }
+
+        val labels = selected.joinToString(", ") { "P${it.displayNo}" }
+        val lines = selected.joinToString("\n") { it.toContextLine() }
+        val omittedNote = if (omitted.isEmpty()) "" else {
+            val omittedLabels = omitted.joinToString(", ") { "P${it.displayNo}" }
+            "\n※対象が多いため $omittedLabels の${omitted.size}人は省略"
+        }
+
+        return """
+
+[今の会話の対象] ${scope.label}（$labels）
+
+[対象者情報]
+$lines$omittedNote
+
+対象に含まれる人についてだけ答えてください。人を指すときは必ずP番号（P1など）を使ってください。
+""".trimEnd()
+    }
+
+    private fun VictimRecord.toContextLine(): String {
+        val parts = mutableListOf("P$displayNo")
+        parts += if (result == TriageResult.SEVERE) "重症" else "軽症"
+        note?.location?.takeIf { it.isNotBlank() }?.let { parts += "場所:${it.take(MAX_NOTE_LENGTH)}" }
+        note?.feature?.takeIf { it.isNotBlank() }?.let { parts += "見た目:${it.take(MAX_NOTE_LENGTH)}" }
+        triageInput.canWalk?.let { parts += "歩行:${if (it) "可" else "不可"}" }
+        triageInput.isBreathing?.let { parts += "呼吸:${if (it) "あり" else "なし"}" }
+        triageInput.hasPulse?.let { parts += "脈拍:${if (it) "あり" else "なし"}" }
+        triageInput.isConscious?.let { parts += "意識:${if (it) "あり" else "なし"}" }
+        return parts.joinToString("｜")
+    }
+
     fun buildTriageSystemPrompt(): String = """
 You are a disaster response AI.
 Please respond in Japanese only.
