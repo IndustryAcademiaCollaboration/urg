@@ -17,15 +17,24 @@ import java.io.File
  *
  * STT 側 [com.urg.edge.stt.createSttEngine] と対になる Factory。
  */
-fun createTtsEngine(context: Context, config: TtsConfig = TtsConfig()): TtsEngine {
+fun createTtsEngine(
+    context: Context,
+    config: TtsConfig = TtsConfig(),
+    modelDir: File? = null,
+): TtsEngine {
     val assets = context.assets
 
-    // 1. Piper モデルファイルの存在確認
-    val modelAvailable = runCatching { assets.list(config.modelDir) }.getOrNull()?.toSet().orEmpty()
-    val missing = listOf(config.modelFile, config.configFile).filterNot { it in modelAvailable }
+    val requiredModelFiles = listOf(config.modelFile, config.configFile)
+    val missing = if (modelDir != null) {
+        requiredModelFiles.filterNot { File(modelDir, it).isFile }
+    } else {
+        val modelAvailable = runCatching { assets.list(config.modelDir) }.getOrNull()?.toSet().orEmpty()
+        requiredModelFiles.filterNot { it in modelAvailable }
+    }
     if (missing.isNotEmpty()) {
+        val location = modelDir?.absolutePath ?: "assets/${config.modelDir}"
         throw IllegalStateException(
-            "Piper TTS モデルが assets/${config.modelDir}/ に見つかりません: ${missing.joinToString(", ")}"
+            "Piper TTS モデルが $location に見つかりません: ${missing.joinToString(", ")}"
         )
     }
 
@@ -44,14 +53,19 @@ fun createTtsEngine(context: Context, config: TtsConfig = TtsConfig()): TtsEngin
     val g2p = PiperPlusG2p.create(context, dict)
 
     // 5. config.json を読み込み
-    val piperConfig = assets.open("${config.modelDir}/${config.configFile}").use { stream ->
-        PiperConfig.parse(stream.bufferedReader().readText())
+    val piperConfigJson = if (modelDir != null) {
+        File(modelDir, config.configFile).readText()
+    } else {
+        assets.open("${config.modelDir}/${config.configFile}").use { stream ->
+            stream.bufferedReader().readText()
+        }
     }
+    val piperConfig = PiperConfig.parse(piperConfigJson)
 
-    // 6. ONNX モデルを filesDir へコピー（assets は直接ファイルパス参照不可）→ OrtSession 作成
     val ortEnv = OrtEnvironment.getEnvironment()
-    val modelFile = File(context.filesDir, "${config.modelDir}/${config.modelFile}")
-    if (!modelFile.exists()) {
+    val modelFile = modelDir?.let { File(it, config.modelFile) }
+        ?: File(context.filesDir, "${config.modelDir}/${config.modelFile}")
+    if (modelDir == null && !modelFile.exists()) {
         modelFile.parentFile?.mkdirs()
         assets.open("${config.modelDir}/${config.modelFile}").use { input ->
             modelFile.outputStream().use { output -> input.copyTo(output) }

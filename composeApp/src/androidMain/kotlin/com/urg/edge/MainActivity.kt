@@ -15,6 +15,8 @@ import com.urg.edge.core.database.DatabaseDriverFactory
 import com.urg.edge.core.database.DatabaseFactory
 import com.urg.edge.llm.LlmConfig
 import com.urg.edge.llm.createLlmEngine
+import com.urg.edge.model.ModelInstaller
+import com.urg.edge.model.VoiceModelAssets
 import java.io.File
 import java.net.HttpURLConnection
 import java.net.URL
@@ -182,6 +184,7 @@ class MainActivity : ComponentActivity() {
                     chatViewModel.addSystemMessage(Strings.knowledgeBaseLoaded(chunks.size))
                 }
                 val retriever = EmbeddingRetriever(this@MainActivity, chunks)
+                chatViewModel.setChunks(chunks)
                 chatViewModel.setRetriever(retriever)
                 withContext(Dispatchers.Main) {
                     chatViewModel.addSystemMessage(Strings.INIT_COMPLETE)
@@ -199,7 +202,18 @@ class MainActivity : ComponentActivity() {
     private fun initSttEngine() {
         lifecycleScope.launch(Dispatchers.IO) {
             try {
-                val engine = createSttEngine(this@MainActivity, SttConfig())
+                val modelDir = File(getExternalFilesDir(null), VoiceModelAssets.STT_DIR)
+                ModelInstaller.ensureFiles(
+                    targetDir = modelDir,
+                    files = VoiceModelAssets.sttFiles,
+                    label = "STTモデル",
+                ) { message ->
+                    withContext(Dispatchers.Main) {
+                        chatViewModel.addSystemMessage(message)
+                    }
+                }
+
+                val engine = createSttEngine(this@MainActivity, SttConfig(), modelDir)
                 chatViewModel.setSttEngine(engine)
                 Log.d("STT_INIT", "SUCCESS")
             } catch (e: Exception) {
@@ -214,7 +228,18 @@ class MainActivity : ComponentActivity() {
     private fun initTtsEngine() {
         lifecycleScope.launch(Dispatchers.IO) {
             try {
-                val engine = createTtsEngine(this@MainActivity)
+                val modelDir = File(getExternalFilesDir(null), VoiceModelAssets.TTS_DIR)
+                ModelInstaller.ensureFiles(
+                    targetDir = modelDir,
+                    files = VoiceModelAssets.ttsFiles,
+                    label = "TTSモデル",
+                ) { message ->
+                    withContext(Dispatchers.Main) {
+                        chatViewModel.addSystemMessage(message)
+                    }
+                }
+
+                val engine = createTtsEngine(this@MainActivity, modelDir = modelDir)
                 chatViewModel.setTtsEngine(engine)
                 Log.d("TTS_INIT", "SUCCESS")
             } catch (e: Exception) {
@@ -240,7 +265,9 @@ class MainActivity : ComponentActivity() {
             requestPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
             return
         }
-        val started = audioRecorder.start()
+        val started = audioRecorder.start { amplitude ->
+            chatViewModel.updateMicAmplitude(amplitude)
+        }
         if (!started) {
             chatViewModel.addSystemMessage(Strings.ERROR_RECORDING_FAILED)
             return

@@ -27,35 +27,29 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import com.urg.edge.ui.FirstAidGuideScreen
+import com.urg.edge.ui.ManualScreen
+import com.urg.edge.ui.MapScreen
+import com.urg.edge.ui.PriorityScreen
+import com.urg.edge.ui.RecordingOverlay
+import com.urg.edge.ui.SettingsScreen
+import com.urg.edge.ui.TriageTabScreen
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.urg.edge.ui.CalmMode
-import com.urg.edge.ui.ChatHistory
-import com.urg.edge.ui.ChatScreen
-import com.urg.edge.ChatViewModel
-import com.urg.edge.ui.HomeScreen
-import com.urg.edge.ui.HurryMode
-import com.urg.edge.ui.ModeSelect
-import com.urg.edge.ui.PriorityScreen
-import com.urg.edge.ui.Result
-import com.urg.edge.ui.SafetyCheck
-import com.urg.edge.ui.MapScreen
-import com.urg.edge.ui.TriageFlowScreen
-import com.urg.edge.ui.TriageScreen
 import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.painterResource
 import urg.composeapp.generated.resources.Res
-import urg.composeapp.generated.resources.ic_home
-import urg.composeapp.generated.resources.ic_home_selected
+import urg.composeapp.generated.resources.ic_triage
+import urg.composeapp.generated.resources.ic_triage_selected
 import urg.composeapp.generated.resources.ic_map
 import urg.composeapp.generated.resources.ic_map_selected
 import urg.composeapp.generated.resources.ic_priority
 import urg.composeapp.generated.resources.ic_priority_selected
-import urg.composeapp.generated.resources.ic_settings
-import urg.composeapp.generated.resources.ic_settings_selected
-import urg.composeapp.generated.resources.ic_triage
-import urg.composeapp.generated.resources.ic_triage_selected
+import urg.composeapp.generated.resources.ic_more
+import urg.composeapp.generated.resources.ic_more_selected
+import urg.composeapp.generated.resources.ic_guide
+import urg.composeapp.generated.resources.ic_guide_selected
 
 private val NavUnselectedColor = Color(0xFF788E98)
 private val NavSelectedColor = Color(0xFF25B1BF)
@@ -73,39 +67,41 @@ fun App(
     onMicStop: () -> Unit,
     onTestWavRecognize: (String) -> Unit,
 ) {
-    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-    val victims by viewModel.victims.collectAsStateWithLifecycle()
+
+    val uiState       by viewModel.uiState.collectAsStateWithLifecycle()
+    val victims       by viewModel.victims.collectAsStateWithLifecycle()
+    val victimNumbers by viewModel.victimNumbers.collectAsStateWithLifecycle()
+    val allChunks     by viewModel.allChunks.collectAsStateWithLifecycle()
+    var selectedTab    by remember { mutableStateOf(0) }
     var showVoiceInput by remember { mutableStateOf(false) }
-    var selectedTab by remember { mutableStateOf(0) }
-    var showSafetyCheck by remember { mutableStateOf(false) }
-    var showModeSelect by remember { mutableStateOf(false) }
-    var showCalmMode by remember { mutableStateOf(false) }
-    var showHurryMode by remember { mutableStateOf(false) }
-    var showChatHistory by remember { mutableStateOf(false) }
-    var showResult by remember { mutableStateOf(false) }
-    var showTriageFlow by remember { mutableStateOf(false) }
-    var calmModeAnswers by remember { mutableStateOf<List<Boolean>>(emptyList()) }
+    var showManual     by remember { mutableStateOf(false) }
+    var showTriageChat by remember { mutableStateOf(false) }
 
-
+    // ─── ナビゲーションアイテム（5タブ） ─────────────────────────
     val navItems = listOf(
-        NavItem("ホーム",     Res.drawable.ic_home,     Res.drawable.ic_home_selected),
-        NavItem("トリアージ", Res.drawable.ic_triage,   Res.drawable.ic_triage_selected),
-        NavItem("地図",      Res.drawable.ic_map,      Res.drawable.ic_map_selected),
-        NavItem("優先度",    Res.drawable.ic_priority,  Res.drawable.ic_priority_selected),
-        NavItem("設定",      Res.drawable.ic_settings,  Res.drawable.ic_settings_selected),
+        NavItem("トリアージ", Res.drawable.ic_triage,    Res.drawable.ic_triage_selected),
+        NavItem("優先度",    Res.drawable.ic_priority,   Res.drawable.ic_priority_selected),
+        NavItem("地図",      Res.drawable.ic_map,        Res.drawable.ic_map_selected),
+        NavItem("辞書",      Res.drawable.ic_guide,      Res.drawable.ic_guide_selected),
+        NavItem("その他",    Res.drawable.ic_more,       Res.drawable.ic_more_selected),
     )
+
+    fun resetOverlays() {
+        showVoiceInput = false
+        showManual     = false
+        showTriageChat = false
+    }
 
     MaterialTheme {
         Scaffold(
             bottomBar = {
                 Box(modifier = Modifier.fillMaxWidth()) {
-                    // ナビゲーションバー
                     Column(modifier = Modifier.background(Color.White)) {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .navigationBarsPadding()
-                                .padding(vertical = 8.dp),
+                                .padding(vertical = 10.dp),
                             horizontalArrangement = Arrangement.SpaceAround,
                         ) {
                             navItems.forEachIndexed { index, item ->
@@ -115,13 +111,7 @@ fun App(
                                     modifier = Modifier
                                         .clickable {
                                             selectedTab = index
-                                            showSafetyCheck = false
-                                            showModeSelect = false
-                                            showCalmMode = false
-                                            showHurryMode = false
-                                            showChatHistory = false
-                                            showResult = false
-                                            showTriageFlow = false
+                                            resetOverlays()
                                         }
                                         .padding(horizontal = 12.dp)
                                 ) {
@@ -163,109 +153,31 @@ fun App(
             }
         ) { paddingValues ->
             when {
-                showTriageFlow -> TriageFlowScreen(
-                    onBack = { showTriageFlow = false },
+                // ── 録音オーバーレイ ───────────────────────────────────
+                showVoiceInput -> RecordingOverlay(
+                    onClose = {
+                        showVoiceInput = false
+                        onMicStop()
+                    },
+                    modifier = Modifier.padding(paddingValues)
+                )
+
+                // ── マニュアル画面 ─────────────────────────────────────
+                showManual -> ManualScreen(
+                    onBack = { showManual = false },
+                    modifier = Modifier.padding(paddingValues)
+                )
+
+                // ── タブコンテンツ ─────────────────────────────────────
+                // tab 0: トリアージ
+                selectedTab == 0 -> TriageTabScreen(
                     chatViewModel = viewModel,
-                    modifier = Modifier.padding(paddingValues)
-                )
-                showChatHistory -> ChatHistory(
-                    onBack = {
-                        showChatHistory = false
-                        showHurryMode = true
-                    },
-                    modifier = Modifier.padding(paddingValues)
-                )
-                showHurryMode -> HurryMode(
-                    onBack = {
-                        showHurryMode = false
-                        showSafetyCheck = false
-                        showModeSelect = false
-                        selectedTab = 0
-                    },
-                    onHistoryClick = {
-                        showChatHistory = true
-                    },
-                    onMicClick = onMicStart,
-                    modifier = Modifier.padding(paddingValues)
-                )
-                showResult -> Result(
-                    answers = calmModeAnswers,
-                    onBack = {
-                        showResult = false
-                        showCalmMode = true
-                    },
-                    onHome = {
-                        showResult = false
-                        showCalmMode = false
-                        showModeSelect = false
-                        showSafetyCheck = false
-                        selectedTab = 0
-                    },
-                    modifier = Modifier.padding(paddingValues)
-                )
-                showCalmMode -> CalmMode(
-                    onBack = {
-                        showCalmMode = false
-                        showModeSelect = true
-                    },
-                    onComplete = { answers ->
-                        calmModeAnswers = answers
-                        showCalmMode = false
-                        showResult = true
-                    },
-                    modifier = Modifier.padding(paddingValues)
-                )
-                showModeSelect -> ModeSelect(
-                    onBack = {
-                        showModeSelect = false
-                        showSafetyCheck = true
-                    },
-                    onCalmClick = {
-                        showModeSelect = false
-                        showCalmMode = true
-                    },
-                    onHurryClick = {
-                        showModeSelect = false
-                        showHurryMode = true
-                    },
-                    modifier = Modifier.padding(paddingValues)
-                )
-                showSafetyCheck -> SafetyCheck(
-                    onBack = {
-                        showSafetyCheck = false
-                        selectedTab = 0
-                    },
-                    onSafeClick = {
-                        showSafetyCheck = false
-                        showModeSelect = true
-                        selectedTab = 1
-                    },
-                    onDangerClick = {
-                        showSafetyCheck = false
-                        showHurryMode = true
-                    },
-                    modifier = Modifier.padding(paddingValues)
-                )
-                selectedTab == 0 -> HomeScreen(
-                    onTriageClick = {
-                        selectedTab = 1
-                        showSafetyCheck = false
-                        showModeSelect = false
-                        showCalmMode = false
-                        showHurryMode = false
-                        showChatHistory = false
-                        showResult = false
-                        showTriageFlow = false
-                    },
-                    modifier = Modifier.padding(paddingValues)
-                )
-                selectedTab == 1 -> ChatScreen(
+                    showChat = showTriageChat,
+                    onToggle = { showTriageChat = it },
                     uiState = uiState,
                     onPromptChange = viewModel::updatePrompt,
                     onSendClick = viewModel::onSendClick,
-                    onTriageClick = { showTriageFlow = true },
                     onVoiceInputClick = {
-                        showVoiceInput = true
                         onMicStart()
                     },
                     onMicStart = onMicStart,
@@ -273,27 +185,39 @@ fun App(
                     onTestWavRecognize = onTestWavRecognize,
                     onTriageYes = viewModel::answerTriageYes,
                     onTriageNo = viewModel::answerTriageNo,
+                    onNavigateToMap = {
+                        selectedTab = 2
+                        showTriageChat = false
+                    },
                     modifier = Modifier.padding(paddingValues)
                 )
+
+                // tab 1: 優先度
+                selectedTab == 1 -> PriorityScreen(
+                    victims = victims,
+                    victimNumbers = victimNumbers,
+                    onBack = { selectedTab = 0 },
+                    onUpdateNote = { id, note -> viewModel.updateVictimNote(id, note) },
+                    onDeleteVictim = { id -> viewModel.deleteVictim(id) },
+                    modifier = Modifier.padding(paddingValues)
+                )
+
+                // tab 2: 地図
                 selectedTab == 2 -> MapScreen(
                     modifier = Modifier.padding(paddingValues)
                 )
-                selectedTab == 3 -> PriorityScreen(
-                    victims = victims,
-                    onBack = { selectedTab = 0 },
-                    onUpdateNote = { id, note -> viewModel.updateVictimNote(id, note) },
+
+                // tab 3: 辞書
+                selectedTab == 3 -> FirstAidGuideScreen(
+                    chunks = allChunks,
                     modifier = Modifier.padding(paddingValues)
                 )
-                else -> {
-                    Box(
-                        modifier = Modifier
-                            .padding(paddingValues)
-                            .fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text("準備中...")
-                    }
-                }
+
+                // tab 4: その他（設定）
+                else -> SettingsScreen(
+                    onManualClick = { showManual = true },
+                    modifier = Modifier.padding(paddingValues),
+                )
             }
         }
     }

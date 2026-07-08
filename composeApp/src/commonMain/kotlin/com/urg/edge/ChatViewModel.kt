@@ -27,6 +27,12 @@ class ChatViewModel(
 
     private var llmEngine: LlmEngine? = null
     private var retriever: KnowledgeRetriever? = null
+    private val _allChunks = MutableStateFlow<List<KnowledgeChunk>>(emptyList())
+    val allChunks: StateFlow<List<KnowledgeChunk>> = _allChunks.asStateFlow()
+
+    fun setChunks(chunks: List<KnowledgeChunk>) {
+        _allChunks.value = chunks
+    }
     private var sttEngine: SttEngine? = null
     private var ttsEngine: TtsEngine? = null
     private var config: LlmConfig = LlmConfig()
@@ -38,6 +44,23 @@ class ChatViewModel(
 
     private val _victims = MutableStateFlow<List<VictimRecord>>(emptyList())
     val victims: StateFlow<List<VictimRecord>> = _victims.asStateFlow()
+
+    // 安定番号マップ：一度割り当てた番号はセッション中変わらない
+    private var victimSeqCounter = 0
+    private val victimSeqMap = mutableMapOf<String, Int>()
+    private val _victimNumbers = MutableStateFlow<Map<String, Int>>(emptyMap())
+    val victimNumbers: StateFlow<Map<String, Int>> = _victimNumbers.asStateFlow()
+
+    private fun assignNumbers(victims: List<VictimRecord>) {
+        var changed = false
+        victims.sortedBy { it.recordedAt }.forEach { v ->
+            if (!victimSeqMap.containsKey(v.id)) {
+                victimSeqMap[v.id] = ++victimSeqCounter
+                changed = true
+            }
+        }
+        if (changed) _victimNumbers.value = victimSeqMap.toMap()
+    }
 
     private val triageController = TriageController()
 
@@ -57,7 +80,22 @@ class ChatViewModel(
     private fun refreshVictims() {
         val repo = repository ?: return
         viewModelScope.launch(ioDispatcher) {
-            _victims.value = repo.getVictimsByPriority()
+            val list = repo.getVictimsByPriority()
+            assignNumbers(list)
+            _victims.value = list
+        }
+    }
+
+    fun deleteVictim(victimId: String) {
+        val repo = repository
+        if (repo == null) {
+            _victims.update { list -> list.filter { it.id != victimId } }
+            return
+        }
+        viewModelScope.launch(ioDispatcher) {
+            repo.deleteVictim(victimId)
+            // 番号マップはそのまま保持（削除しても他の番号は変わらない）
+            _victims.update { list -> list.filter { it.id != victimId } }
         }
     }
 
@@ -84,12 +122,22 @@ class ChatViewModel(
         )
         viewModelScope.launch(ioDispatcher) {
             repo.saveVictim(victim)
-            _victims.value = repo.getVictimsByPriority()
+            val list = repo.getVictimsByPriority()
+            assignNumbers(list)
+            _victims.value = list
         }
     }
 
     fun setListening(listening: Boolean) {
-        _uiState.update { it.copy(isListening = listening) }
+        _uiState.update { it.copy(isListening = listening, micAmplitude = 0f) }
+    }
+
+    fun updateMicAmplitude(raw: Float) {
+        _uiState.update { state ->
+            // 指数平滑化でなめらかに変化させる
+            val smoothed = state.micAmplitude * 0.6f + raw * 0.4f
+            state.copy(micAmplitude = smoothed)
+        }
     }
 
     fun recognizeFromSamples(samples: FloatArray) {
@@ -261,7 +309,7 @@ class ChatViewModel(
                     ?: emptyList()
 
                 val supplementText = if (chunks.isNotEmpty()) {
-                    "\n\n[補足知識]\n" + chunks.joinToString("\n") { "・${it.title}: ${it.text}" }
+                    "\n\n[補足知識]\n" + chunks.joinToString("\n") { "・${it.toPromptText()}" }
                 } else {
                     ""
                 }
@@ -342,7 +390,7 @@ class ChatViewModel(
                     ?: emptyList()
 
                 val supplementText = if (chunks.isNotEmpty()) {
-                    "\n\n[補足知識]\n" + chunks.joinToString("\n") { "・${it.title}: ${it.text}" }
+                    "\n\n[補足知識]\n" + chunks.joinToString("\n") { "・${it.toPromptText()}" }
                 } else {
                     ""
                 }
@@ -421,21 +469,21 @@ class ChatViewModel(
             "severe_airway" -> TriageActionPlan(
                 destination = "救護所",
                 safetyFirst = listOf("周囲の安全を確認する"),
-                actions = listOf("気道を確保する", "救助隊に知らせる"),
+                actions = listOf("気道を確保する", "周囲に助けを求める"),
                 forbiddenActions = listOf("一人で搬送しない", "首を大きく動かさない")
             )
 
             "severe_circ" -> TriageActionPlan(
                 destination = "救護所",
                 safetyFirst = listOf("周囲の安全を確認する"),
-                actions = listOf("出血部位を圧迫する", "圧迫を続ける", "救助隊に知らせる"),
+                actions = listOf("出血部位を圧迫する", "圧迫を続ける", "周囲に助けを求める"),
                 forbiddenActions = listOf("止血せずに動かさない", "一人で搬送しない")
             )
 
             "severe_cons" -> TriageActionPlan(
                 destination = "救護所",
                 safetyFirst = listOf("周囲の安全を確認する"),
-                actions = listOf("呼吸を確認する", "救助隊に知らせる"),
+                actions = listOf("呼吸を確認する", "周囲に助けを求める"),
                 forbiddenActions = listOf("一人で搬送しない", "首を大きく動かさない")
             )
 
@@ -446,10 +494,10 @@ class ChatViewModel(
                 forbiddenActions = listOf("無理に動かさない", "一人で搬送しない")
             )
 
-            else -> TriageActionPlan(
+            else -> TriageActio/.nPlan(
                 destination = "救護所",
                 safetyFirst = listOf("周囲の安全を確認する"),
-                actions = listOf("救助隊に知らせる"),
+                actions = listOf("周囲に助けを求める"),
                 forbiddenActions = listOf("無理に動かさない")
             )
         }
@@ -479,16 +527,13 @@ class ChatViewModel(
                 val chunks = r.retrieve(text, topK = 3)
 
                 val ragSection = if (chunks.isNotEmpty()) {
-                    "\n\n[参考情報]\n" + chunks.joinToString("\n") {
-                        val base = "・${it.title}: ${it.text}"
-                        if (it.guidance != null) "$base\n  推奨対応: ${it.guidance}" else base
-                    }
+                    "\n\n[参考情報]\n" + chunks.joinToString("\n") { "・${it.toPromptText()}" }
                 } else ""
                 val forbiddenList = StartRuleEngine.globalForbiddenSevere.joinToString("\n") { "- $it" }
                 val triageContext = buildTriageContext()
                 val systemPrompt = PromptBuilder.buildChatSystemPrompt(ragSection, forbiddenList, triageContext)
                 val prompt = config.chatTemplate.formatChatPrompt(systemPrompt, currentMessages)
-                //Log.d("LLM",prompt)
+                println("[LLM] $prompt")
 
                 val accumulated = StringBuilder()
                 engine.generateStream(prompt) { partial, done ->

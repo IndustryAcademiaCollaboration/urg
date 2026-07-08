@@ -32,3 +32,9 @@ ORDER BY
     WHEN 'minor'  THEN 1
     ELSE               2
   END;
+
+selectOrderedByTime:
+SELECT * FROM cl_victims ORDER BY recorded_at ASC;
+
+deleteById:
+DELETE FROM cl_victims WHERE id = ?;
