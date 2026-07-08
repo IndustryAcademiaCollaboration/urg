@@ -73,6 +73,7 @@ fun App(
     val victimNumbers by viewModel.victimNumbers.collectAsStateWithLifecycle()
     val allChunks     by viewModel.allChunks.collectAsStateWithLifecycle()
     var selectedTab    by remember { mutableStateOf(0) }
+    var focusedVictimId by remember { mutableStateOf<String?>(null) }
     var showVoiceInput by remember { mutableStateOf(false) }
     var showManual     by remember { mutableStateOf(false) }
     var showTriageChat by remember { mutableStateOf(false) }
@@ -202,11 +203,16 @@ fun App(
                     onBack = { selectedTab = 0 },
                     onUpdateNote = { id, note -> viewModel.updateVictimNote(id, note) },
                     onDeleteVictim = { id -> viewModel.deleteVictim(id) },
-                    modifier = Modifier.padding(paddingValues)
+                    onShowOnMap = { victimId ->
+                        focusedVictimId = victimId
+                        selectedTab = 2
+                    },
                 )
 
                 // tab 2: 地図
                 selectedTab == 2 -> MapScreen(
+                    victims = victims,
+                    focusedVictimId = focusedVictimId,
                     modifier = Modifier.padding(paddingValues)
                 )
 

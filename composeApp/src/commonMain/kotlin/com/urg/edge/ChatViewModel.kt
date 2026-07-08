@@ -69,7 +69,12 @@ class ChatViewModel(
             _uiState.update { it.copy(chatScope = if (alive.isEmpty()) ChatScope.All else ChatScope.Custom(alive)) }
         }
     }
-
+    private var currentLatitude: Double? = null
+    private var currentLongitude: Double? = null
+    fun setCurrentLocation(lat: Double, lng: Double) {
+        currentLatitude = lat
+        currentLongitude = lng
+    }
     private val triageController = TriageController()
 
     fun setLlmEngine(engine: LlmEngine, config: LlmConfig) {
@@ -125,6 +130,8 @@ class ChatViewModel(
             triageInput = input,
             result = result,
             actionPlan = plan,
+            latitude  = currentLatitude,
+            longitude = currentLongitude,
             recordedAt = Clock.System.now().toEpochMilliseconds()
         )
         viewModelScope.launch(ioDispatcher) {
@@ -495,7 +502,7 @@ class ChatViewModel(
             "severe_injury" -> TriageActionPlan(
                 destination = "救護所",
                 safetyFirst = listOf("周囲の安全を確認する"),
-                actions = listOf("出血がある場合は圧迫する", "安静にする", "救助隊に知らせる"),
+                actions = listOf("出血がある場合は圧迫する", "安静にする"),
                 forbiddenActions = listOf("無理に動かさない", "一人で搬送しない")
             )
 
@@ -524,7 +531,7 @@ class ChatViewModel(
         appendMessage(Message("user", text))
         _uiState.update { it.copy(promptText = "", isLoading = true) }
 
-        val currentMessages = _uiState.value.messages.filter { it.type == MessageType.CHAT }.takeLast(8)
+        val currentMessages = _uiState.value.messages.filter { it.type == MessageType.CHAT }.takeLast(4)
 
         viewModelScope.launch(ioDispatcher) {
             try {

@@ -72,6 +72,7 @@ fun PriorityScreen(
     onBack: () -> Unit,
     onUpdateNote: (victimId: String, note: PatientNote) -> Unit,
     onDeleteVictim: (victimId: String) -> Unit = {},
+    onShowOnMap: ((String) -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
     var editingVictim       by remember { mutableStateOf<VictimRecord?>(null) }
@@ -215,6 +216,7 @@ fun PriorityScreen(
                         victim = victim,
                         onEdit = { editingVictim = victim },
                         onDelete = { deleteConfirmTarget = victim },
+                        onShowOnMap = onShowOnMap?.let { cb -> { cb(victim.id) } },
                         modifier = Modifier.padding(horizontal = 20.dp),
                     )
                     Spacer(modifier = Modifier.height(12.dp))
@@ -256,6 +258,7 @@ private fun VictimCard(
     victim: VictimRecord,
     onEdit: () -> Unit,
     onDelete: () -> Unit,
+    onShowOnMap: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
     val isSevere    = victim.result == TriageResult.SEVERE
@@ -341,24 +344,29 @@ private fun VictimCard(
                     .background(Color.White, RoundedCornerShape(12.dp))
                     .clip(RoundedCornerShape(12.dp)),
             ) {
-                DropdownMenuItem(
-                    text = {
-                        Text(text = "編集", fontSize = 15.sp, color = Color(0xFF566876))
-                    },
-                    leadingIcon = {
-                        Icon(
-                            painter = painterResource(Res.drawable.ic_pencil),
-                            contentDescription = null,
-                            tint = Color(0xFF566876),
-                            modifier = Modifier.size(18.dp),
-                        )
-                    },
-                    onClick = {
-                        menuExpanded = false
-                        onEdit()
-                    },
-                    modifier = Modifier.background(Color.White),
-                )
+                if (onShowOnMap != null && victim.latitude != null) {
+                    DropdownMenuItem(
+                        text = { Text(text = "地図で見る", fontSize = 15.sp, color = Color(0xFF566876)) },
+                        leadingIcon = {
+                            Icon(
+                                painter = painterResource(Res.drawable.ic_place),
+                                contentDescription = null,
+                                tint = PrioTeal,
+                                modifier = Modifier.size(18.dp),
+                            )
+                        },
+                        onClick = {
+                            menuExpanded = false
+                            onShowOnMap()
+                        },
+                        modifier = Modifier.background(Color.White),
+                    )
+                    HorizontalDivider(
+                        color = Color(0xFFEEEEEE),
+                        thickness = 0.5.dp,
+                        modifier = Modifier.padding(horizontal = 8.dp),
+                    )
+                }
                 HorizontalDivider(
                     color = Color(0xFFEEEEEE),
                     thickness = 0.5.dp,

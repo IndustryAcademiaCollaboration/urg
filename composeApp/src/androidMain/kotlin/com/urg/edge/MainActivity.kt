@@ -31,6 +31,8 @@ import kotlinx.coroutines.withContext
 import android.app.AlertDialog
 import android.content.Intent
 import android.provider.Settings
+import com.google.android.gms.location.LocationServices
+import com.google.android.gms.tasks.CancellationTokenSource
 
 class MainActivity : ComponentActivity() {
 
@@ -53,6 +55,7 @@ class MainActivity : ComponentActivity() {
         initLlmEngine()
         initKnowledgeRetriever()
         initDisasterDetection()
+        initLocationTracking()
         initSttEngine()
         initTtsEngine()
         requestMicPermission()
@@ -202,6 +205,22 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
+
+    private fun initLocationTracking() {
+        val client = LocationServices.getFusedLocationProviderClient(this)
+        lifecycleScope.launch {
+            if (ContextCompat.checkSelfPermission(this@MainActivity, Manifest.permission.ACCESS_FINE_LOCATION)
+                == PackageManager.PERMISSION_GRANTED) {
+                client.getCurrentLocation(
+                    com.google.android.gms.location.Priority.PRIORITY_HIGH_ACCURACY,
+                    CancellationTokenSource().token
+                ).addOnSuccessListener { loc ->
+                    loc?.let { chatViewModel.setCurrentLocation(it.latitude, it.longitude) }
+                }
+            }
+        }
+    }
+
     private val disasterModeManager by lazy { DisasterModeManager(this) }
 
     private fun initDisasterDetection() {

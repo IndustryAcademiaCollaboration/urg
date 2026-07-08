@@ -36,6 +36,8 @@ class TriageSessionRepositoryImpl(
                 consciousness = victim.triageInput.isConscious?.toLong(),
                 location = victim.note?.location,
                 feature = victim.note?.feature,
+                latitude  = victim.latitude,
+                longitude = victim.longitude,
                 recorded_at = victim.recordedAt
             )
             victim.copy(displayNo = next.toInt())
@@ -77,6 +79,8 @@ class TriageSessionRepositoryImpl(
             result = result,
             actionPlan = StartRuleEngine.decideActions(result, input),
             note = note,
+            latitude  = latitude,
+            longitude = longitude,
             recordedAt = recorded_at
         )
     }
