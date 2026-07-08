@@ -442,7 +442,7 @@ class ChatViewModel(
             "severe_injury" -> TriageActionPlan(
                 destination = "救護所",
                 safetyFirst = listOf("周囲の安全を確認する"),
-                actions = listOf("出血箇所を圧迫する", "安静にする", "救助隊に知らせる"),
+                actions = listOf("出血がある場合は圧迫する", "安静にする", "救助隊に知らせる"),
                 forbiddenActions = listOf("無理に動かさない", "一人で搬送しない")
             )
 
