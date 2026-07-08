@@ -494,7 +494,7 @@ class ChatViewModel(
                 forbiddenActions = listOf("無理に動かさない", "一人で搬送しない")
             )
 
-            else -> TriageActio/.nPlan(
+            else -> TriageActionPlan(
                 destination = "救護所",
                 safetyFirst = listOf("周囲の安全を確認する"),
                 actions = listOf("周囲に助けを求める"),
