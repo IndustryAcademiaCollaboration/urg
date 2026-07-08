@@ -84,7 +84,10 @@ private const val SOURCE_ROUTE = "source-route"
 private const val LAYER_ROUTE = "layer-route"
 
 @Composable
-actual fun MapScreen(modifier: Modifier) {
+actual fun MapScreen(
+    bottomPadding: androidx.compose.ui.unit.Dp,
+    modifier: Modifier
+) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     val scope = rememberCoroutineScope()

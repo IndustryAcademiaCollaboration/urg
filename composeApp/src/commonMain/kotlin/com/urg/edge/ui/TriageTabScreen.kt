@@ -37,12 +37,14 @@ fun TriageTabScreen(
     onTriageYes: () -> Unit,
     onTriageNo: () -> Unit,
     onNavigateToMap: () -> Unit,
+    bottomPadding: androidx.compose.ui.unit.Dp = 0.dp,
     modifier: Modifier = Modifier,
 ) {
     Column(
         modifier = modifier
             .fillMaxSize()
             .background(Color(0xFFF2F4F6))
+            .padding(bottom = bottomPadding)
     ) {
         // ── タブ切替 ─────────────────────────────────────────────────
         Box(

@@ -10,7 +10,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 
 @Composable
-actual fun MapScreen(modifier: Modifier) {
+actual fun MapScreen(
+    bottomPadding: androidx.compose.ui.unit.Dp,
+    modifier: Modifier
+) {
     Box(
         modifier = modifier
             .fillMaxSize()

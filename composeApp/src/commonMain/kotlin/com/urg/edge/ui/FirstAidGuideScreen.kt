@@ -29,6 +29,7 @@ private sealed interface GuideScreen {
 @Composable
 fun FirstAidGuideScreen(
     chunks: List<KnowledgeChunk>,
+    bottomPadding: androidx.compose.ui.unit.Dp = 0.dp,
     modifier: Modifier = Modifier,
 ) {
     var screen by remember { mutableStateOf<GuideScreen>(GuideScreen.CategoryList) }
@@ -56,7 +57,7 @@ fun FirstAidGuideScreen(
                     chunks.map { it.category }.distinct()
                 }
                 LazyColumn(
-                    contentPadding = PaddingValues(16.dp),
+                    contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 16.dp + bottomPadding),
                     verticalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
                     items(categories) { category ->
@@ -75,7 +76,7 @@ fun FirstAidGuideScreen(
                         .map { it.subcategory }.distinct()
                 }
                 LazyColumn(
-                    contentPadding = PaddingValues(16.dp),
+                    contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 16.dp + bottomPadding),
                     verticalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
                     items(subcategories) { subcategory ->
@@ -93,7 +94,7 @@ fun FirstAidGuideScreen(
                     chunks.filter { it.category == s.category && it.subcategory == s.subcategory }
                 }
                 LazyColumn(
-                    contentPadding = PaddingValues(16.dp),
+                    contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 16.dp + bottomPadding),
                     verticalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
                     items(filtered) { chunk ->
@@ -108,7 +109,7 @@ fun FirstAidGuideScreen(
             }
 
             is GuideScreen.ChunkDetail -> {
-                ChunkDetailView(chunk = s.chunk)
+                ChunkDetailView(chunk = s.chunk, bottomPadding = bottomPadding)
             }
         }
     }
@@ -224,7 +225,10 @@ private fun GuideCard(
 }
 
 @Composable
-private fun ChunkDetailView(chunk: KnowledgeChunk) {
+private fun ChunkDetailView(
+    chunk: KnowledgeChunk,
+    bottomPadding: androidx.compose.ui.unit.Dp = 0.dp
+) {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -283,6 +287,8 @@ private fun ChunkDetailView(chunk: KnowledgeChunk) {
         if (chunk.severity == "重症") {
             SeverityBadge(chunk.severity!!)
         }
+
+        Spacer(modifier = Modifier.height(bottomPadding))
     }
 }
 

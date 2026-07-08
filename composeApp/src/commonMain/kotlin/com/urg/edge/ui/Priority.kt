@@ -72,6 +72,7 @@ fun PriorityScreen(
     onBack: () -> Unit,
     onUpdateNote: (victimId: String, note: PatientNote) -> Unit,
     onDeleteVictim: (victimId: String) -> Unit = {},
+    bottomPadding: androidx.compose.ui.unit.Dp = 0.dp,
     modifier: Modifier = Modifier,
 ) {
     var editingVictim       by remember { mutableStateOf<VictimRecord?>(null) }
@@ -220,7 +221,7 @@ fun PriorityScreen(
                     Spacer(modifier = Modifier.height(12.dp))
                 }
 
-                Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(bottomPadding))
             }
         }
     }
