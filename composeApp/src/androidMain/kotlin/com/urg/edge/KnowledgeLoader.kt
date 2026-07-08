@@ -36,6 +36,12 @@ object KnowledgeLoader {
             } else {
                 emptyList()
             }
+            val tagsArr = obj.optJSONArray("tags")
+            val tags = if (tagsArr != null) {
+                (0 until tagsArr.length()).map { tagsArr.getString(it) }
+            } else {
+                emptyList()
+            }
 
             KnowledgeChunk(
                 id = obj.getString("id"),
@@ -48,7 +54,8 @@ object KnowledgeLoader {
                 steps = steps,
                 doNot = doNot,
                 severity = obj.optString("severity").takeIf { it.isNotEmpty() },
-                next = obj.optString("next").takeIf { it.isNotEmpty() }
+                next = obj.optString("next").takeIf { it.isNotEmpty() },
+                tags = tags
             )
         }
     }

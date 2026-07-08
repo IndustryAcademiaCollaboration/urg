@@ -11,7 +11,8 @@ data class KnowledgeChunk(
     val steps: List<String>,
     val doNot: List<String> = emptyList(),
     val severity: String? = null,
-    val next: String? = null
+    val next: String? = null,
+    val tags: List<String> = emptyList()
 ) {
     fun toEmbeddingText(): String =
         "$category $subcategory $title ${keywords.joinToString(" ")} $whenToUse ${steps.joinToString(" ")}"
