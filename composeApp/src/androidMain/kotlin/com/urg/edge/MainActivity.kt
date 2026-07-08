@@ -184,6 +184,7 @@ class MainActivity : ComponentActivity() {
                     chatViewModel.addSystemMessage(Strings.knowledgeBaseLoaded(chunks.size))
                 }
                 val retriever = EmbeddingRetriever(this@MainActivity, chunks)
+                chatViewModel.setChunks(chunks)
                 chatViewModel.setRetriever(retriever)
                 withContext(Dispatchers.Main) {
                     chatViewModel.addSystemMessage(Strings.INIT_COMPLETE)

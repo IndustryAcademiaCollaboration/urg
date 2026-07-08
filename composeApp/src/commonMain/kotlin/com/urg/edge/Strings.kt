@@ -3,7 +3,7 @@ package com.urg.edge
 object Strings {
     const val ERROR_LLM_NOT_INITIALIZED = "ERROR: LLM is not initialized"
     const val RETRIEVER_INITIALIZING = "知識ベースの初期化中です。しばらくお待ちください。"
-    const val NO_RELEVANT_INFO = "申し訳ありませんが、その状況に関する情報を持ち合わせていません。近くの救護所または避難所でご確認ください。"
+    const val NO_RELEVANT_INFO = "申し訳ありませんが、その状況に関する情報を持ち合わせていません。医療機関や専門家にご相談ください。"
     const val ERROR_PREFIX = "ERROR: "
 
     const val APP_TITLE = "Local LLM Demo"
