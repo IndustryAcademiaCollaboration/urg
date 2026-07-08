@@ -13,17 +13,18 @@ class TriageSessionRepositoryImpl(
     override fun startSession(latitude: Double?, longitude: Double?): TriageSession {
         val id = UUID.randomUUID().toString()
         val now = Clock.System.now().toEpochMilliseconds()
-        database.clSessionsQueries.insert(id, latitude, longitude, now)
+        database.clSessionsQueries.insert(id, latitude, longitude, 1, now)
         return TriageSession(id = id, latitude = latitude, longitude = longitude, startedAt = now)
     }
 
     override fun saveVictim(victim: VictimRecord): VictimRecord =
-        // 採番（セッション内 max+1）と挿入を同一トランザクションで行い、ラベルを登録時に確定させる。
-        // 制限: セッション内最大番号の対象者を削除した直後の登録では同じ番号が再利用される
-        // （恒久対応はセッション側カウンタ列の追加。将来課題）
+        // 採番はセッション側の単調増加カウンタ（next_display_no）で行う。cl_victims 内のMAXを
+        // 見る方式だと削除で番号が「空いて」再利用されてしまうため、削除の影響を受けないセッション
+        // 単位のカウンタで「一度払い出した番号は二度と使わない」を保証する。
         database.clVictimsQueries.transactionWithResult {
-            val next = database.clVictimsQueries
-                .selectMaxDisplayNo(victim.sessionId).executeAsOne() + 1
+            val next = database.clSessionsQueries
+                .selectNextDisplayNo(victim.sessionId).executeAsOne()
+            database.clSessionsQueries.incrementNextDisplayNo(victim.sessionId)
             database.clVictimsQueries.insert(
                 id = victim.id,
                 session_id = victim.sessionId,

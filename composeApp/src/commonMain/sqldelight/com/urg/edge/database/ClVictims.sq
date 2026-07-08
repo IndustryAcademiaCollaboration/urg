@@ -16,9 +16,6 @@ insert:
 INSERT INTO cl_victims (id, session_id, display_no, severity, can_walk, is_breathing, has_pulse, consciousness, location, feature, recorded_at)
 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
 
-selectMaxDisplayNo:
-SELECT COALESCE(MAX(display_no), 0) FROM cl_victims WHERE session_id = ?;
-
 updateNote:
 UPDATE cl_victims SET location = ?, feature = ? WHERE id = ?;
 
