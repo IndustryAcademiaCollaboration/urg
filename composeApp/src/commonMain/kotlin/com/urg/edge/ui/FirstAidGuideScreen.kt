@@ -16,20 +16,54 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.urg.edge.KnowledgeChunk
-
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.horizontalScroll
+import kotlin.math.roundToInt
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.ui.draw.clip
 private sealed interface GuideScreen {
     object CategoryList : GuideScreen
     data class SubcategoryList(val category: String) : GuideScreen
     data class ChunkList(val category: String, val subcategory: String) : GuideScreen
     data class ChunkDetail(val chunk: KnowledgeChunk) : GuideScreen
 }
-
+private val disasterPhases = listOf(
+    "平常時",
+    "災害発生直後",
+    "災害後数時間",
+    "災害後数日",
+    "災害後1週間",
+    "災害後長期",
+)
 @Composable
 fun FirstAidGuideScreen(
     chunks: List<KnowledgeChunk>,
     modifier: Modifier = Modifier,
 ) {
     var screen by remember { mutableStateOf<GuideScreen>(GuideScreen.CategoryList) }
+
+    var searchQuery by remember { mutableStateOf("") }
+    var selectedFilter by remember { mutableStateOf("すべて") }
+
+    var selectedPhaseIndex by remember { mutableStateOf(0) }
+    val selectedPhase = disasterPhases[selectedPhaseIndex]
+
+    val filterOptions = remember(chunks) {
+        listOf("すべて", "重症") + chunks.map { it.category }.distinct()
+    }
+
+    val filteredChunks = remember(chunks, searchQuery, selectedFilter, selectedPhase) {
+        chunks.filter { chunk ->
+            chunk.matchesGuideSearch(searchQuery) &&
+                    chunk.matchesGuideFilter(selectedFilter) &&
+                    chunk.matchesPhase(selectedPhase)
+        }
+    }
 
     Column(modifier = modifier.fillMaxSize()) {
         // ヘッダー
@@ -49,11 +83,33 @@ fun FirstAidGuideScreen(
 
         HorizontalDivider()
 
+        if (screen !is GuideScreen.ChunkDetail) {
+            GuideSearchAndFilterBar(
+                query = searchQuery,
+                onQueryChange = {
+                    searchQuery = it
+                    selectedFilter = "すべて"
+                    screen = GuideScreen.CategoryList
+                },
+                selectedFilter = selectedFilter,
+                filterOptions = listOf("すべて", "重症", "心臓", "けが", "災害", "体調不良"),
+                onFilterChange = {
+                    selectedFilter = it
+                    screen = GuideScreen.CategoryList
+                },
+                selectedPhaseIndex = selectedPhaseIndex,
+                onPhaseChange = {
+                    selectedPhaseIndex = it
+                    screen = GuideScreen.CategoryList
+                }
+            )
+        }
+
         // コンテンツ
         when (val s = screen) {
             is GuideScreen.CategoryList -> {
-                val categories = remember(chunks) {
-                    chunks.map { it.category }.distinct()
+                val categories = remember(filteredChunks) {
+                    filteredChunks.map { it.category }.distinct()
                 }
                 LazyColumn(
                     contentPadding = PaddingValues(16.dp),
@@ -62,7 +118,7 @@ fun FirstAidGuideScreen(
                     items(categories) { category ->
                         GuideCard(
                             title = category,
-                            subtitle = "${chunks.count { it.category == category }}項目",
+                            subtitle = "${filteredChunks.count { it.category == category }}項目",
                             onClick = { screen = GuideScreen.SubcategoryList(category) }
                         )
                     }
@@ -70,9 +126,11 @@ fun FirstAidGuideScreen(
             }
 
             is GuideScreen.SubcategoryList -> {
-                val subcategories = remember(chunks, s.category) {
-                    chunks.filter { it.category == s.category }
-                        .map { it.subcategory }.distinct()
+                val subcategories = remember(filteredChunks, s.category) {
+                    filteredChunks
+                        .filter { it.category == s.category }
+                        .map { it.subcategory }
+                        .distinct()
                 }
                 LazyColumn(
                     contentPadding = PaddingValues(16.dp),
@@ -81,7 +139,7 @@ fun FirstAidGuideScreen(
                     items(subcategories) { subcategory ->
                         GuideCard(
                             title = subcategory,
-                            subtitle = "${chunks.count { it.category == s.category && it.subcategory == subcategory }}項目",
+                            subtitle = "${filteredChunks.count { it.category == s.category && it.subcategory == subcategory }}項目",
                             onClick = { screen = GuideScreen.ChunkList(s.category, subcategory) }
                         )
                     }
@@ -89,8 +147,10 @@ fun FirstAidGuideScreen(
             }
 
             is GuideScreen.ChunkList -> {
-                val filtered = remember(chunks, s.category, s.subcategory) {
-                    chunks.filter { it.category == s.category && it.subcategory == s.subcategory }
+                val filtered = remember(filteredChunks, s.category, s.subcategory) {
+                    filteredChunks.filter {
+                        it.category == s.category && it.subcategory == s.subcategory
+                    }
                 }
                 LazyColumn(
                     contentPadding = PaddingValues(16.dp),
@@ -285,4 +345,228 @@ private fun SeverityBadge(severity: String) {
             .background(color, shape = MaterialTheme.shapes.small)
             .padding(horizontal = 6.dp, vertical = 2.dp)
     )
+}
+
+@Composable
+private fun GuideSearchAndFilterBar(
+    query: String,
+    onQueryChange: (String) -> Unit,
+    selectedFilter: String,
+    filterOptions: List<String>,
+    onFilterChange: (String) -> Unit,
+    selectedPhaseIndex: Int,
+    onPhaseChange: (Int) -> Unit,
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 10.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        GuideSearchInput(
+            value = query,
+            onValueChange = onQueryChange,
+        )
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            filterOptions.forEach { option ->
+                FilterChip(
+                    selected = selectedFilter == option,
+                    onClick = { onFilterChange(option) },
+                    label = {
+                        Text(
+                            text = option,
+                            fontSize = 12.sp,
+                        )
+                    }
+                )
+            }
+        }
+
+        GuidePhaseSlider(
+            selectedPhaseIndex = selectedPhaseIndex,
+            onPhaseChange = onPhaseChange,
+        )
+    }
+}
+
+@Composable
+private fun GuideSearchInput(
+    value: String,
+    onValueChange: (String) -> Unit,
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(Color(0xFFF2F4F6), MaterialTheme.shapes.large)
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        contentAlignment = Alignment.CenterStart
+    ) {
+        if (value.isEmpty()) {
+            Text(
+                text = "応急手当を検索...",
+                fontSize = 14.sp,
+                color = Color(0xFF999999),
+                modifier = Modifier.padding(end = 36.dp)
+            )
+        }
+
+        BasicTextField(
+            value = value,
+            onValueChange = onValueChange,
+            singleLine = true,
+            textStyle = TextStyle(
+                fontSize = 14.sp,
+                color = Color(0xFF333333)
+            ),
+            cursorBrush = SolidColor(Color(0xFF25B1BF)),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(end = 36.dp)
+        )
+
+        if (value.isNotEmpty()) {
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier
+                    .align(Alignment.CenterEnd)
+                    .size(24.dp)
+                    .clip(MaterialTheme.shapes.small)
+                    .background(Color(0xFFE0E0E0))
+                    .clickable {
+                        onValueChange("")
+                    }
+            ) {
+                Text(
+                    text = "×",
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF666666)
+                )
+            }
+        }
+    }
+}
+
+private fun KnowledgeChunk.matchesGuideSearch(query: String): Boolean {
+    val keywords = expandGuideSearchQuery(query)
+    if (keywords.isEmpty()) return true
+
+    val targetText = buildString {
+        append(title)
+        append(" ")
+        append(category)
+        append(" ")
+        append(subcategory)
+        append(" ")
+        append(whenToUse)
+        append(" ")
+        append(severity.orEmpty())
+        append(" ")
+        append(steps.joinToString(" "))
+        append(" ")
+        append(doNot.joinToString(" "))
+    }.lowercase()
+
+    return keywords.any { keyword ->
+        targetText.contains(keyword.lowercase())
+    }
+}
+
+private fun KnowledgeChunk.matchesGuideFilter(filter: String): Boolean {
+    return when (filter) {
+        "すべて" -> true
+        "重症" -> severity == "重症"
+        else -> category == filter || subcategory == filter
+    }
+}
+
+private fun expandGuideSearchQuery(query: String): List<String> {
+    val text = query.trim()
+    if (text.isBlank()) return emptyList()
+
+    val keywords = mutableListOf(text)
+
+    if (text.contains("水") && (text.contains("出ない") || text.contains("でない"))) {
+        keywords += "断水"
+    }
+
+    if (
+        text.contains("電気") ||
+        text.contains("明かり") ||
+        text.contains("あかり") ||
+        text.contains("停電")
+    ) {
+        keywords += "停電"
+    }
+
+    if (
+        text.contains("充電") ||
+        text.contains("バッテリー") ||
+        text.contains("スマホ") ||
+        text.contains("携帯")
+    ) {
+        keywords += "電池"
+        keywords += "充電"
+    }
+
+    return keywords.distinct()
+}
+
+@Composable
+private fun GuidePhaseSlider(
+    selectedPhaseIndex: Int,
+    onPhaseChange: (Int) -> Unit,
+) {
+    val safeIndex = selectedPhaseIndex.coerceIn(0, disasterPhases.lastIndex)
+
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        Text(
+            text = disasterPhases[safeIndex],
+            fontSize = 15.sp,
+            fontWeight = FontWeight.Bold,
+            color = Color(0xFF25B1BF)
+        )
+
+        Slider(
+            value = safeIndex.toFloat(),
+            onValueChange = { value ->
+                onPhaseChange(
+                    value.roundToInt().coerceIn(0, disasterPhases.lastIndex)
+                )
+            },
+            valueRange = 0f..disasterPhases.lastIndex.toFloat(),
+            steps = disasterPhases.size - 2,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 28.dp)
+        )
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            disasterPhases.forEach { phase ->
+                Text(
+                    text = phase,
+                    fontSize = 8.sp,
+                    color = Color.Gray,
+                    maxLines = 2,
+                    modifier = Modifier.width(52.dp)
+                )
+            }
+        }
+    }
+}
+private fun KnowledgeChunk.matchesPhase(phaseTag: String): Boolean {
+    if (tags.isEmpty()) return true
+    return tags.contains(phaseTag)
 }
