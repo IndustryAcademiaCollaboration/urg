@@ -100,7 +100,7 @@ private val FLOW_RESULTS = mapOf(
     "severe_airway" to ResultInfo("重症",     listOf("気道確保・CPR", "AED使用"), Red, RedBg, Red),
     "severe_circ"   to ResultInfo("重症",     listOf("出血を圧迫", "圧迫を保持"), Red, RedBg, Red),
     "severe_cons"   to ResultInfo("重症",     listOf("回復体位", "呼吸を確認"), Red, RedBg, Red),
-    "severe_injury" to ResultInfo("重症",     listOf("出血箇所を圧迫", "・安静"), Red, RedBg, Red),
+    "severe_injury" to ResultInfo("重症",     listOf("救護所または医療者へ引き継ぎ"), Red, RedBg, Red),
 )
 
 // ─── LLM Messages (TODO: replace with actual ChatViewModel call) ──────────────
@@ -110,7 +110,7 @@ private val LLM_MESSAGES = mapOf(
     "severe_airway" to "呼吸停止の疑いがあります。直ちに気道を確保し、必要であればCPRを開始してください。AEDが利用可能な場合は速やかに使用してください。",
     "severe_circ"   to "循環障害の可能性があります。出血部位をタオルなどで強く圧迫し、その状態を保持してください。救急隊の到着を待ちながら観察を続けてください。",
     "severe_cons"   to "意識障害があります。患者を回復体位（横向き）に置き、呼吸状態を継続的に確認してください。嘔吐による窒息に注意してください。",
-    "severe_injury" to "重篤な外傷の可能性があります。出血箇所を強く圧迫止血し、患者を安静に保ってください。体を動かさないよう注意してください。",
+    "severe_injury" to "重い怪我の可能性があります。安全を確認し、救助隊や医療者に知らせてください。出血がある場合は、清潔な布で出血部位を直接圧迫してください。無理に体を動かさないでください。",
 )
 
 // ─── Flow State ───────────────────────────────────────────────────────────────
