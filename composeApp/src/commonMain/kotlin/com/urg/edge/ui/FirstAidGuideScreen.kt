@@ -54,7 +54,7 @@ fun FirstAidGuideScreen(
     val selectedPhase = disasterPhases[selectedPhaseIndex]
 
     val filterOptions = remember(chunks) {
-        listOf("すべて", "重症") + chunks.map { it.category }.distinct()
+        listOf("すべて") + chunks.map { it.subcategory }.distinct()
     }
 
     val filteredChunks = remember(chunks, searchQuery, selectedFilter, selectedPhase) {
@@ -92,7 +92,7 @@ fun FirstAidGuideScreen(
                     screen = GuideScreen.CategoryList
                 },
                 selectedFilter = selectedFilter,
-                filterOptions = listOf("すべて", "重症", "心臓", "けが", "災害", "体調不良"),
+                filterOptions = filterOptions,
                 onFilterChange = {
                     selectedFilter = it
                     screen = GuideScreen.CategoryList
