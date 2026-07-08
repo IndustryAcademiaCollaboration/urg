@@ -28,6 +28,9 @@ import com.urg.edge.tts.createTtsEngine
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import android.app.AlertDialog
+import android.content.Intent
+import android.provider.Settings
 
 class MainActivity : ComponentActivity() {
 
@@ -49,6 +52,7 @@ class MainActivity : ComponentActivity() {
         initRepository()
         initLlmEngine()
         initKnowledgeRetriever()
+        initDisasterDetection()
         initSttEngine()
         initTtsEngine()
         requestMicPermission()
@@ -198,7 +202,37 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
+    private val disasterModeManager by lazy { DisasterModeManager(this) }
 
+    private fun initDisasterDetection() {
+        // DataStore → ChatViewModel に同期
+        lifecycleScope.launch {
+            disasterModeManager.isDisasterMode.collect { enabled ->
+                chatViewModel.setDisasterMode(enabled)
+            }
+        }
+
+        // WorkManager でJMAポーリング開始
+        DisasterCheckWorker.schedule(this)
+
+        // NLS権限チェック
+        checkNlsPermission()
+    }
+
+    private fun checkNlsPermission() {
+        val granted = Settings.Secure.getString(contentResolver, "enabled_notification_listeners")
+            ?.contains(packageName) == true
+        if (!granted) {
+            AlertDialog.Builder(this)
+                .setTitle("緊急地震速報の自動検知")
+                .setMessage("地震発生時に自動で災害モードへ切り替えるため、通知へのアクセスを許可してください。許可しなくても手動での切り替えは可能です。")
+                .setPositiveButton("設定を開く") { _, _ ->
+                    startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
+                }
+                .setNegativeButton("後で設定する", null)
+                .show()
+        }
+    }
     private fun initSttEngine() {
         lifecycleScope.launch(Dispatchers.IO) {
             try {

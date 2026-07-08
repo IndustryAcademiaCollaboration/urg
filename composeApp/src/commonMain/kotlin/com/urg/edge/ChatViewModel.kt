@@ -28,6 +28,11 @@ class ChatViewModel(
     private var llmEngine: LlmEngine? = null
     private var retriever: KnowledgeRetriever? = null
     private val _allChunks = MutableStateFlow<List<KnowledgeChunk>>(emptyList())
+    private val _isDisasterMode = MutableStateFlow(false)
+    val isDisasterMode: StateFlow<Boolean> = _isDisasterMode.asStateFlow()
+    fun setDisasterMode(enabled: Boolean) {
+        _isDisasterMode.value = enabled
+    }
     val allChunks: StateFlow<List<KnowledgeChunk>> = _allChunks.asStateFlow()
 
     fun setChunks(chunks: List<KnowledgeChunk>) {
@@ -494,7 +499,7 @@ class ChatViewModel(
                 forbiddenActions = listOf("無理に動かさない", "一人で搬送しない")
             )
 
-            else -> TriageActio/.nPlan(
+            else -> TriageActionPlan(
                 destination = "救護所",
                 safetyFirst = listOf("周囲の安全を確認する"),
                 actions = listOf("周囲に助けを求める"),
@@ -531,7 +536,8 @@ class ChatViewModel(
                 } else ""
                 val forbiddenList = StartRuleEngine.globalForbiddenSevere.joinToString("\n") { "- $it" }
                 val triageContext = buildTriageContext()
-                val systemPrompt = PromptBuilder.buildChatSystemPrompt(ragSection, forbiddenList, triageContext)
+                val isDisasterMode = _isDisasterMode.value
+                val systemPrompt = PromptBuilder.buildChatSystemPrompt(ragSection, forbiddenList, triageContext, isDisasterMode)
                 val prompt = config.chatTemplate.formatChatPrompt(systemPrompt, currentMessages)
                 println("[LLM] $prompt")
 

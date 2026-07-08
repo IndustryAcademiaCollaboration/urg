@@ -76,6 +76,7 @@ fun App(
     var showVoiceInput by remember { mutableStateOf(false) }
     var showManual     by remember { mutableStateOf(false) }
     var showTriageChat by remember { mutableStateOf(false) }
+    val isDisasterMode by viewModel.isDisasterMode.collectAsStateWithLifecycle()
 
     // ─── ナビゲーションアイテム（5タブ） ─────────────────────────
     val navItems = listOf(
@@ -216,6 +217,8 @@ fun App(
                 // tab 4: その他（設定）
                 else -> SettingsScreen(
                     onManualClick = { showManual = true },
+                    isDisasterMode = isDisasterMode,
+                    onDisasterModeChange = viewModel::setDisasterMode,
                     modifier = Modifier.padding(paddingValues),
                 )
             }
