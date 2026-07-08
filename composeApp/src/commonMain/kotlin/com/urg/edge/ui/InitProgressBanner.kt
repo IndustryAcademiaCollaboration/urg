@@ -29,8 +29,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import org.jetbrains.compose.resources.painterResource
 import urg.composeapp.generated.resources.Res
-import urg.composeapp.generated.resources.ic_down
+import urg.composeapp.generated.resources.ic_ai
 import urg.composeapp.generated.resources.ic_closeBtn
+import urg.composeapp.generated.resources.ic_down
+import urg.composeapp.generated.resources.ic_stt
+import urg.composeapp.generated.resources.ic_tts
 import urg.composeapp.generated.resources.ic_up
 
 private val Teal   = Color(0xFF25B1BF)
@@ -130,11 +133,11 @@ fun InitProgressBanner(
                         .fillMaxWidth()
                         .padding(start = 14.dp, end = 14.dp, bottom = 14.dp)
                 ) {
-                    ProgressRow("AIモデル",  llmProgress)
+                    ProgressRow(Res.drawable.ic_ai,  "AIモデル",  llmProgress)
                     Spacer(Modifier.height(10.dp))
-                    ProgressRow("STTモデル", sttProgress)
+                    ProgressRow(Res.drawable.ic_stt, "STTモデル", sttProgress)
                     Spacer(Modifier.height(10.dp))
-                    ProgressRow("TTSモデル", ttsProgress)
+                    ProgressRow(Res.drawable.ic_tts, "TTSモデル", ttsProgress)
                 }
             }
         }
@@ -142,7 +145,7 @@ fun InitProgressBanner(
 }
 
 @Composable
-private fun ProgressRow(label: String, progress: Float) {
+private fun ProgressRow(icon: org.jetbrains.compose.resources.DrawableResource, label: String, progress: Float) {
     val pct     = (progress * 100).toInt()
     val done    = progress >= 1f
     val barColor = if (done) Green else Teal
@@ -152,12 +155,19 @@ private fun ProgressRow(label: String, progress: Float) {
         modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
     ) {
+        Icon(
+            painter = painterResource(icon),
+            contentDescription = label,
+            tint = Color.Unspecified,
+            modifier = Modifier.size(20.dp),
+        )
+        Spacer(Modifier.width(6.dp))
         Text(
             text = label,
             fontSize = 11.sp,
             fontWeight = FontWeight.Medium,
             color = LabelColor,
-            modifier = Modifier.width(68.dp),
+            modifier = Modifier.width(62.dp),
         )
         // プログレスバー
         Box(

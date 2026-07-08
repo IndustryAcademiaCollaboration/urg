@@ -6,11 +6,13 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -31,7 +33,7 @@ fun FirstAidGuideScreen(
 ) {
     var screen by remember { mutableStateOf<GuideScreen>(GuideScreen.CategoryList) }
 
-    Column(modifier = modifier.fillMaxSize()) {
+    Column(modifier = modifier.fillMaxSize().background(Color(0xFFF2F4F6))) {
         // ヘッダー
         GuideHeader(
             screen = screen,
@@ -46,8 +48,6 @@ fun FirstAidGuideScreen(
                 }
             }
         )
-
-        HorizontalDivider()
 
         // コンテンツ
         when (val s = screen) {
@@ -114,38 +114,69 @@ fun FirstAidGuideScreen(
     }
 }
 
+private val GuideTeal = Color(0xFF25B1BF)
+private val GuideInk  = Color(0xFF10202A)
+
 @Composable
 private fun GuideHeader(
     screen: GuideScreen,
     onBack: () -> Unit,
 ) {
-    val title = when (screen) {
-        is GuideScreen.CategoryList    -> "応急手当ガイド"
+    val isRoot   = screen is GuideScreen.CategoryList
+    val subTitle = when (screen) {
         is GuideScreen.SubcategoryList -> screen.category
         is GuideScreen.ChunkList       -> screen.subcategory
         is GuideScreen.ChunkDetail     -> screen.chunk.title
+        else                           -> null
     }
-    val showBack = screen !is GuideScreen.CategoryList
 
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
+    Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 8.dp, vertical = 12.dp)
+            .background(Color(0xFFF2F4F6))
+            .padding(start = 20.dp, end = 20.dp, top = 16.dp, bottom = 0.dp)
     ) {
-        if (showBack) {
-            TextButton(onClick = onBack) {
-                Text("‹ 戻る", fontSize = 16.sp, color = Color(0xFF25B1BF))
-            }
-        } else {
-            Spacer(modifier = Modifier.width(16.dp))
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(
+                modifier = Modifier
+                    .width(3.dp)
+                    .height(20.dp)
+                    .clip(RoundedCornerShape(2.dp))
+                    .background(GuideTeal)
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                text = "FIRST AID GUIDE",
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Bold,
+                color = GuideTeal,
+                letterSpacing = 1.5.sp,
+            )
         }
-        Text(
-            text = title,
-            fontSize = 18.sp,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.weight(1f).padding(horizontal = 8.dp)
-        )
+        Spacer(modifier = Modifier.height(2.dp))
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                text = "応急手当ガイド",
+                fontSize = 36.sp,
+                fontWeight = FontWeight.Bold,
+                color = GuideInk,
+                modifier = Modifier.weight(1f),
+            )
+            if (!isRoot && subTitle != null) {
+                TextButton(onClick = onBack) {
+                    Text("‹ 戻る", fontSize = 14.sp, color = GuideTeal)
+                }
+            }
+        }
+        if (!isRoot && subTitle != null) {
+            Text(
+                text = subTitle,
+                fontSize = 14.sp,
+                color = Color(0xFF788E98),
+                modifier = Modifier.padding(bottom = 4.dp),
+            )
+        }
+        Spacer(modifier = Modifier.height(12.dp))
     }
 }
 
