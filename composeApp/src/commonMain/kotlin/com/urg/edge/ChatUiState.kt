@@ -10,4 +10,5 @@ data class ChatUiState(
     val triageFlowText: String = "",
     val isTriageFlowLoading: Boolean = false,
     val micAmplitude: Float = 0f,
+    val chatScope: ChatScope = ChatScope.All,
 )

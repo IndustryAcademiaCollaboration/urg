@@ -183,6 +183,8 @@ fun App(
                         selectedTab = 2   // 地図は index 2 へ
                         showTriageChat = false
                     },
+                    victims = victims,
+                    onScopeChange = viewModel::setChatScope,
                     modifier = Modifier.padding(paddingValues)
                 )
 

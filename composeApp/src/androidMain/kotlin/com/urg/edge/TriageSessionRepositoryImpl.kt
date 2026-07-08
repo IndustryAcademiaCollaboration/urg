@@ -17,20 +17,28 @@ class TriageSessionRepositoryImpl(
         return TriageSession(id = id, latitude = latitude, longitude = longitude, startedAt = now)
     }
 
-    override fun saveVictim(victim: VictimRecord) {
-        database.clVictimsQueries.insert(
-            id = victim.id,
-            session_id = victim.sessionId,
-            severity = victim.result.name.lowercase(),
-            can_walk = victim.triageInput.canWalk?.toLong(),
-            is_breathing = victim.triageInput.isBreathing?.toLong(),
-            has_pulse = victim.triageInput.hasPulse?.toLong(),
-            consciousness = victim.triageInput.isConscious?.toLong(),
-            location = victim.note?.location,
-            feature = victim.note?.feature,
-            recorded_at = victim.recordedAt
-        )
-    }
+    override fun saveVictim(victim: VictimRecord): VictimRecord =
+        // 採番（セッション内 max+1）と挿入を同一トランザクションで行い、ラベルを登録時に確定させる。
+        // 制限: セッション内最大番号の対象者を削除した直後の登録では同じ番号が再利用される
+        // （恒久対応はセッション側カウンタ列の追加。将来課題）
+        database.clVictimsQueries.transactionWithResult {
+            val next = database.clVictimsQueries
+                .selectMaxDisplayNo(victim.sessionId).executeAsOne() + 1
+            database.clVictimsQueries.insert(
+                id = victim.id,
+                session_id = victim.sessionId,
+                display_no = next,
+                severity = victim.result.name.lowercase(),
+                can_walk = victim.triageInput.canWalk?.toLong(),
+                is_breathing = victim.triageInput.isBreathing?.toLong(),
+                has_pulse = victim.triageInput.hasPulse?.toLong(),
+                consciousness = victim.triageInput.isConscious?.toLong(),
+                location = victim.note?.location,
+                feature = victim.note?.feature,
+                recorded_at = victim.recordedAt
+            )
+            victim.copy(displayNo = next.toInt())
+        }
 
     override fun updateVictimNote(victimId: String, note: PatientNote) {
         database.clVictimsQueries.updateNote(
@@ -46,9 +54,6 @@ class TriageSessionRepositoryImpl(
     override fun deleteVictim(victimId: String) {
         database.clVictimsQueries.deleteById(victimId)
     }
-
-    override fun getVictimsByPriority(): List<VictimRecord> =
-        database.clVictimsQueries.selectOrderedByTime().executeAsList().map { it.toVictimRecord() }
 
     private fun com.urg.edge.database.Cl_victims.toVictimRecord(): VictimRecord {
         val input = TriageInput(
@@ -66,6 +71,7 @@ class TriageSessionRepositoryImpl(
         return VictimRecord(
             id = id,
             sessionId = session_id,
+            displayNo = display_no.toInt(),
             triageInput = input,
             result = result,
             actionPlan = StartRuleEngine.decideActions(result, input),
