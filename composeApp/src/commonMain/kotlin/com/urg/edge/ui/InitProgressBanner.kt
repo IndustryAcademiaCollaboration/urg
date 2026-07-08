@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -26,6 +27,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import org.jetbrains.compose.resources.painterResource
+import urg.composeapp.generated.resources.Res
+import urg.composeapp.generated.resources.ic_down
+import urg.composeapp.generated.resources.ic_closeBtn
+import urg.composeapp.generated.resources.ic_up
 
 private val Teal   = Color(0xFF25B1BF)
 private val Green  = Color(0xFF16A36B)
@@ -93,23 +99,23 @@ fun InitProgressBanner(
                     modifier = Modifier.weight(1f),
                 )
                 // ∧ / ∨ ボタン
-                Text(
-                    text = if (expanded) "∧" else "∨",
-                    fontSize = 14.sp,
-                    color = Color(0xFF788E98),
+                Icon(
+                    painter = painterResource(if (expanded) Res.drawable.ic_up else Res.drawable.ic_down),
+                    contentDescription = if (expanded) "折りたたむ" else "展開する",
+                    tint = Color.Unspecified,
                     modifier = Modifier
-                        .clickable(onClick = onToggle)
-                        .padding(horizontal = 6.dp, vertical = 2.dp),
+                        .size(20.dp)
+                        .clickable(onClick = onToggle),
                 )
-                Spacer(Modifier.width(4.dp))
+                Spacer(Modifier.width(8.dp))
                 // × ボタン（常に表示）
-                Text(
-                    text = "×",
-                    fontSize = 14.sp,
-                    color = Color(0xFF788E98),
+                Icon(
+                    painter = painterResource(Res.drawable.ic_closeBtn),
+                    contentDescription = "閉じる",
+                    tint = Color.Unspecified,
                     modifier = Modifier
-                        .clickable(onClick = onDismiss)
-                        .padding(horizontal = 6.dp, vertical = 2.dp),
+                        .size(20.dp)
+                        .clickable(onClick = onDismiss),
                 )
             }
 

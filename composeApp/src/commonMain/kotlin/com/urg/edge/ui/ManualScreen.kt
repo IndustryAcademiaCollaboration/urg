@@ -133,7 +133,7 @@ fun ManualScreen(
             step        = steps[currentStep],
             totalSteps  = steps.size,
             currentStep = currentStep,
-            onNext  = { if (currentStep < steps.lastIndex) currentStep++ else onBack() },
+            onNext  = { if (currentStep < steps.lastIndex) currentStep++ else selectedCategory = null },
             onPrev  = { if (currentStep > 0) currentStep-- },
             onClose = { selectedCategory = null },
             modifier    = modifier,

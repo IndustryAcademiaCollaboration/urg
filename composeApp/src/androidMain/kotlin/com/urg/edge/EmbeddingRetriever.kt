@@ -43,7 +43,7 @@ class EmbeddingRetriever(
         ))
 
         chunkEmbeddings = chunks.map { chunk ->
-            embed("passage: ${chunk.title} ${chunk.text}")
+            embed("passage: ${chunk.toEmbeddingText()}")
         }
         Log.d("EMBEDDING_INIT", "chunk embeddings computed: ${chunks.size} chunks")
     }

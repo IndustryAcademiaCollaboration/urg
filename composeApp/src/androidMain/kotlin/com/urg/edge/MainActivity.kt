@@ -180,14 +180,9 @@ class MainActivity : ComponentActivity() {
         lifecycleScope.launch(Dispatchers.IO) {
             try {
                 val chunks = KnowledgeLoader.load(assets)
-                withContext(Dispatchers.Main) {
-                    chatViewModel.addSystemMessage(Strings.knowledgeBaseLoaded(chunks.size))
-                }
                 val retriever = EmbeddingRetriever(this@MainActivity, chunks)
+                chatViewModel.setChunks(chunks)
                 chatViewModel.setRetriever(retriever)
-                withContext(Dispatchers.Main) {
-                    chatViewModel.addSystemMessage(Strings.INIT_COMPLETE)
-                }
                 Log.d("EMBEDDING_INIT", "SUCCESS")
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {

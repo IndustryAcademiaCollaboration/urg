@@ -27,6 +27,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import com.urg.edge.ui.FirstAidGuideScreen
 import com.urg.edge.ui.InitProgressBanner
 import com.urg.edge.ui.ManualScreen
 import com.urg.edge.ui.MapScreen
@@ -48,6 +49,8 @@ import urg.composeapp.generated.resources.ic_priority
 import urg.composeapp.generated.resources.ic_priority_selected
 import urg.composeapp.generated.resources.ic_more
 import urg.composeapp.generated.resources.ic_more_selected
+import urg.composeapp.generated.resources.ic_guide
+import urg.composeapp.generated.resources.ic_guide_selected
 
 private val NavUnselectedColor = Color(0xFF788E98)
 private val NavSelectedColor = Color(0xFF25B1BF)
@@ -65,19 +68,22 @@ fun App(
     onMicStop: () -> Unit,
     onTestWavRecognize: (String) -> Unit,
 ) {
+
     val uiState       by viewModel.uiState.collectAsStateWithLifecycle()
     val victims       by viewModel.victims.collectAsStateWithLifecycle()
     val victimNumbers by viewModel.victimNumbers.collectAsStateWithLifecycle()
+    val allChunks     by viewModel.allChunks.collectAsStateWithLifecycle()
     var selectedTab    by remember { mutableStateOf(0) }
     var showVoiceInput by remember { mutableStateOf(false) }
     var showManual     by remember { mutableStateOf(false) }
     var showTriageChat by remember { mutableStateOf(false) }
 
-    // ─── ナビゲーションアイテム（4タブ） ─────────────────────────
+    // ─── ナビゲーションアイテム（5タブ） ─────────────────────────
     val navItems = listOf(
         NavItem("トリアージ", Res.drawable.ic_triage,    Res.drawable.ic_triage_selected),
         NavItem("優先度",    Res.drawable.ic_priority,   Res.drawable.ic_priority_selected),
         NavItem("地図",      Res.drawable.ic_map,        Res.drawable.ic_map_selected),
+        NavItem("辞書",      Res.drawable.ic_guide,      Res.drawable.ic_guide_selected),
         NavItem("その他",    Res.drawable.ic_more,       Res.drawable.ic_more_selected),
     )
 
@@ -204,7 +210,13 @@ fun App(
                         modifier = Modifier.padding(paddingValues)
                     )
 
-                    // tab 3: その他（設定）
+                    // tab 3: 辞書
+                    selectedTab == 3 -> FirstAidGuideScreen(
+                        chunks = allChunks,
+                        modifier = Modifier.padding(paddingValues)
+                    )
+
+                    // tab 4: その他（設定）
                     else -> SettingsScreen(
                         onManualClick = { showManual = true },
                         modifier = Modifier.padding(paddingValues),
