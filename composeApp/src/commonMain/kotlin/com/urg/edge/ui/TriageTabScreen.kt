@@ -19,8 +19,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.urg.edge.ChatScope
 import com.urg.edge.ChatUiState
 import com.urg.edge.ChatViewModel
+import com.urg.edge.VictimRecord
 
 @Composable
 fun TriageTabScreen(
@@ -37,6 +39,8 @@ fun TriageTabScreen(
     onTriageYes: () -> Unit,
     onTriageNo: () -> Unit,
     onNavigateToMap: () -> Unit,
+    victims: List<VictimRecord> = emptyList(),
+    onScopeChange: (ChatScope) -> Unit = {},
     bottomPadding: androidx.compose.ui.unit.Dp = 0.dp,
     modifier: Modifier = Modifier,
 ) {
@@ -121,6 +125,8 @@ fun TriageTabScreen(
                 onTestWavRecognize = onTestWavRecognize,
                 onTriageYes = onTriageYes,
                 onTriageNo = onTriageNo,
+                victims = victims,
+                onScopeChange = onScopeChange,
                 applyStatusBarPadding = false,
                 modifier = Modifier
                     .fillMaxSize()

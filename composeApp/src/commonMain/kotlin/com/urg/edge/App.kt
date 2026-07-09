@@ -134,6 +134,8 @@ fun App(
                     onTriageYes = viewModel::answerTriageYes,
                     onTriageNo = viewModel::answerTriageNo,
                     onNavigateToMap = { selectedTab = 2; showTriageChat = false },
+                    victims = victims,
+                    onScopeChange = viewModel::setChatScope,
                     bottomPadding = bottomElementPadding,
                     modifier = contentModifier
                 )
