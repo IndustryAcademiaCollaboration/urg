@@ -16,8 +16,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
@@ -98,17 +98,14 @@ fun App(
         showTriageChat = false
     }
 
-    val statusBarTop    = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
-    val navBarBottom    = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+    val navBarBottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
     val bottomElementPadding = 100.dp + navBarBottom
 
     MaterialTheme {
-        Box(modifier = Modifier.fillMaxSize()) {
+        Box(modifier = Modifier.fillMaxSize().statusBarsPadding()) {
 
             // ── コンテンツエリア ────────────────────────────────────────
-            val contentModifier = Modifier
-                .fillMaxSize()
-                .padding(top = statusBarTop)
+            val contentModifier = Modifier.fillMaxSize()
 
             when {
                 showVoiceInput -> RecordingOverlay(
@@ -169,7 +166,6 @@ fun App(
                     modifier = Modifier
                         .align(Alignment.TopStart)
                         .fillMaxWidth()
-                        .padding(top = statusBarTop)
                 ) {
                     InitProgressBanner(
                         llmProgress = uiState.llmProgress,

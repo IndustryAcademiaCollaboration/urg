@@ -28,6 +28,21 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.urg.edge.KnowledgeChunk
 import kotlin.math.roundToInt
+import org.jetbrains.compose.resources.DrawableResource
+import org.jetbrains.compose.resources.painterResource
+import urg.composeapp.generated.resources.Res
+import urg.composeapp.generated.resources.ic_back
+import urg.composeapp.generated.resources.ic_bandage
+import urg.composeapp.generated.resources.ic_earthquake
+import urg.composeapp.generated.resources.ic_guide
+import urg.composeapp.generated.resources.ic_heart
+import urg.composeapp.generated.resources.ic_inpatient
+import urg.composeapp.generated.resources.ic_pill
+import urg.composeapp.generated.resources.ic_search
+import urg.composeapp.generated.resources.ic_sling
+import urg.composeapp.generated.resources.ic_stress
+import urg.composeapp.generated.resources.ic_support
+import urg.composeapp.generated.resources.ic_symptoms
 
 // ── 定数 ─────────────────────────────────────────────────────────────
 
@@ -97,8 +112,8 @@ fun FirstAidGuideScreen(
             }
         )
 
-        // ── 検索・フィルター（詳細画面以外） ─────────────────────────
-        if (screen !is GuideScreen.ChunkDetail) {
+        // ── 検索・フィルター（カテゴリ一覧のみ） ─────────────────────
+        if (screen is GuideScreen.CategoryList) {
             GuideSearchAndFilterBar(
                 query = searchQuery,
                 onQueryChange = {
@@ -262,46 +277,29 @@ private fun GuideHeader(screen: GuideScreen, onBack: () -> Unit) {
         is GuideScreen.ChunkDetail     -> screen.chunk.title
         else                           -> ""
     }
-    val breadcrumb = when (screen) {
-        is GuideScreen.ChunkList   -> screen.category
-        is GuideScreen.ChunkDetail -> "${screen.chunk.category}  ›  ${screen.chunk.subcategory}"
-        else                       -> null
-    }
-
-    Column(modifier = Modifier.fillMaxWidth().background(Color.White)) {
-        Row(
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(GuideBg)
+            .padding(start = 16.dp, end = 16.dp, top = 20.dp, bottom = 14.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(
+            painter = painterResource(Res.drawable.ic_back),
+            contentDescription = "戻る",
+            tint = GuideTeal,
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(start = 16.dp, end = 16.dp, top = 14.dp, bottom = 10.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(
-                text = "‹ 戻る",
-                fontSize = 15.sp,
-                color = GuideTeal,
-                fontWeight = FontWeight.SemiBold,
-                modifier = Modifier.clickable { onBack() }
-            )
-            Spacer(modifier = Modifier.width(12.dp))
-            Text(
-                text = title,
-                fontSize = 17.sp,
-                fontWeight = FontWeight.Bold,
-                color = GuideInk,
-                maxLines = 1,
-            )
-        }
-        if (breadcrumb != null) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(Color(0xFFF6F8FA))
-                    .padding(horizontal = 16.dp, vertical = 8.dp)
-            ) {
-                Text(text = breadcrumb, fontSize = 12.sp, color = GuideMuted)
-            }
-        }
-        HorizontalDivider(color = Color(0xFFEDF0F2), thickness = 1.dp)
+                .size(22.dp)
+                .clickable { onBack() },
+        )
+        Spacer(modifier = Modifier.width(10.dp))
+        Text(
+            text = title,
+            fontSize = 20.sp,
+            fontWeight = FontWeight.Bold,
+            color = GuideInk,
+            maxLines = 1,
+        )
     }
 }
 
@@ -383,7 +381,12 @@ private fun GuideSearchInput(value: String, onValueChange: (String) -> Unit) {
         contentAlignment = Alignment.CenterStart,
     ) {
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-            Text("🔍", fontSize = 14.sp)
+            Icon(
+                painter = painterResource(Res.drawable.ic_search),
+                contentDescription = null,
+                tint = GuideMuted,
+                modifier = Modifier.size(18.dp),
+            )
             Spacer(modifier = Modifier.width(8.dp))
             Box(modifier = Modifier.weight(1f)) {
                 if (value.isEmpty()) {
@@ -502,7 +505,7 @@ private fun GuideCategoryCard(
     count: Int,
     onClick: () -> Unit,
 ) {
-    val icon  = categoryIcon(title)
+    val iconRes = categoryIconRes(title)
     val bgColor = categoryIconBg(title)
     Column(
         modifier = Modifier
@@ -519,7 +522,12 @@ private fun GuideCategoryCard(
                 .background(bgColor, RoundedCornerShape(12.dp)),
             contentAlignment = Alignment.Center,
         ) {
-            Text(text = icon, fontSize = 22.sp)
+            Icon(
+                painter = painterResource(iconRes),
+                contentDescription = title,
+                tint = GuideTeal,
+                modifier = Modifier.size(26.dp),
+            )
         }
         Spacer(modifier = Modifier.height(12.dp))
         Text(
@@ -535,35 +543,20 @@ private fun GuideCategoryCard(
 }
 
 
-private fun categoryIcon(category: String): String = when {
-    category.contains("心") || category.contains("呼吸") || category.contains("CPR") -> "❤️"
-    category.contains("持病") || category.contains("慢性")                            -> "💊"
-    category.contains("体調") || category.contains("不良")                            -> "🌡️"
-    category.contains("骨") || category.contains("脱臼")                              -> "🦴"
-    category.contains("熱傷") || category.contains("低体温")                          -> "🔥"
-    category.contains("意識")                                                          -> "🧠"
-    category.contains("災害") || category.contains("救助")                            -> "🏠"
-    category.contains("精神") || category.contains("ケア") || category.contains("メンタル") -> "💬"
-    category.contains("中毒")                                                          -> "⚗️"
-    category.contains("外傷") || (category.contains("けが") && category.contains("外")) -> "🩸"
-    category.contains("けが") || category.contains("病気")                            -> "🩹"
-    category.contains("症状")                                                          -> "🔍"
-    else                                                                               -> "📋"
+private fun categoryIconRes(category: String): DrawableResource = when {
+    category.contains("心") || category.contains("呼吸") || category.contains("CPR") -> Res.drawable.ic_heart
+    category.contains("持病") || category.contains("慢性")                            -> Res.drawable.ic_pill
+    category.contains("体調") || category.contains("不良")                            -> Res.drawable.ic_inpatient
+    category.contains("症状")                                                          -> Res.drawable.ic_symptoms
+    category.contains("災害") || category.contains("救助")                            -> Res.drawable.ic_earthquake
+    category.contains("外傷") || (category.contains("けが") && category.contains("外")) -> Res.drawable.ic_sling
+    category.contains("けが") || category.contains("病気")                            -> Res.drawable.ic_bandage
+    category.contains("精神") || category.contains("サポート") || category.contains("ケア") || category.contains("メンタル") -> Res.drawable.ic_support
+    category.contains("要配慮") || category.contains("ストレス")                      -> Res.drawable.ic_stress
+    else                                                                               -> Res.drawable.ic_guide
 }
 
-private fun categoryIconBg(category: String): Color = when {
-    category.contains("心") || category.contains("呼吸") || category.contains("CPR") -> Color(0xFFFEF0F0)
-    category.contains("持病") || category.contains("慢性")                            -> Color(0xFFEDF6FF)
-    category.contains("体調") || category.contains("不良")                            -> Color(0xFFFFF8ED)
-    category.contains("骨") || category.contains("脱臼")                              -> Color(0xFFEDFAF3)
-    category.contains("熱傷") || category.contains("低体温")                          -> Color(0xFFFEF5F0)
-    category.contains("意識")                                                          -> Color(0xFFF3EFFC)
-    category.contains("災害") || category.contains("救助")                            -> Color(0xFFEDFAF3)
-    category.contains("精神") || category.contains("ケア") || category.contains("メンタル") -> Color(0xFFF3EFFC)
-    category.contains("中毒")                                                          -> Color(0xFFF0F4F6)
-    category.contains("外傷") || category.contains("けが")                            -> Color(0xFFFEF0F0)
-    else                                                                               -> Color(0xFFE6F8F9)
-}
+private fun categoryIconBg(@Suppress("UNUSED_PARAMETER") category: String): Color = Color(0xFFE2F5F7)
 
 // ── リストカード（サブカテゴリ・手技リスト用）────────────────────────
 
@@ -582,14 +575,14 @@ private fun GuideListCard(
             .background(Color.White)
             .border(1.dp, Color(0xFFECEFF2), RoundedCornerShape(14.dp))
             .clickable { onClick() }
-            .padding(horizontal = 16.dp, vertical = 14.dp),
+            .padding(horizontal = 18.dp, vertical = 16.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(modifier = Modifier.weight(1f)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     text = title,
-                    fontSize = 15.sp,
+                    fontSize = 17.sp,
                     fontWeight = FontWeight.Bold,
                     color = GuideInk,
                 )
@@ -602,10 +595,10 @@ private fun GuideListCard(
                 Spacer(modifier = Modifier.height(3.dp))
                 Text(
                     text = subtitle,
-                    fontSize = 12.sp,
+                    fontSize = 13.sp,
                     color = GuideMuted,
                     maxLines = 2,
-                    lineHeight = 17.sp,
+                    lineHeight = 18.sp,
                 )
             }
         }
