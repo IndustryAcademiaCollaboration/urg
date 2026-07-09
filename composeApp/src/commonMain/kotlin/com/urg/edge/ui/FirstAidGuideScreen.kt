@@ -7,6 +7,9 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items as gridItems
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
@@ -20,6 +23,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.urg.edge.KnowledgeChunk
@@ -29,9 +33,9 @@ import kotlin.math.roundToInt
 
 private val GuideTeal  = Color(0xFF25B1BF)
 private val GuideRed   = Color(0xFFD94444)
-private val GuideBg    = Color(0xFFF2F4F6)
+private val GuideBg    = Color(0xFFF5F6F8)
 private val GuideInk   = Color(0xFF10202A)
-private val GuideMuted = Color(0xFF788E98)
+private val GuideMuted = Color(0xFFA0AEB6)
 
 private val disasterPhases = listOf(
     "平常時",
@@ -56,7 +60,7 @@ private sealed interface GuideScreen {
 @Composable
 fun FirstAidGuideScreen(
     chunks: List<KnowledgeChunk>,
-    bottomPadding: androidx.compose.ui.unit.Dp = 0.dp,
+    bottomPadding: Dp = 0.dp,
     modifier: Modifier = Modifier,
 ) {
     var screen by remember { mutableStateOf<GuideScreen>(GuideScreen.CategoryList) }
@@ -116,25 +120,32 @@ fun FirstAidGuideScreen(
             )
         }
 
-        // ── コンテンツ ────────────────────────────────────────────────
+        // ── コンテンツ（weight(1f) で残り高さを確定させる） ──────────
+        Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
         when (val s = screen) {
 
             is GuideScreen.CategoryList -> {
                 val categories = remember(filteredChunks) {
                     filteredChunks.map { it.category }.distinct()
                 }
-                LazyColumn(
-                    contentPadding = PaddingValues(16.dp),
+                LazyVerticalGrid(
+                    columns = GridCells.Fixed(2),
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(
+                        start = 14.dp,
+                        top = 14.dp,
+                        end = 14.dp,
+                        bottom = 14.dp + bottomPadding,
+                    ),
                     verticalArrangement = Arrangement.spacedBy(10.dp),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
-                    items(categories) { category ->
+                    gridItems(categories) { category ->
                         val count = filteredChunks.count { it.category == category }
-                        val hasSevere = filteredChunks.any { it.category == category && it.severity == "重症" }
-                        GuideListCard(
-                            title    = category,
-                            subtitle = "${count}項目",
-                            severe   = hasSevere,
-                            onClick  = { screen = GuideScreen.SubcategoryList(category) }
+                        GuideCategoryCard(
+                            title   = category,
+                            count   = count,
+                            onClick = { screen = GuideScreen.SubcategoryList(category) }
                         )
                     }
                 }
@@ -142,15 +153,24 @@ fun FirstAidGuideScreen(
 
             is GuideScreen.SubcategoryList -> {
                 val subcategories = remember(filteredChunks, s.category) {
-                    filteredChunks.filter { it.category == s.category }.map { it.subcategory }.distinct()
+                    filteredChunks.filter { it.category == s.category }
+                        .map { it.subcategory }.distinct()
                 }
                 LazyColumn(
-                    contentPadding = PaddingValues(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(
+                        start = 14.dp, top = 14.dp, end = 14.dp,
+                        bottom = 14.dp + bottomPadding,
+                    ),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     items(subcategories) { sub ->
-                        val count = filteredChunks.count { it.category == s.category && it.subcategory == sub }
-                        val hasSevere = filteredChunks.any { it.category == s.category && it.subcategory == sub && it.severity == "重症" }
+                        val count = filteredChunks.count {
+                            it.category == s.category && it.subcategory == sub
+                        }
+                        val hasSevere = filteredChunks.any {
+                            it.category == s.category && it.subcategory == sub && it.severity == "重症"
+                        }
                         GuideListCard(
                             title    = sub,
                             subtitle = "${count}項目",
@@ -163,11 +183,17 @@ fun FirstAidGuideScreen(
 
             is GuideScreen.ChunkList -> {
                 val filtered = remember(filteredChunks, s.category, s.subcategory) {
-                    filteredChunks.filter { it.category == s.category && it.subcategory == s.subcategory }
+                    filteredChunks.filter {
+                        it.category == s.category && it.subcategory == s.subcategory
+                    }
                 }
                 LazyColumn(
-                    contentPadding = PaddingValues(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(
+                        start = 14.dp, top = 14.dp, end = 14.dp,
+                        bottom = 14.dp + bottomPadding,
+                    ),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     items(filtered) { chunk ->
                         GuideListCard(
@@ -185,6 +211,7 @@ fun FirstAidGuideScreen(
                 ChunkDetailView(chunk = s.chunk, bottomPadding = bottomPadding)
             }
         }
+        } // Box weight(1f)
     }
 }
 
@@ -224,7 +251,7 @@ private fun GuideHeader(screen: GuideScreen, onBack: () -> Unit) {
                 fontWeight = FontWeight.Bold,
                 color = GuideInk,
             )
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(16.dp))
         }
         return
     }
@@ -252,35 +279,28 @@ private fun GuideHeader(screen: GuideScreen, onBack: () -> Unit) {
                 text = "‹ 戻る",
                 fontSize = 15.sp,
                 color = GuideTeal,
-                fontWeight = FontWeight.Medium,
+                fontWeight = FontWeight.SemiBold,
                 modifier = Modifier.clickable { onBack() }
             )
             Spacer(modifier = Modifier.width(12.dp))
-            Text(text = title, fontSize = 17.sp, fontWeight = FontWeight.Bold, color = GuideInk, maxLines = 1)
+            Text(
+                text = title,
+                fontSize = 17.sp,
+                fontWeight = FontWeight.Bold,
+                color = GuideInk,
+                maxLines = 1,
+            )
         }
-
         if (breadcrumb != null) {
-            Row(
+            Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(Color(0xFFF6F8FA))
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically,
+                    .padding(horizontal = 16.dp, vertical = 8.dp)
             ) {
-                Box(
-                    modifier = Modifier
-                        .size(18.dp)
-                        .background(GuideTeal, RoundedCornerShape(50))
-                        .clip(RoundedCornerShape(50)),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Text("✓", fontSize = 10.sp, color = Color.White, fontWeight = FontWeight.Bold)
-                }
-                Spacer(modifier = Modifier.width(8.dp))
                 Text(text = breadcrumb, fontSize = 12.sp, color = GuideMuted)
             }
         }
-
         HorizontalDivider(color = Color(0xFFEDF0F2), thickness = 1.dp)
     }
 }
@@ -297,33 +317,60 @@ private fun GuideSearchAndFilterBar(
     selectedPhaseIndex: Int,
     onPhaseChange: (Int) -> Unit,
 ) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(Color.White)
-            .padding(horizontal = 16.dp, vertical = 10.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp)
-    ) {
-        GuideSearchInput(value = query, onValueChange = onQueryChange)
+    Column(modifier = Modifier.fillMaxWidth()) {
+        // 検索バー（白いカード）
+        Box(
+            modifier = Modifier
+                .padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 0.dp)
+        ) {
+            GuideSearchInput(value = query, onValueChange = onQueryChange)
+        }
 
+        // フィルターチップ
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .horizontalScroll(rememberScrollState()),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                .horizontalScroll(rememberScrollState())
+                .padding(start = 16.dp, end = 16.dp, top = 6.dp, bottom = 0.dp),
+            horizontalArrangement = Arrangement.spacedBy(7.dp),
         ) {
             filterOptions.forEach { option ->
-                FilterChip(
-                    selected = selectedFilter == option,
-                    onClick  = { onFilterChange(option) },
-                    label    = { Text(text = option, fontSize = 12.sp) }
-                )
+                val selected = selectedFilter == option
+                Box(
+                    contentAlignment = Alignment.Center,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(20.dp))
+                        .background(if (selected) GuideTeal else Color.White)
+                        .border(
+                            width = 1.5.dp,
+                            color = if (selected) GuideTeal else Color(0xFFE2E8ED),
+                            shape = RoundedCornerShape(20.dp),
+                        )
+                        .clickable { onFilterChange(option) }
+                        .padding(horizontal = 14.dp, vertical = 6.dp)
+                ) {
+                    Text(
+                        text = option,
+                        fontSize = 13.sp,
+                        fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
+                        color = if (selected) Color.White else GuideMuted,
+                    )
+                }
             }
         }
 
-        GuidePhaseSlider(selectedPhaseIndex = selectedPhaseIndex, onPhaseChange = onPhaseChange)
+        // フェーズスライダー（白いカードで包む）
+        Box(
+            modifier = Modifier
+                .padding(horizontal = 16.dp, vertical = 6.dp)
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(14.dp))
+                .background(Color.White)
+                .padding(horizontal = 4.dp, vertical = 2.dp)
+        ) {
+            GuidePhaseSlider(selectedPhaseIndex = selectedPhaseIndex, onPhaseChange = onPhaseChange)
+        }
     }
-    HorizontalDivider(color = Color(0xFFEDF0F2), thickness = 1.dp)
 }
 
 @Composable
@@ -331,32 +378,38 @@ private fun GuideSearchInput(value: String, onValueChange: (String) -> Unit) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .background(GuideBg, RoundedCornerShape(8.dp))
+            .background(Color(0xFFF0F2F4), RoundedCornerShape(12.dp))
             .padding(horizontal = 14.dp, vertical = 10.dp),
         contentAlignment = Alignment.CenterStart,
     ) {
-        if (value.isEmpty()) {
-            Text(text = "応急手当を検索...", fontSize = 14.sp, color = Color(0xFF999999))
-        }
-        BasicTextField(
-            value = value,
-            onValueChange = onValueChange,
-            singleLine = true,
-            textStyle = TextStyle(fontSize = 14.sp, color = GuideInk),
-            cursorBrush = SolidColor(GuideTeal),
-            modifier = Modifier.fillMaxWidth().padding(end = 32.dp)
-        )
-        if (value.isNotEmpty()) {
-            Box(
-                contentAlignment = Alignment.Center,
-                modifier = Modifier
-                    .align(Alignment.CenterEnd)
-                    .size(22.dp)
-                    .clip(RoundedCornerShape(50))
-                    .background(Color(0xFFDDE3E8))
-                    .clickable { onValueChange("") }
-            ) {
-                Text("×", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color(0xFF666666))
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+            Text("🔍", fontSize = 14.sp)
+            Spacer(modifier = Modifier.width(8.dp))
+            Box(modifier = Modifier.weight(1f)) {
+                if (value.isEmpty()) {
+                    Text(text = "症状・キーワードで探す", fontSize = 14.sp, color = GuideMuted)
+                }
+                BasicTextField(
+                    value = value,
+                    onValueChange = onValueChange,
+                    singleLine = true,
+                    textStyle = TextStyle(fontSize = 14.sp, color = GuideInk),
+                    cursorBrush = SolidColor(GuideTeal),
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+            if (value.isNotEmpty()) {
+                Spacer(modifier = Modifier.width(8.dp))
+                Box(
+                    contentAlignment = Alignment.Center,
+                    modifier = Modifier
+                        .size(20.dp)
+                        .clip(RoundedCornerShape(50))
+                        .background(Color(0xFFDDE3E8))
+                        .clickable { onValueChange("") }
+                ) {
+                    Text("×", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color(0xFF666666))
+                }
             }
         }
     }
@@ -365,25 +418,154 @@ private fun GuideSearchInput(value: String, onValueChange: (String) -> Unit) {
 @Composable
 private fun GuidePhaseSlider(selectedPhaseIndex: Int, onPhaseChange: (Int) -> Unit) {
     val safeIndex = selectedPhaseIndex.coerceIn(0, disasterPhases.lastIndex)
-    Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        Text(text = disasterPhases[safeIndex], fontSize = 13.sp, fontWeight = FontWeight.Bold, color = GuideTeal)
-        Slider(
-            value = safeIndex.toFloat(),
-            onValueChange = { onPhaseChange(it.roundToInt().coerceIn(0, disasterPhases.lastIndex)) },
-            valueRange = 0f..disasterPhases.lastIndex.toFloat(),
-            steps = disasterPhases.size - 2,
-            modifier = Modifier.fillMaxWidth(),
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(start = 12.dp, end = 12.dp, top = 2.dp, bottom = 4.dp),
+    ) {
+        Text(
+            text = disasterPhases[safeIndex],
+            fontSize = 12.sp,
+            fontWeight = FontWeight.Bold,
+            color = GuideTeal,
         )
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            disasterPhases.forEach { phase ->
-                Text(text = phase, fontSize = 8.sp, color = GuideMuted, maxLines = 2,
-                    modifier = Modifier.width(48.dp))
+        // ── スライダー＋ドットオーバーレイ ───────────────────
+        Box(modifier = Modifier.fillMaxWidth()) {
+            Slider(
+                value = safeIndex.toFloat(),
+                onValueChange = { onPhaseChange(it.roundToInt().coerceIn(0, disasterPhases.lastIndex)) },
+                valueRange = 0f..disasterPhases.lastIndex.toFloat(),
+                steps = disasterPhases.size - 2,
+                modifier = Modifier.fillMaxWidth(),
+                colors = SliderDefaults.colors(
+                    thumbColor = GuideTeal,
+                    activeTrackColor = GuideTeal,
+                    inactiveTrackColor = Color(0xFFE2E8ED),
+                    activeTickColor = Color.Transparent,
+                    inactiveTickColor = Color.Transparent,
+                ),
+            )
+            // Slider トラック上にドットをオーバーレイ
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .align(Alignment.Center)
+                    .padding(horizontal = 10.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                disasterPhases.forEachIndexed { i, _ ->
+                    val isCurrent = i == safeIndex
+                    val isActive  = i < safeIndex
+                    if (isCurrent) {
+                        // 現在位置はサムが表示されるのでスペースのみ
+                        Spacer(modifier = Modifier.size(10.dp))
+                    } else {
+                        Box(
+                            modifier = Modifier
+                                .size(8.dp)
+                                .background(
+                                    color = if (isActive) Color.White.copy(alpha = 0.85f)
+                                            else Color(0xFFBBC8CF),
+                                    shape = RoundedCornerShape(50),
+                                )
+                        )
+                    }
+                }
+            }
+        }
+        Spacer(modifier = Modifier.height(3.dp))
+        // ── フェーズラベル ────────────────────────────────
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+        ) {
+            disasterPhases.forEachIndexed { i, phase ->
+                Text(
+                    text = phase,
+                    fontSize = 8.sp,
+                    color = if (i == safeIndex) GuideTeal else GuideMuted,
+                    fontWeight = if (i == safeIndex) FontWeight.Bold else FontWeight.Normal,
+                    maxLines = 2,
+                    modifier = Modifier.width(42.dp),
+                )
             }
         }
     }
 }
 
-// ── カード ────────────────────────────────────────────────────────────
+// ── カテゴリグリッドカード ────────────────────────────────────────────
+
+@Composable
+private fun GuideCategoryCard(
+    title: String,
+    count: Int,
+    onClick: () -> Unit,
+) {
+    val icon  = categoryIcon(title)
+    val bgColor = categoryIconBg(title)
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(18.dp))
+            .background(Color.White)
+            .border(1.dp, Color(0xFFECEFF2), RoundedCornerShape(18.dp))
+            .clickable { onClick() }
+            .padding(start = 16.dp, end = 16.dp, top = 18.dp, bottom = 16.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .size(44.dp)
+                .background(bgColor, RoundedCornerShape(12.dp)),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(text = icon, fontSize = 22.sp)
+        }
+        Spacer(modifier = Modifier.height(12.dp))
+        Text(
+            text = title,
+            fontSize = 14.sp,
+            fontWeight = FontWeight.Bold,
+            color = GuideInk,
+            lineHeight = 19.sp,
+        )
+        Spacer(modifier = Modifier.height(4.dp))
+        Text(text = "${count}項目", fontSize = 11.sp, color = GuideMuted)
+    }
+}
+
+
+private fun categoryIcon(category: String): String = when {
+    category.contains("心") || category.contains("呼吸") || category.contains("CPR") -> "❤️"
+    category.contains("持病") || category.contains("慢性")                            -> "💊"
+    category.contains("体調") || category.contains("不良")                            -> "🌡️"
+    category.contains("骨") || category.contains("脱臼")                              -> "🦴"
+    category.contains("熱傷") || category.contains("低体温")                          -> "🔥"
+    category.contains("意識")                                                          -> "🧠"
+    category.contains("災害") || category.contains("救助")                            -> "🏠"
+    category.contains("精神") || category.contains("ケア") || category.contains("メンタル") -> "💬"
+    category.contains("中毒")                                                          -> "⚗️"
+    category.contains("外傷") || (category.contains("けが") && category.contains("外")) -> "🩸"
+    category.contains("けが") || category.contains("病気")                            -> "🩹"
+    category.contains("症状")                                                          -> "🔍"
+    else                                                                               -> "📋"
+}
+
+private fun categoryIconBg(category: String): Color = when {
+    category.contains("心") || category.contains("呼吸") || category.contains("CPR") -> Color(0xFFFEF0F0)
+    category.contains("持病") || category.contains("慢性")                            -> Color(0xFFEDF6FF)
+    category.contains("体調") || category.contains("不良")                            -> Color(0xFFFFF8ED)
+    category.contains("骨") || category.contains("脱臼")                              -> Color(0xFFEDFAF3)
+    category.contains("熱傷") || category.contains("低体温")                          -> Color(0xFFFEF5F0)
+    category.contains("意識")                                                          -> Color(0xFFF3EFFC)
+    category.contains("災害") || category.contains("救助")                            -> Color(0xFFEDFAF3)
+    category.contains("精神") || category.contains("ケア") || category.contains("メンタル") -> Color(0xFFF3EFFC)
+    category.contains("中毒")                                                          -> Color(0xFFF0F4F6)
+    category.contains("外傷") || category.contains("けが")                            -> Color(0xFFFEF0F0)
+    else                                                                               -> Color(0xFFE6F8F9)
+}
+
+// ── リストカード（サブカテゴリ・手技リスト用）────────────────────────
 
 @Composable
 private fun GuideListCard(
@@ -393,46 +575,42 @@ private fun GuideListCard(
     showBadge: Boolean = false,
     onClick: () -> Unit,
 ) {
-    val accentColor = if (severe) GuideRed else Color.Transparent
-
-    Box(
+    Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
+            .clip(RoundedCornerShape(14.dp))
             .background(Color.White)
-            .border(1.dp, Color(0xFFEDF0F2), RoundedCornerShape(12.dp))
+            .border(1.dp, Color(0xFFECEFF2), RoundedCornerShape(14.dp))
             .clickable { onClick() }
+            .padding(horizontal = 16.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
-        Row(modifier = Modifier.fillMaxWidth()) {
-            // 左アクセントバー（重症のみ赤）
-            Box(
-                modifier = Modifier
-                    .width(4.dp)
-                    .defaultMinSize(minHeight = 60.dp)
-                    .fillMaxHeight()
-                    .background(accentColor)
-            )
-            Row(
-                modifier = Modifier
-                    .weight(1f)
-                    .padding(horizontal = 14.dp, vertical = 14.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(text = title, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = GuideInk)
-                        if (showBadge) {
-                            Spacer(modifier = Modifier.width(8.dp))
-                            SeverityBadge()
-                        }
-                    }
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(text = subtitle, fontSize = 12.sp, color = GuideMuted, maxLines = 2, lineHeight = 17.sp)
+        Column(modifier = Modifier.weight(1f)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = title,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = GuideInk,
+                )
+                if (showBadge) {
+                    Spacer(modifier = Modifier.width(8.dp))
+                    SeverityBadge()
                 }
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(text = "›", fontSize = 20.sp, color = GuideTeal)
+            }
+            if (subtitle.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(3.dp))
+                Text(
+                    text = subtitle,
+                    fontSize = 12.sp,
+                    color = GuideMuted,
+                    maxLines = 2,
+                    lineHeight = 17.sp,
+                )
             }
         }
+        Spacer(modifier = Modifier.width(8.dp))
+        Text(text = "›", fontSize = 22.sp, color = Color(0xFFC8D0D6))
     }
 }
 
@@ -444,7 +622,7 @@ private fun SeverityBadge() {
         color = Color.White,
         fontWeight = FontWeight.Bold,
         modifier = Modifier
-            .background(GuideRed, RoundedCornerShape(4.dp))
+            .background(GuideRed, RoundedCornerShape(5.dp))
             .padding(horizontal = 6.dp, vertical = 2.dp)
     )
 }
@@ -452,7 +630,7 @@ private fun SeverityBadge() {
 // ── 詳細ビュー ────────────────────────────────────────────────────────
 
 @Composable
-private fun ChunkDetailView(chunk: KnowledgeChunk, bottomPadding: androidx.compose.ui.unit.Dp = 0.dp) {
+private fun ChunkDetailView(chunk: KnowledgeChunk, bottomPadding: Dp = 0.dp) {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -465,7 +643,7 @@ private fun ChunkDetailView(chunk: KnowledgeChunk, bottomPadding: androidx.compo
         }
 
         DetailCard(title = "こんなとき", titleColor = GuideTeal) {
-            Text(text = chunk.whenToUse, fontSize = 14.sp, color = GuideInk, lineHeight = 20.sp)
+            Text(text = chunk.whenToUse, fontSize = 14.sp, color = GuideInk, lineHeight = 22.sp)
         }
 
         DetailCard(title = "やること", titleColor = GuideTeal) {
@@ -473,13 +651,20 @@ private fun ChunkDetailView(chunk: KnowledgeChunk, bottomPadding: androidx.compo
                 Row(modifier = Modifier.padding(vertical = 4.dp), verticalAlignment = Alignment.Top) {
                     Box(
                         contentAlignment = Alignment.Center,
-                        modifier = Modifier.size(22.dp).background(GuideTeal, RoundedCornerShape(50))
+                        modifier = Modifier
+                            .size(22.dp)
+                            .background(GuideTeal, RoundedCornerShape(50))
                     ) {
                         Text("${i + 1}", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.White)
                     }
                     Spacer(modifier = Modifier.width(10.dp))
-                    Text(text = step, fontSize = 14.sp, color = GuideInk, lineHeight = 20.sp,
-                        modifier = Modifier.weight(1f))
+                    Text(
+                        text = step,
+                        fontSize = 14.sp,
+                        color = GuideInk,
+                        lineHeight = 20.sp,
+                        modifier = Modifier.weight(1f),
+                    )
                 }
             }
         }
@@ -488,10 +673,20 @@ private fun ChunkDetailView(chunk: KnowledgeChunk, bottomPadding: androidx.compo
             DetailCard(title = "やってはいけないこと", titleColor = GuideRed) {
                 chunk.doNot.forEach { item ->
                     Row(modifier = Modifier.padding(vertical = 4.dp), verticalAlignment = Alignment.Top) {
-                        Text("✕", fontSize = 13.sp, color = GuideRed, fontWeight = FontWeight.Bold,
-                            modifier = Modifier.width(24.dp))
-                        Text(text = item, fontSize = 14.sp, color = GuideInk, lineHeight = 20.sp,
-                            modifier = Modifier.weight(1f))
+                        Text(
+                            "✕",
+                            fontSize = 13.sp,
+                            color = GuideRed,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.width(24.dp),
+                        )
+                        Text(
+                            text = item,
+                            fontSize = 14.sp,
+                            color = GuideInk,
+                            lineHeight = 20.sp,
+                            modifier = Modifier.weight(1f),
+                        )
                     }
                 }
             }
@@ -508,13 +703,18 @@ private fun DetailCard(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
+            .clip(RoundedCornerShape(14.dp))
             .background(Color.White)
-            .border(1.dp, Color(0xFFEDF0F2), RoundedCornerShape(12.dp))
+            .border(1.dp, Color(0xFFECEFF2), RoundedCornerShape(14.dp))
             .padding(16.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Box(modifier = Modifier.width(3.dp).height(14.dp).background(titleColor, RoundedCornerShape(2.dp)))
+            Box(
+                modifier = Modifier
+                    .width(3.dp)
+                    .height(14.dp)
+                    .background(titleColor, RoundedCornerShape(2.dp))
+            )
             Spacer(modifier = Modifier.width(8.dp))
             Text(text = title, fontSize = 13.sp, fontWeight = FontWeight.Bold, color = titleColor)
         }

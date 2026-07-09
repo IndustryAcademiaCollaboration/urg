@@ -230,9 +230,10 @@ fun App(
                                 Spacer(modifier = Modifier.height(2.dp))
                                 Text(
                                     text = item.label,
-                                    fontSize = 11.sp,
+                                    fontSize = if (isSelected) 12.sp else 11.sp,
                                     color = if (isSelected) NavSelectedColor else NavUnselectedColor,
-                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                    fontWeight = if (isSelected) FontWeight.ExtraBold else FontWeight.Normal,
+                                    letterSpacing = if (isSelected) 0.sp else 0.sp,
                                 )
                             }
                         }
