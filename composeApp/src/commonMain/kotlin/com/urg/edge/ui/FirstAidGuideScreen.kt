@@ -195,15 +195,37 @@ private fun GuideHeader(screen: GuideScreen, onBack: () -> Unit) {
     val isRoot = screen is GuideScreen.CategoryList
 
     if (isRoot) {
-        Box(
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(Color.White)
-                .padding(horizontal = 20.dp, vertical = 16.dp)
+                .padding(start = 20.dp, end = 20.dp, top = 16.dp, bottom = 0.dp)
         ) {
-            Text(text = "辞書", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = GuideInk)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    modifier = Modifier
+                        .width(3.dp)
+                        .height(20.dp)
+                        .clip(RoundedCornerShape(2.dp))
+                        .background(GuideTeal)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "FIRST AID GUIDE",
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = GuideTeal,
+                    letterSpacing = 1.5.sp,
+                )
+            }
+            Spacer(modifier = Modifier.height(2.dp))
+            Text(
+                text = "応急手当ガイド",
+                fontSize = 36.sp,
+                fontWeight = FontWeight.Bold,
+                color = GuideInk,
+            )
+            Spacer(modifier = Modifier.height(12.dp))
         }
-        HorizontalDivider(color = Color(0xFFEDF0F2), thickness = 1.dp)
         return
     }
 

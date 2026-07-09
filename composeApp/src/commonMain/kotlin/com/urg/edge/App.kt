@@ -100,7 +100,6 @@ fun App(
 
     val statusBarTop    = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
     val navBarBottom    = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
-    // 預留給懸浮導覽列的空間 (加上一點緩衝)
     val bottomElementPadding = 100.dp + navBarBottom
 
     MaterialTheme {
@@ -213,7 +212,7 @@ fun App(
                                 Box(
                                     contentAlignment = Alignment.Center,
                                     modifier = Modifier
-                                        .size(38.dp)
+                                        .size(40.dp)
                                         .background(
                                             if (isSelected) Color(0x2625B1BF) else Color.Transparent,
                                             CircleShape,
@@ -225,13 +224,13 @@ fun App(
                                         ),
                                         contentDescription = item.label,
                                         tint = Color.Unspecified,
-                                        modifier = Modifier.size(24.dp),
+                                        modifier = Modifier.size(26.dp),
                                     )
                                 }
                                 Spacer(modifier = Modifier.height(2.dp))
                                 Text(
                                     text = item.label,
-                                    fontSize = 10.sp,
+                                    fontSize = 11.sp,
                                     color = if (isSelected) NavSelectedColor else NavUnselectedColor,
                                     fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
                                 )
