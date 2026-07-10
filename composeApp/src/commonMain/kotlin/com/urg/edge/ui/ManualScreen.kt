@@ -422,9 +422,7 @@ private fun StepScreen(
                         }
                     }
 
-                    if (bottomPadding > 0.dp) {
-                        Spacer(Modifier.height(bottomPadding))
-                    }
+                    Spacer(Modifier.height(bottomPadding))
                 }
 
                 // ✕ 閉じるボタン
