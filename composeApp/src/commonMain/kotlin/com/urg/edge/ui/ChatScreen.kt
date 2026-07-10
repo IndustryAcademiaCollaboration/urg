@@ -372,33 +372,35 @@ private fun VoiceRecordingPanel(
                 .padding(horizontal = 14.dp, vertical = 12.dp),
         ) {
             Column {
-                if (promptText.isBlank()) {
-                    // 認識前はプレースホルダー表示
-                    Text(
-                        text = "認識中...",
+                // 録音中・認識後どちらでも常にタップ・編集できる
+                BasicTextField(
+                    value = promptText,
+                    onValueChange = onPromptChange,
+                    textStyle = TextStyle(
                         fontSize = 13.sp,
-                        color = Color(0x66FFFFFF),
+                        color = Color.White,
                         lineHeight = 20.sp,
-                        minLines = 3,
-                    )
-                } else {
-                    // 認識後はそのまま編集できる BasicTextField
-                    BasicTextField(
-                        value = promptText,
-                        onValueChange = onPromptChange,
-                        textStyle = TextStyle(
-                            fontSize = 13.sp,
-                            color = Color.White,
-                            lineHeight = 20.sp,
-                        ),
-                        cursorBrush = SolidColor(Color(0xFF25B1BF)),
-                        minLines = 3,
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                }
+                    ),
+                    cursorBrush = SolidColor(Color(0xFF25B1BF)),
+                    minLines = 3,
+                    modifier = Modifier.fillMaxWidth(),
+                    decorationBox = { inner ->
+                        Box {
+                            if (promptText.isBlank()) {
+                                Text(
+                                    text = "認識中...",
+                                    fontSize = 13.sp,
+                                    color = Color(0x66FFFFFF),
+                                    lineHeight = 20.sp,
+                                )
+                            }
+                            inner()
+                        }
+                    }
+                )
                 Spacer(Modifier.height(6.dp))
                 Text(
-                    text = if (promptText.isBlank()) "タップして修正できます" else "タップして修正できます",
+                    text = "タップして修正できます",
                     fontSize = 10.sp,
                     color = Color(0x44FFFFFF),
                     modifier = Modifier.align(Alignment.CenterHorizontally),

@@ -94,6 +94,9 @@ class MainActivity : ComponentActivity() {
 
     private fun initLlmEngine() {
         lifecycleScope.launch(Dispatchers.IO) {
+            withContext(Dispatchers.Main) {
+                chatViewModel.showInitBanner()
+            }
             try {
                 val modelFile = File(getExternalFilesDir(null), "models/${Strings.LLM_MODEL_FILE_NAME}")
                 if (!modelFile.exists()) {
@@ -116,12 +119,17 @@ class MainActivity : ComponentActivity() {
                         }
                         return@launch
                     }
+                } else {
+                    // キャッシュ済み：即 100% に設定
+                    withContext(Dispatchers.Main) {
+                        chatViewModel.updateLlmProgress(1f)
+                    }
                 }
                 val config = LlmConfig(modelPath = modelFile.absolutePath)
                 val engine = createLlmEngine(config)
                 withContext(Dispatchers.Main) {
                     chatViewModel.setLlmEngine(engine, config)
-                    chatViewModel.addSystemMessage("✓ LLM 準備完了")
+                    chatViewModel.updateLlmProgress(1f)
                     Log.d("LLM_INIT", "SUCCESS")
                 }
             } catch (e: Exception) {
@@ -134,10 +142,6 @@ class MainActivity : ComponentActivity() {
     }
 
     private suspend fun downloadModel(destFile: File) = withContext(Dispatchers.IO) {
-        withContext(Dispatchers.Main) {
-            chatViewModel.addSystemMessage("モデルをダウンロード中... 0%")
-        }
-
         destFile.parentFile?.mkdirs()
         val tempFile = File(destFile.parent, "${destFile.name}.tmp")
         val startByte = if (tempFile.exists()) tempFile.length() else 0L
@@ -161,12 +165,8 @@ class MainActivity : ComponentActivity() {
                         val percent = if (totalBytes > 0) (downloadedBytes * 100 / totalBytes).toInt() else 0
                         if (percent != lastReportedPercent && percent % 5 == 0) {
                             lastReportedPercent = percent
-                            val downloadedMb = downloadedBytes / 1024 / 1024
-                            val totalMb = totalBytes / 1024 / 1024
                             withContext(Dispatchers.Main) {
-                                chatViewModel.updateLastSystemMessage(
-                                    "モデルをダウンロード中... $percent% ($downloadedMb MB / $totalMb MB)"
-                                )
+                                chatViewModel.updateLlmProgress(percent / 100f)
                             }
                         }
                     }
@@ -174,7 +174,7 @@ class MainActivity : ComponentActivity() {
             }
             tempFile.renameTo(destFile)
             withContext(Dispatchers.Main) {
-                chatViewModel.updateLastSystemMessage("モデルのダウンロード完了")
+                chatViewModel.updateLlmProgress(1f)
             }
         } catch (e: Exception) {
             throw Exception("ダウンロード失敗（途中再開可能）: ${e.message}")
@@ -187,15 +187,9 @@ class MainActivity : ComponentActivity() {
         lifecycleScope.launch(Dispatchers.IO) {
             try {
                 val chunks = KnowledgeLoader.load(assets)
-                withContext(Dispatchers.Main) {
-                    chatViewModel.addSystemMessage(Strings.knowledgeBaseLoaded(chunks.size))
-                }
                 val retriever = EmbeddingRetriever(this@MainActivity, chunks)
                 chatViewModel.setChunks(chunks)
                 chatViewModel.setRetriever(retriever)
-                withContext(Dispatchers.Main) {
-                    chatViewModel.addSystemMessage(Strings.INIT_COMPLETE)
-                }
                 Log.d("EMBEDDING_INIT", "SUCCESS")
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
@@ -268,14 +262,19 @@ class MainActivity : ComponentActivity() {
                     targetDir = modelDir,
                     files = VoiceModelAssets.sttFiles,
                     label = "STTモデル",
-                ) { message ->
-                    withContext(Dispatchers.Main) {
-                        chatViewModel.addSystemMessage(message)
-                    }
-                }
+                    onStatus = { /* ステータス文字列は不要（バナーで表示） */ },
+                    onProgress = { progress ->
+                        withContext(Dispatchers.Main) {
+                            chatViewModel.updateSttProgress(progress)
+                        }
+                    },
+                )
 
                 val engine = createSttEngine(this@MainActivity, SttConfig(), modelDir)
                 chatViewModel.setSttEngine(engine)
+                withContext(Dispatchers.Main) {
+                    chatViewModel.updateSttProgress(1f)
+                }
                 Log.d("STT_INIT", "SUCCESS")
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
@@ -294,14 +293,19 @@ class MainActivity : ComponentActivity() {
                     targetDir = modelDir,
                     files = VoiceModelAssets.ttsFiles,
                     label = "TTSモデル",
-                ) { message ->
-                    withContext(Dispatchers.Main) {
-                        chatViewModel.addSystemMessage(message)
-                    }
-                }
+                    onStatus = { /* ステータス文字列は不要（バナーで表示） */ },
+                    onProgress = { progress ->
+                        withContext(Dispatchers.Main) {
+                            chatViewModel.updateTtsProgress(progress)
+                        }
+                    },
+                )
 
                 val engine = createTtsEngine(this@MainActivity, modelDir = modelDir)
                 chatViewModel.setTtsEngine(engine)
+                withContext(Dispatchers.Main) {
+                    chatViewModel.updateTtsProgress(1f)
+                }
                 Log.d("TTS_INIT", "SUCCESS")
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {

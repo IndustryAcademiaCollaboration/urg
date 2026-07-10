@@ -97,6 +97,7 @@ private const val LAYER_VICTIMS  = "layer-victims"
 actual fun MapScreen(
     victims: List<VictimRecord>,
     focusedVictimId: String?,
+    bottomPadding: androidx.compose.ui.unit.Dp,
     modifier: Modifier,
 ) {
     val context = LocalContext.current

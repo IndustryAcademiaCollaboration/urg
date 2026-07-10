@@ -41,12 +41,14 @@ fun TriageTabScreen(
     onNavigateToMap: () -> Unit,
     victims: List<VictimRecord> = emptyList(),
     onScopeChange: (ChatScope) -> Unit = {},
+    bottomPadding: androidx.compose.ui.unit.Dp = 0.dp,
     modifier: Modifier = Modifier,
 ) {
     Column(
         modifier = modifier
             .fillMaxSize()
             .background(Color(0xFFF2F4F6))
+            .padding(bottom = bottomPadding)
     ) {
         // ── タブ切替 ─────────────────────────────────────────────────
         Box(

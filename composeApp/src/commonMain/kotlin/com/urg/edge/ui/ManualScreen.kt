@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.ui.unit.Dp
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -112,6 +113,7 @@ private val MANUAL_DATA: Map<ManualCategory, List<ManualStep>> = mapOf(
 @Composable
 fun ManualScreen(
     onBack: () -> Unit,
+    bottomPadding: Dp = 0.dp,
     modifier: Modifier = Modifier,
 ) {
     var selectedCategory by remember { mutableStateOf<ManualCategory?>(null) }
@@ -124,6 +126,7 @@ fun ManualScreen(
                 currentStep = 0
             },
             onClose = onBack,
+            bottomPadding = bottomPadding,
             modifier = modifier,
         )
     } else {
@@ -133,9 +136,10 @@ fun ManualScreen(
             step        = steps[currentStep],
             totalSteps  = steps.size,
             currentStep = currentStep,
-            onNext  = { if (currentStep < steps.lastIndex) currentStep++ else onBack() },
+            onNext  = { if (currentStep < steps.lastIndex) currentStep++ else selectedCategory = null },
             onPrev  = { if (currentStep > 0) currentStep-- },
             onClose = { selectedCategory = null },
+            bottomPadding = bottomPadding,
             modifier    = modifier,
         )
     }
@@ -147,6 +151,7 @@ fun ManualScreen(
 private fun CategoryScreen(
     onSelect: (ManualCategory) -> Unit,
     onClose: () -> Unit,
+    bottomPadding: Dp = 0.dp,
     modifier: Modifier = Modifier,
 ) {
     Box(
@@ -244,6 +249,7 @@ private fun CategoryScreen(
                 }
             }
         }
+            Spacer(modifier = Modifier.height(bottomPadding))
         } // end Column
 
         // ── 右上 閉じるボタン ─────────────────────────────────────────
@@ -275,6 +281,7 @@ private fun StepScreen(
     onNext: () -> Unit,
     onPrev: () -> Unit,
     onClose: () -> Unit,
+    bottomPadding: Dp = 0.dp,
     modifier: Modifier = Modifier,
 ) {
     Box(
@@ -414,6 +421,8 @@ private fun StepScreen(
                             )
                         }
                     }
+
+                    Spacer(Modifier.height(bottomPadding))
                 }
 
                 // ✕ 閉じるボタン

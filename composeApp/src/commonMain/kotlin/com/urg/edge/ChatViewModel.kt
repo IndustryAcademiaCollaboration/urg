@@ -140,6 +140,26 @@ class ChatViewModel(
         }
     }
 
+    // ── モデル初期化バナー ─────────────────────────────────────────────────────
+    fun showInitBanner() {
+        _uiState.update { it.copy(showInitBanner = true) }
+    }
+    fun updateLlmProgress(progress: Float) {
+        _uiState.update { it.copy(llmProgress = progress.coerceIn(0f, 1f)) }
+    }
+    fun updateSttProgress(progress: Float) {
+        _uiState.update { it.copy(sttProgress = progress.coerceIn(0f, 1f)) }
+    }
+    fun updateTtsProgress(progress: Float) {
+        _uiState.update { it.copy(ttsProgress = progress.coerceIn(0f, 1f)) }
+    }
+    fun dismissInitBanner() {
+        _uiState.update { it.copy(showInitBanner = false) }
+    }
+    fun toggleInitBanner() {
+        _uiState.update { it.copy(initBannerExpanded = !it.initBannerExpanded) }
+    }
+
     fun setListening(listening: Boolean) {
         _uiState.update { it.copy(isListening = listening, micAmplitude = 0f) }
     }
@@ -184,14 +204,6 @@ class ChatViewModel(
         appendMessage(Message("assistant", text, MessageType.SYSTEM))
     }
 
-    fun updateLastSystemMessage(text: String) {
-        _uiState.update { state ->
-            val messages = state.messages.toMutableList()
-            val idx = messages.indexOfLast { it.type == MessageType.SYSTEM }
-            if (idx >= 0) messages[idx] = messages[idx].copy(text = text)
-            state.copy(messages = messages)
-        }
-    }
 
     fun updatePrompt(text: String) {
         _uiState.update { it.copy(promptText = text) }

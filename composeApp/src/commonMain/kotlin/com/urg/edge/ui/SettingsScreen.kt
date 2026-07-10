@@ -35,14 +35,16 @@ private val SettingsInk  = Color(0xFF10202A)
 @Composable
 fun SettingsScreen(
     onManualClick: () -> Unit,
-    isDisasterMode: Boolean,
-    onDisasterModeChange: (Boolean) -> Unit,
+    bottomPadding: androidx.compose.ui.unit.Dp = 0.dp,
+    isDisasterMode: Boolean = false,
+    onDisasterModeChange: (Boolean) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     Column(
         modifier = modifier
             .fillMaxSize()
             .background(Color(0xFFF2F4F6))
+            .padding(bottom = bottomPadding)
     ) {
         // ── ヘッダー ──────────────────────────────────────────────────────
         Column(

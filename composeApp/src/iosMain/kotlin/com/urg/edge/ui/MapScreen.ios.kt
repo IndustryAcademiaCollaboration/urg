@@ -14,7 +14,15 @@ import com.urg.edge.VictimRecord
 actual fun MapScreen(
     victims: List<VictimRecord>,
     focusedVictimId: String?,
+    bottomPadding: androidx.compose.ui.unit.Dp,
     modifier: Modifier,
 ) {
-    Text("地図（iOS実装予定）")
+    Box(
+        modifier = modifier
+            .fillMaxSize()
+            .background(Color.LightGray),
+        contentAlignment = Alignment.Center
+    ) {
+        Text("地図（iOS実装予定）")
+    }
 }

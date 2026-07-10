@@ -19,18 +19,25 @@ object ModelInstaller {
         files: List<RemoteModelFile>,
         label: String,
         onStatus: suspend (String) -> Unit,
+        onProgress: (suspend (Float) -> Unit)? = null,
     ) = withContext(Dispatchers.IO) {
         targetDir.mkdirs()
+        val total = files.size.toFloat()
         files.forEachIndexed { index, file ->
             val destination = File(targetDir, file.fileName)
             if (destination.isComplete(file.expectedBytes)) {
+                // キャッシュ済み：このファイル分を 100% として報告
+                onProgress?.invoke((index + 1) / total)
                 return@forEachIndexed
             }
 
             onStatus("$label をダウンロード中... ${index + 1}/${files.size}: ${file.fileName}")
-            download(file, destination) { downloaded, total ->
-                if (total > 0) {
-                    val percent = (downloaded * 100 / total).toInt()
+            download(file, destination) { downloaded, fileTotal ->
+                if (fileTotal > 0) {
+                    val filePct = downloaded.toFloat() / fileTotal.toFloat()
+                    val overall = (index + filePct) / total
+                    onProgress?.invoke(overall)
+                    val percent = (filePct * 100).toInt()
                     if (percent % 10 == 0) {
                         onStatus(
                             "$label をダウンロード中... ${index + 1}/${files.size}: " +
@@ -39,6 +46,8 @@ object ModelInstaller {
                     }
                 }
             }
+            // ファイル完了
+            onProgress?.invoke((index + 1) / total)
         }
     }
 
