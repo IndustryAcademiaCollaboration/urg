@@ -28,6 +28,11 @@ import com.urg.edge.tts.createTtsEngine
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import android.app.AlertDialog
+import android.content.Intent
+import android.provider.Settings
+import com.google.android.gms.location.LocationServices
+import com.google.android.gms.tasks.CancellationTokenSource
 
 class MainActivity : ComponentActivity() {
 
@@ -49,6 +54,8 @@ class MainActivity : ComponentActivity() {
         initRepository()
         initLlmEngine()
         initKnowledgeRetriever()
+        initDisasterDetection()
+        initLocationTracking()
         initSttEngine()
         initTtsEngine()
         requestMicPermission()
@@ -81,7 +88,7 @@ class MainActivity : ComponentActivity() {
     private fun initRepository() {
         val database = DatabaseFactory(DatabaseDriverFactory(this)).createDatabase()
         val repository = TriageSessionRepositoryImpl(database)
-        val session = repository.startSession(latitude = null, longitude = null)
+        val session = repository.getLatestSession() ?: repository.startSession(latitude = null, longitude = null)
         chatViewModel.setRepository(repository, session)
     }
 
@@ -199,6 +206,52 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    private fun initLocationTracking() {
+        val client = LocationServices.getFusedLocationProviderClient(this)
+        lifecycleScope.launch {
+            if (ContextCompat.checkSelfPermission(this@MainActivity, Manifest.permission.ACCESS_FINE_LOCATION)
+                == PackageManager.PERMISSION_GRANTED) {
+                client.getCurrentLocation(
+                    com.google.android.gms.location.Priority.PRIORITY_HIGH_ACCURACY,
+                    CancellationTokenSource().token
+                ).addOnSuccessListener { loc ->
+                    loc?.let { chatViewModel.setCurrentLocation(it.latitude, it.longitude) }
+                }
+            }
+        }
+    }
+
+    private val disasterModeManager by lazy { DisasterModeManager(this) }
+
+    private fun initDisasterDetection() {
+        // DataStore → ChatViewModel に同期
+        lifecycleScope.launch {
+            disasterModeManager.isDisasterMode.collect { enabled ->
+                chatViewModel.setDisasterMode(enabled)
+            }
+        }
+
+        // WorkManager でJMAポーリング開始
+        DisasterCheckWorker.schedule(this)
+
+        // NLS権限チェック
+        checkNlsPermission()
+    }
+
+    private fun checkNlsPermission() {
+        val granted = Settings.Secure.getString(contentResolver, "enabled_notification_listeners")
+            ?.contains(packageName) == true
+        if (!granted) {
+            AlertDialog.Builder(this)
+                .setTitle("緊急地震速報の自動検知")
+                .setMessage("地震発生時に自動で災害モードへ切り替えるため、通知へのアクセスを許可してください。許可しなくても手動での切り替えは可能です。")
+                .setPositiveButton("設定を開く") { _, _ ->
+                    startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
+                }
+                .setNegativeButton("後で設定する", null)
+                .show()
+        }
+    }
     private fun initSttEngine() {
         lifecycleScope.launch(Dispatchers.IO) {
             try {

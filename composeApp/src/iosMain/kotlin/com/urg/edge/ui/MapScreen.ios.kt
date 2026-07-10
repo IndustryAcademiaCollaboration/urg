@@ -8,15 +8,13 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import com.urg.edge.VictimRecord
 
 @Composable
-actual fun MapScreen(modifier: Modifier) {
-    Box(
-        modifier = modifier
-            .fillMaxSize()
-            .background(Color.LightGray),
-        contentAlignment = Alignment.Center
-    ) {
-        Text("地図（iOS実装予定）")
-    }
+actual fun MapScreen(
+    victims: List<VictimRecord>,
+    focusedVictimId: String?,
+    modifier: Modifier,
+) {
+    Text("地図（iOS実装予定）")
 }

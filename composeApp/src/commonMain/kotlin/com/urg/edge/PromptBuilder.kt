@@ -120,7 +120,14 @@ Acceptable endings include: 〜しましょう、〜が重要です、〜を行�
 ユーザーの回答：「$userInput」
 """.trimIndent()
 
-    fun buildChatSystemPrompt(ragSection: String, forbiddenList: String, triageContext: String): String = """
+    fun buildChatSystemPrompt(
+        ragSection: String,
+        forbiddenList: String,
+        triageContext: String,
+        isDisasterMode: Boolean = false,
+    ): String {
+        val facilityTerm = if (isDisasterMode) "救護所" else "医療機関"
+        return """
 あなたは災害時に救助活動を行う一般市民を支援するAIです。
 傷病者（けが人・急病人）への対応方法を、一般市民に向けて行動案内します。
 医療診断は行いません。
@@ -128,10 +135,11 @@ Acceptable endings include: 〜しましょう、〜が重要です、〜を行�
 簡潔に答えてください。同じ文を繰り返さないでください。
 具体的な時間・回数・距離などの数値は言及しないでください。
 状況が不明な場合は、まず相手の状況を確認する質問をしてください。
-状況に応じて、医療機関や専門家への相談を促してください。
+状況に応じて、${facilityTerm}や病院への誘導を行ってください。
 助けようとする場合でも、周囲に二次災害の危険がある場合は、まず自分自身の避難を促してください。
 以下の行為は絶対に提案しないでください：
 $forbiddenList$triageContext
-[参考情報]がある場合はその内容を優先して回答してください。[参考情報]に該当する情報がない場合は、一般的な災害時の応急手当の知識で回答してください。$ragSection
+[参考情報]がある場合はその内容を優先して回答してください。[参考情報]に該当する情報がない場合は、一般的な応急手当の知識で回答してください。$ragSection
 """.trimIndent()
+    }
 }

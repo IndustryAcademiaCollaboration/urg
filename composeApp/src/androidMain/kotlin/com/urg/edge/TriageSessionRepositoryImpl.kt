@@ -16,6 +16,10 @@ class TriageSessionRepositoryImpl(
         database.clSessionsQueries.insert(id, latitude, longitude, 1, now)
         return TriageSession(id = id, latitude = latitude, longitude = longitude, startedAt = now)
     }
+    override fun getLatestSession(): TriageSession? =
+        database.clSessionsQueries.selectAll().executeAsList()
+            .firstOrNull()
+            ?.let { TriageSession(id = it.id, latitude = it.latitude, longitude = it.longitude, startedAt = it.started_at) }
 
     override fun saveVictim(victim: VictimRecord): VictimRecord =
         // 採番はセッション側の単調増加カウンタ（next_display_no）で行う。cl_victims 内のMAXを
@@ -36,6 +40,8 @@ class TriageSessionRepositoryImpl(
                 consciousness = victim.triageInput.isConscious?.toLong(),
                 location = victim.note?.location,
                 feature = victim.note?.feature,
+                latitude  = victim.latitude,
+                longitude = victim.longitude,
                 recorded_at = victim.recordedAt
             )
             victim.copy(displayNo = next.toInt())
@@ -77,6 +83,8 @@ class TriageSessionRepositoryImpl(
             result = result,
             actionPlan = StartRuleEngine.decideActions(result, input),
             note = note,
+            latitude  = latitude,
+            longitude = longitude,
             recordedAt = recorded_at
         )
     }

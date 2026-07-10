@@ -44,6 +44,7 @@ import com.google.android.gms.location.Priority
 import com.google.android.gms.tasks.CancellationTokenSource
 import com.mapbox.mapboxsdk.Mapbox
 import com.mapbox.mapboxsdk.camera.CameraPosition
+import com.mapbox.mapboxsdk.camera.CameraUpdateFactory
 import com.mapbox.mapboxsdk.geometry.LatLng
 import com.mapbox.mapboxsdk.maps.MapView
 import com.mapbox.mapboxsdk.maps.MapboxMap
@@ -60,6 +61,8 @@ import com.urg.edge.map.getPrefectureFileName
 import com.urg.edge.shelter.Shelter
 import com.urg.edge.shelter.ShelterRepository
 import com.urg.edge.shelter.ShelterType
+import com.urg.edge.TriageResult
+import com.urg.edge.VictimRecord
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import org.json.JSONArray
@@ -82,9 +85,15 @@ private const val LAYER_SHELTER_LABELS = "layer-shelter-labels"
 private const val LAYER_CURRENT_LOCATION = "layer-current-location"
 private const val SOURCE_ROUTE = "source-route"
 private const val LAYER_ROUTE = "layer-route"
+private const val SOURCE_VICTIMS = "source-victims"
+private const val LAYER_VICTIMS  = "layer-victims"
 
 @Composable
-actual fun MapScreen(modifier: Modifier) {
+actual fun MapScreen(
+    victims: List<VictimRecord>,
+    focusedVictimId: String?,
+    modifier: Modifier,
+) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     val scope = rememberCoroutineScope()
@@ -114,7 +123,6 @@ actual fun MapScreen(modifier: Modifier) {
     var calculatingRoute by remember { mutableStateOf(false) }
 
     // 避難所GeoJSONを更新する関数
-    // 選択肢変更時は必ず一度クリアしてから新しいデータをセットする
     fun updateShelterSource(
         lat: Double,
         lng: Double,
@@ -125,7 +133,6 @@ actual fun MapScreen(modifier: Modifier) {
         val map = mapRef ?: return
         val style = map.style ?: return
 
-        // まず空のFeatureCollectionでクリア
         (style.getSource(SOURCE_SHELTERS) as? GeoJsonSource)
             ?.setGeoJson(emptyFeatureCollection())
 
@@ -134,10 +141,7 @@ actual fun MapScreen(modifier: Modifier) {
             else -> filtered
         }
 
-        // GeoJSON FeatureCollection を構築
         val features = JSONArray()
-
-        // 避難所フィーチャー
         shelters.forEach { shelter ->
             val feature = JSONObject().apply {
                 put("type", "Feature")
@@ -161,10 +165,8 @@ actual fun MapScreen(modifier: Modifier) {
             put("features", features)
         }.toString()
 
-        // GeoJsonSource を更新
         (style.getSource(SOURCE_SHELTERS) as? GeoJsonSource)?.setGeoJson(geojson)
 
-        // 現在地ソースも更新
         if (lat != 0.0) {
             val currentLocationGeoJson = JSONObject().apply {
                 put("type", "FeatureCollection")
@@ -228,7 +230,6 @@ actual fun MapScreen(modifier: Modifier) {
     }
 
     LaunchedEffect(Unit) {
-        // rd5セグメントファイルをassetsからexternalFilesにコピー（未配置の場合のみ）
         if (!rd5Manager.areAllSegmentsDownloaded()) {
             rd5Manager.downloadAllSegments { current, total, fileName ->
                 android.util.Log.d("MapScreen", "Copying rd5: $fileName ($current/$total)")
@@ -283,6 +284,21 @@ actual fun MapScreen(modifier: Modifier) {
         updateShelterSource(currentLat, currentLng, FacilityFilter.ALL, newData, filteredShelters)
     }
 
+    // 傷病者にフォーカス
+    LaunchedEffect(focusedVictimId) {
+        val target = victims.firstOrNull { it.id == focusedVictimId } ?: return@LaunchedEffect
+        val lat = target.latitude ?: return@LaunchedEffect
+        val lng = target.longitude ?: return@LaunchedEffect
+        mapRef?.animateCamera(
+            CameraUpdateFactory.newCameraPosition(
+                CameraPosition.Builder()
+                    .target(LatLng(lat, lng))
+                    .zoom(17.0)
+                    .build()
+            ), 800
+        )
+    }
+
     val mapView = remember {
         Mapbox.getInstance(context)
         MapView(context, MapboxMapOptions.createFromAttributes(context).textureMode(true))
@@ -329,6 +345,10 @@ actual fun MapScreen(modifier: Modifier) {
                                 // アイコン画像をスタイルに登録
                                 style.addImage("current-location-icon",
                                     createCircleBitmap(0xFF1565C0.toInt(), sizePx = 48))
+                                style.addImage("victim-severe-icon",
+                                    createCircleBitmap(0xFFE5463F.toInt(), sizePx = 40))
+                                style.addImage("victim-minor-icon",
+                                    createCircleBitmap(0xFF16A36B.toInt(), sizePx = 40))
                                 style.addImage(ShelterType.EVACUATION_CENTER.iconName(),
                                     createCircleBitmap(0xFF388E3C.toInt()))
                                 style.addImage(ShelterType.EMERGENCY_SHELTER.iconName(),
@@ -338,9 +358,22 @@ actual fun MapScreen(modifier: Modifier) {
                                 style.addImage(ShelterType.HOSPITAL.iconName(),
                                     createCircleBitmap(0xFF7B1FA2.toInt()))
 
-                                // 空のGeoJsonSourceを登録（レイヤーはスタイルJSON内で定義済み）
+                                // ソースを登録
                                 style.addSource(GeoJsonSource(SOURCE_SHELTERS, emptyFeatureCollection()))
                                 style.addSource(GeoJsonSource(SOURCE_CURRENT_LOCATION, emptyFeatureCollection()))
+                                style.addSource(GeoJsonSource(SOURCE_VICTIMS, buildVictimGeoJson(victims)))
+
+                                // 傷病者レイヤー
+                                style.addLayer(
+                                    com.mapbox.mapboxsdk.style.layers.SymbolLayer(LAYER_VICTIMS, SOURCE_VICTIMS)
+                                        .withProperties(
+                                            PropertyFactory.iconImage(
+                                                com.mapbox.mapboxsdk.style.expressions.Expression.get("icon")
+                                            ),
+                                            PropertyFactory.iconSize(1.2f),
+                                            PropertyFactory.iconAllowOverlap(true),
+                                        )
+                                )
 
                                 // 現在地ピンを即時セット
                                 if (currentLat != 0.0) {
@@ -349,11 +382,10 @@ actual fun MapScreen(modifier: Modifier) {
                                         ?.setGeoJson(currentLocGeoJson)
                                 }
 
-                                // ピンタップ
                                 // ルートソースを追加
                                 style.addSource(GeoJsonSource(SOURCE_ROUTE, emptyFeatureCollection()))
 
-                                // ルートラインレイヤーを追加（避難所レイヤーより下に描画）
+                                // ルートラインレイヤーを追加
                                 style.addLayerBelow(
                                     LineLayer(LAYER_ROUTE, SOURCE_ROUTE).apply {
                                         minZoom = 0f
@@ -392,7 +424,6 @@ actual fun MapScreen(modifier: Modifier) {
                                                 )
                                                 calculatingRoute = false
                                                 if (route != null && route.points.isNotEmpty()) {
-                                                    // ルートをGeoJsonSourceにセット
                                                     val coords = JSONArray()
                                                     route.points.forEach { (lat, lng) ->
                                                         coords.put(JSONArray().apply {
@@ -470,7 +501,6 @@ actual fun MapScreen(modifier: Modifier) {
                 FilledTonalButton(
                     onClick = {
                         showingRoute = false
-                        // ルートソースをクリア
                         val style = mapRef?.style
                         (style?.getSource(SOURCE_ROUTE) as? GeoJsonSource)
                             ?.setGeoJson(emptyFeatureCollection())
@@ -542,18 +572,20 @@ private fun FacilityFilter.toShelterType(): ShelterType? = when (this) {
     FacilityFilter.ALL                -> null
 }
 
-// 空のFeatureCollectionを返す
-private fun emptyFeatureCollection(): String {
-    return """{"type":"FeatureCollection","features":[]}"""
-}
+private fun emptyFeatureCollection(): String =
+    """{"type":"FeatureCollection","features":[]}"""
 
-// 1点のFeatureCollectionを返す
-private fun singlePointFeatureCollection(lng: Double, lat: Double): String {
-    return """
-        {"type":"FeatureCollection","features":[
-            {"type":"Feature","geometry":{"type":"Point","coordinates":[$lng,$lat]},"properties":{}}
-        ]}
-    """.trimIndent()
+private fun singlePointFeatureCollection(lng: Double, lat: Double): String =
+    """{"type":"FeatureCollection","features":[{"type":"Feature","geometry":{"type":"Point","coordinates":[$lng,$lat]},"properties":{}}]}"""
+
+private fun buildVictimGeoJson(victims: List<VictimRecord>): String {
+    val features = victims.mapNotNull { v ->
+        val lat = v.latitude ?: return@mapNotNull null
+        val lng = v.longitude ?: return@mapNotNull null
+        val icon = if (v.result == TriageResult.SEVERE) "victim-severe-icon" else "victim-minor-icon"
+        """{"type":"Feature","properties":{"id":"${v.id}","icon":"$icon","no":${v.displayNo}},"geometry":{"type":"Point","coordinates":[$lng,$lat]}}"""
+    }
+    return """{"type":"FeatureCollection","features":[${features.joinToString(",")}]}"""
 }
 
 /** 色付き円Bitmapを生成 */
