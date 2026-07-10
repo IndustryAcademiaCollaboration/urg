@@ -51,6 +51,9 @@ kotlin {
             implementation(files("libs/brouter-codec-1.7.10-beta.jar"))
             implementation(files("libs/brouter-expressions-1.7.10-beta.jar"))
             implementation(files("libs/brouter-util-1.7.10-beta.jar"))
+            // 災害通知検出
+            implementation("androidx.datastore:datastore-preferences:1.1.1")
+            implementation("androidx.work:work-runtime-ktx:2.9.1")
         }
         commonMain.dependencies {
             implementation(libs.compose.runtime)

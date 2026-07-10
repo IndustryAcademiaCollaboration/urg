@@ -80,9 +80,11 @@ fun App(
     val victimNumbers by viewModel.victimNumbers.collectAsStateWithLifecycle()
     val allChunks     by viewModel.allChunks.collectAsStateWithLifecycle()
     var selectedTab    by remember { mutableStateOf(0) }
+    var focusedVictimId by remember { mutableStateOf<String?>(null) }
     var showVoiceInput by remember { mutableStateOf(false) }
     var showManual     by remember { mutableStateOf(false) }
     var showTriageChat by remember { mutableStateOf(false) }
+    val isDisasterMode by viewModel.isDisasterMode.collectAsStateWithLifecycle()
 
     val navItems = listOf(
         NavItem("トリアージ", Res.drawable.ic_triage,   Res.drawable.ic_triage_selected),
@@ -143,9 +145,15 @@ fun App(
                     onUpdateNote = { id, note -> viewModel.updateVictimNote(id, note) },
                     onDeleteVictim = { id -> viewModel.deleteVictim(id) },
                     bottomPadding = bottomElementPadding,
+                    onShowOnMap = { victimId ->
+                        focusedVictimId = victimId
+                        selectedTab = 2
+                    },
                     modifier = contentModifier
                 )
                 selectedTab == 2 -> MapScreen(
+                    victims = victims,
+                    focusedVictimId = focusedVictimId,
                     bottomPadding = bottomElementPadding,
                     modifier = contentModifier
                 )
@@ -157,6 +165,8 @@ fun App(
                 else -> SettingsScreen(
                     onManualClick = { showManual = true },
                     bottomPadding = bottomElementPadding,
+                    isDisasterMode = isDisasterMode,
+                    onDisasterModeChange = viewModel::setDisasterMode,
                     modifier = contentModifier
                 )
             }

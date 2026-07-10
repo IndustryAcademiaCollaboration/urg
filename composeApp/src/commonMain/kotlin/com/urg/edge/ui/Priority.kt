@@ -73,13 +73,13 @@ fun PriorityScreen(
     onUpdateNote: (victimId: String, note: PatientNote) -> Unit,
     onDeleteVictim: (victimId: String) -> Unit = {},
     bottomPadding: androidx.compose.ui.unit.Dp = 0.dp,
+    onShowOnMap: ((String) -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
     var editingVictim       by remember { mutableStateOf<VictimRecord?>(null) }
     var deleteConfirmTarget by remember { mutableStateOf<VictimRecord?>(null) }
     var sortBySeverity      by remember { mutableStateOf(false) }
 
-    // 番号は ViewModel から渡された victimNumbers を使用（削除後も安定）
     val numberMap = victimNumbers
 
     val sortedVictims = remember(victims, sortBySeverity) {
@@ -164,7 +164,6 @@ fun PriorityScreen(
                         letterSpacing = 1.sp,
                         modifier = Modifier.weight(1f),
                     )
-                    // 時間
                     Box(
                         contentAlignment = Alignment.Center,
                         modifier = Modifier
@@ -186,7 +185,6 @@ fun PriorityScreen(
                         )
                     }
                     Spacer(modifier = Modifier.width(8.dp))
-                    // 重症度
                     Box(
                         contentAlignment = Alignment.Center,
                         modifier = Modifier
@@ -216,6 +214,7 @@ fun PriorityScreen(
                         victim = victim,
                         onEdit = { editingVictim = victim },
                         onDelete = { deleteConfirmTarget = victim },
+                        onShowOnMap = onShowOnMap?.let { cb -> { cb(victim.id) } },
                         modifier = Modifier.padding(horizontal = 20.dp),
                     )
                     Spacer(modifier = Modifier.height(12.dp))
@@ -257,6 +256,7 @@ private fun VictimCard(
     victim: VictimRecord,
     onEdit: () -> Unit,
     onDelete: () -> Unit,
+    onShowOnMap: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
     val isSevere    = victim.result == TriageResult.SEVERE
@@ -270,7 +270,10 @@ private fun VictimCard(
             .fillMaxWidth()
             .height(IntrinsicSize.Min)
             .clip(RoundedCornerShape(14.dp))
-            .background(Color.White),
+            .background(Color.White)
+            .clickable(enabled = onShowOnMap != null && victim.latitude != null) {
+                onShowOnMap?.invoke()
+            },
         verticalAlignment = Alignment.CenterVertically,
     ) {
         // 左カラーボーダー
@@ -413,12 +416,10 @@ private fun PatientNoteEditSheet(
                 .padding(horizontal = 20.dp)
                 .padding(bottom = 32.dp)
         ) {
-            // ── ヘッダー ────────────────────────────────────────────
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                // 編集アイコン（teal 角丸）
                 Box(
                     contentAlignment = Alignment.Center,
                     modifier = Modifier
@@ -449,7 +450,6 @@ private fun PatientNoteEditSheet(
                         color = PrioInk,
                     )
                 }
-                // X ボタン
                 Icon(
                     painter = painterResource(Res.drawable.ic_gray_close),
                     contentDescription = "閉じる",
@@ -462,7 +462,6 @@ private fun PatientNoteEditSheet(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // ── 場所メモ ─────────────────────────────────────────────
             Text(
                 text = "場所メモ",
                 fontSize = 14.sp,
@@ -502,7 +501,6 @@ private fun PatientNoteEditSheet(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // ── 特徴メモ ─────────────────────────────────────────────
             Text(
                 text = "特徴メモ",
                 fontSize = 14.sp,
@@ -542,7 +540,6 @@ private fun PatientNoteEditSheet(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // ── 保存ボタン ────────────────────────────────────────────
             Box(
                 contentAlignment = Alignment.Center,
                 modifier = Modifier
@@ -584,7 +581,6 @@ private fun DeleteConfirmDialog(
                 .padding(horizontal = 24.dp, vertical = 28.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            // ゴミ箱アイコン（薄ピンク丸 + 赤アイコン）
             Box(
                 contentAlignment = Alignment.Center,
                 modifier = Modifier
@@ -626,7 +622,6 @@ private fun DeleteConfirmDialog(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                // キャンセル
                 Box(
                     contentAlignment = Alignment.Center,
                     modifier = Modifier
@@ -643,7 +638,6 @@ private fun DeleteConfirmDialog(
                         color = Color(0xFF566876),
                     )
                 }
-                // 削除
                 Box(
                     contentAlignment = Alignment.Center,
                     modifier = Modifier

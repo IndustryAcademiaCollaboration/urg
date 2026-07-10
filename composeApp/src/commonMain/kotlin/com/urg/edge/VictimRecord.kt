@@ -14,5 +14,7 @@ data class VictimRecord(
     val result: TriageResult,
     val actionPlan: TriageActionPlan,
     val note: PatientNote? = null,
+    val latitude: Double? = null,
+    val longitude: Double? = null,
     val recordedAt: Long
 )

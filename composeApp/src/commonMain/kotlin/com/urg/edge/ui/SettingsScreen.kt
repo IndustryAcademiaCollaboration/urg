@@ -15,6 +15,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
+import androidx.compose.material3.Switch
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -34,6 +36,8 @@ private val SettingsInk  = Color(0xFF10202A)
 fun SettingsScreen(
     onManualClick: () -> Unit,
     bottomPadding: androidx.compose.ui.unit.Dp = 0.dp,
+    isDisasterMode: Boolean = false,
+    onDisasterModeChange: (Boolean) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -115,6 +119,40 @@ fun SettingsScreen(
                     color = SettingsInk,
                     modifier = Modifier.weight(1f),
                 )
+            }
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Column(
+                modifier = Modifier
+                    .padding(horizontal = 20.dp)
+                    .fillMaxWidth()
+                    .background(Color.White, RoundedCornerShape(16.dp))
+                    .clip(RoundedCornerShape(16.dp))
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 30.dp, vertical = 24.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "災害モード",
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = SettingsInk,
+                        )
+                        Text(
+                            text = if (isDisasterMode) "救護所モードで案内中" else "通常モード（医療機関で案内）",
+                            fontSize = 12.sp,
+                            color = Color.Gray,
+                        )
+                    }
+                    Switch(
+                        checked = isDisasterMode,
+                        onCheckedChange = onDisasterModeChange,
+                    )
+                }
             }
         }
     }

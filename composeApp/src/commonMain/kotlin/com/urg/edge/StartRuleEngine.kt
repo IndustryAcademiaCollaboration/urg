@@ -106,7 +106,7 @@ object StartRuleEngine {
 
     fun toGuidance(result: TriageResult): String = when (result) {
         TriageResult.MINOR -> "【判定：軽症】傷病者は自力で最寄りの救護所へ向かうよう案内してください。"
-        TriageResult.SEVERE -> "【判定：重症】傷病者を救護所へ連れて行くか、救助隊に知らせてください。"
+        TriageResult.SEVERE -> "【判定：重症】傷病者を安静に保ちながら、周囲に助けを求めてください。"
     }
 
     fun decideActions(result: TriageResult, input: TriageInput): TriageActionPlan {
