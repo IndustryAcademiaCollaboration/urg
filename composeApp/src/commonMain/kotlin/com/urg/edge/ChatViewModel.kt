@@ -27,6 +27,17 @@ class ChatViewModel(
 
     private var llmEngine: LlmEngine? = null
     private var retriever: KnowledgeRetriever? = null
+    private val _allChunks = MutableStateFlow<List<KnowledgeChunk>>(emptyList())
+    private val _isDisasterMode = MutableStateFlow(false)
+    val isDisasterMode: StateFlow<Boolean> = _isDisasterMode.asStateFlow()
+    fun setDisasterMode(enabled: Boolean) {
+        _isDisasterMode.value = enabled
+    }
+    val allChunks: StateFlow<List<KnowledgeChunk>> = _allChunks.asStateFlow()
+
+    fun setChunks(chunks: List<KnowledgeChunk>) {
+        _allChunks.value = chunks
+    }
     private var sttEngine: SttEngine? = null
     private var ttsEngine: TtsEngine? = null
     private var config: LlmConfig = LlmConfig()
@@ -39,6 +50,31 @@ class ChatViewModel(
     private val _victims = MutableStateFlow<List<VictimRecord>>(emptyList())
     val victims: StateFlow<List<VictimRecord>> = _victims.asStateFlow()
 
+    // 安定番号マップ：DB の display_no（登録時に確定・以後不変）から導出する
+    private val _victimNumbers = MutableStateFlow<Map<String, Int>>(emptyMap())
+    val victimNumbers: StateFlow<Map<String, Int>> = _victimNumbers.asStateFlow()
+
+    private fun updateVictims(list: List<VictimRecord>) {
+        _victimNumbers.value = list.associate { it.id to it.displayNo }
+        _victims.value = list
+        pruneCustomScopeIfNeeded(list)
+    }
+
+    // 選択中の個別スコープから消えた対象者のdisplayNoを除去し、空になったら全員に戻す
+    private fun pruneCustomScopeIfNeeded(list: List<VictimRecord>) {
+        val scope = _uiState.value.chatScope
+        if (scope !is ChatScope.Custom) return
+        val alive = scope.displayNos intersect list.map { it.displayNo }.toSet()
+        if (alive != scope.displayNos) {
+            _uiState.update { it.copy(chatScope = if (alive.isEmpty()) ChatScope.All else ChatScope.Custom(alive)) }
+        }
+    }
+    private var currentLatitude: Double? = null
+    private var currentLongitude: Double? = null
+    fun setCurrentLocation(lat: Double, lng: Double) {
+        currentLatitude = lat
+        currentLongitude = lng
+    }
     private val triageController = TriageController()
 
     fun setLlmEngine(engine: LlmEngine, config: LlmConfig) {
@@ -56,16 +92,30 @@ class ChatViewModel(
 
     private fun refreshVictims() {
         val repo = repository ?: return
+        val session = currentSession ?: return
         viewModelScope.launch(ioDispatcher) {
-            _victims.value = repo.getVictimsByPriority()
+            updateVictims(repo.getVictimsBySession(session.id))
+        }
+    }
+
+    fun deleteVictim(victimId: String) {
+        val repo = repository
+        if (repo == null) {
+            updateVictims(_victims.value.filter { it.id != victimId })
+            return
+        }
+        viewModelScope.launch(ioDispatcher) {
+            repo.deleteVictim(victimId)
+            updateVictims(_victims.value.filter { it.id != victimId })
         }
     }
 
     fun updateVictimNote(victimId: String, note: PatientNote) {
         val repo = repository ?: return
+        val session = currentSession ?: return
         viewModelScope.launch(ioDispatcher) {
             repo.updateVictimNote(victimId, note)
-            _victims.value = repo.getVictimsByPriority()
+            updateVictims(repo.getVictimsBySession(session.id))
         }
     }
 
@@ -80,12 +130,34 @@ class ChatViewModel(
             triageInput = input,
             result = result,
             actionPlan = plan,
+            latitude  = currentLatitude,
+            longitude = currentLongitude,
             recordedAt = Clock.System.now().toEpochMilliseconds()
         )
         viewModelScope.launch(ioDispatcher) {
             repo.saveVictim(victim)
-            _victims.value = repo.getVictimsByPriority()
+            updateVictims(repo.getVictimsBySession(session.id))
         }
+    }
+
+    // ── モデル初期化バナー ─────────────────────────────────────────────────────
+    fun showInitBanner() {
+        _uiState.update { it.copy(showInitBanner = true) }
+    }
+    fun updateLlmProgress(progress: Float) {
+        _uiState.update { it.copy(llmProgress = progress.coerceIn(0f, 1f)) }
+    }
+    fun updateSttProgress(progress: Float) {
+        _uiState.update { it.copy(sttProgress = progress.coerceIn(0f, 1f)) }
+    }
+    fun updateTtsProgress(progress: Float) {
+        _uiState.update { it.copy(ttsProgress = progress.coerceIn(0f, 1f)) }
+    }
+    fun dismissInitBanner() {
+        _uiState.update { it.copy(showInitBanner = false) }
+    }
+    fun toggleInitBanner() {
+        _uiState.update { it.copy(initBannerExpanded = !it.initBannerExpanded) }
     }
 
     fun setListening(listening: Boolean) {
@@ -132,14 +204,6 @@ class ChatViewModel(
         appendMessage(Message("assistant", text, MessageType.SYSTEM))
     }
 
-    fun updateLastSystemMessage(text: String) {
-        _uiState.update { state ->
-            val messages = state.messages.toMutableList()
-            val idx = messages.indexOfLast { it.type == MessageType.SYSTEM }
-            if (idx >= 0) messages[idx] = messages[idx].copy(text = text)
-            state.copy(messages = messages)
-        }
-    }
 
     fun updatePrompt(text: String) {
         _uiState.update { it.copy(promptText = text) }
@@ -269,7 +333,7 @@ class ChatViewModel(
                     ?: emptyList()
 
                 val supplementText = if (chunks.isNotEmpty()) {
-                    "\n\n[補足知識]\n" + chunks.joinToString("\n") { "・${it.title}: ${it.text}" }
+                    "\n\n[補足知識]\n" + chunks.joinToString("\n") { "・${it.toPromptText()}" }
                 } else {
                     ""
                 }
@@ -350,7 +414,7 @@ class ChatViewModel(
                     ?: emptyList()
 
                 val supplementText = if (chunks.isNotEmpty()) {
-                    "\n\n[補足知識]\n" + chunks.joinToString("\n") { "・${it.title}: ${it.text}" }
+                    "\n\n[補足知識]\n" + chunks.joinToString("\n") { "・${it.toPromptText()}" }
                 } else {
                     ""
                 }
@@ -429,35 +493,35 @@ class ChatViewModel(
             "severe_airway" -> TriageActionPlan(
                 destination = "救護所",
                 safetyFirst = listOf("周囲の安全を確認する"),
-                actions = listOf("気道を確保する", "救助隊に知らせる"),
+                actions = listOf("気道を確保する", "周囲に助けを求める"),
                 forbiddenActions = listOf("一人で搬送しない", "首を大きく動かさない")
             )
 
             "severe_circ" -> TriageActionPlan(
                 destination = "救護所",
                 safetyFirst = listOf("周囲の安全を確認する"),
-                actions = listOf("出血部位を圧迫する", "圧迫を続ける", "救助隊に知らせる"),
+                actions = listOf("出血部位を圧迫する", "圧迫を続ける", "周囲に助けを求める"),
                 forbiddenActions = listOf("止血せずに動かさない", "一人で搬送しない")
             )
 
             "severe_cons" -> TriageActionPlan(
                 destination = "救護所",
                 safetyFirst = listOf("周囲の安全を確認する"),
-                actions = listOf("呼吸を確認する", "救助隊に知らせる"),
+                actions = listOf("呼吸を確認する", "周囲に助けを求める"),
                 forbiddenActions = listOf("一人で搬送しない", "首を大きく動かさない")
             )
 
             "severe_injury" -> TriageActionPlan(
                 destination = "救護所",
                 safetyFirst = listOf("周囲の安全を確認する"),
-                actions = listOf("出血箇所を圧迫する", "安静にする", "救助隊に知らせる"),
+                actions = listOf("出血がある場合は圧迫する", "安静にする"),
                 forbiddenActions = listOf("無理に動かさない", "一人で搬送しない")
             )
 
             else -> TriageActionPlan(
                 destination = "救護所",
                 safetyFirst = listOf("周囲の安全を確認する"),
-                actions = listOf("救助隊に知らせる"),
+                actions = listOf("周囲に助けを求める"),
                 forbiddenActions = listOf("無理に動かさない")
             )
         }
@@ -479,7 +543,7 @@ class ChatViewModel(
         appendMessage(Message("user", text))
         _uiState.update { it.copy(promptText = "", isLoading = true) }
 
-        val currentMessages = _uiState.value.messages.filter { it.type == MessageType.CHAT }.takeLast(8)
+        val currentMessages = _uiState.value.messages.filter { it.type == MessageType.CHAT }.takeLast(4)
 
         viewModelScope.launch(ioDispatcher) {
             try {
@@ -487,16 +551,14 @@ class ChatViewModel(
                 val chunks = r.retrieve(text, topK = 3)
 
                 val ragSection = if (chunks.isNotEmpty()) {
-                    "\n\n[参考情報]\n" + chunks.joinToString("\n") {
-                        val base = "・${it.title}: ${it.text}"
-                        if (it.guidance != null) "$base\n  推奨対応: ${it.guidance}" else base
-                    }
+                    "\n\n[参考情報]\n" + chunks.joinToString("\n") { "・${it.toPromptText()}" }
                 } else ""
                 val forbiddenList = StartRuleEngine.globalForbiddenSevere.joinToString("\n") { "- $it" }
-                val triageContext = buildTriageContext()
-                val systemPrompt = PromptBuilder.buildChatSystemPrompt(ragSection, forbiddenList, triageContext)
+                val triageContext = PromptBuilder.buildVictimsContext(_victims.value, _uiState.value.chatScope)
+                val isDisasterMode = _isDisasterMode.value
+                val systemPrompt = PromptBuilder.buildChatSystemPrompt(ragSection, forbiddenList, triageContext, isDisasterMode)
                 val prompt = config.chatTemplate.formatChatPrompt(systemPrompt, currentMessages)
-                //Log.d("LLM",prompt)
+                println("[LLM] $prompt")
 
                 val accumulated = StringBuilder()
                 engine.generateStream(prompt) { partial, done ->
@@ -515,12 +577,8 @@ class ChatViewModel(
         }
     }
 
-    private fun buildTriageContext(): String {
-        val result = triageController.lastResult ?: return ""
-        val plan = triageController.lastActionPlan ?: return ""
-        val label = if (result == TriageResult.MINOR) "軽症" else "重症"
-        val actions = (plan.safetyFirst + plan.actions).joinToString("、")
-        return "\n\n[トリアージ済み情報]\n判定：$label\n搬送先：${plan.destination}\n確認済み行動：$actions"
+    fun setChatScope(scope: ChatScope) {
+        _uiState.update { it.copy(chatScope = scope) }
     }
 
     private fun speak(text: String) {

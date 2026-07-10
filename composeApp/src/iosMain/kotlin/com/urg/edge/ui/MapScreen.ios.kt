@@ -8,9 +8,15 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import com.urg.edge.VictimRecord
 
 @Composable
-actual fun MapScreen(modifier: Modifier) {
+actual fun MapScreen(
+    victims: List<VictimRecord>,
+    focusedVictimId: String?,
+    bottomPadding: androidx.compose.ui.unit.Dp,
+    modifier: Modifier,
+) {
     Box(
         modifier = modifier
             .fillMaxSize()

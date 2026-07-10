@@ -1,6 +1,7 @@
 CREATE TABLE cl_victims (
   id            TEXT    PRIMARY KEY NOT NULL,
   session_id    TEXT    NOT NULL REFERENCES cl_sessions(id),
+  display_no    INTEGER NOT NULL DEFAULT 0,
   severity      TEXT,
   can_walk      INTEGER,
   is_breathing  INTEGER,
@@ -8,12 +9,14 @@ CREATE TABLE cl_victims (
   consciousness INTEGER,
   location      TEXT,
   feature       TEXT,
+  latitude      REAL,
+  longitude     REAL,
   recorded_at   INTEGER NOT NULL
 );
 
 insert:
-INSERT INTO cl_victims (id, session_id, severity, can_walk, is_breathing, has_pulse, consciousness, location, feature, recorded_at)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+INSERT INTO cl_victims (id, session_id, display_no, severity, can_walk, is_breathing, has_pulse, consciousness, location, feature, latitude, longitude, recorded_at)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
 
 updateNote:
 UPDATE cl_victims SET location = ?, feature = ? WHERE id = ?;
@@ -35,3 +38,6 @@ ORDER BY
 
 selectOrderedByTime:
 SELECT * FROM cl_victims ORDER BY recorded_at ASC;
+
+deleteById:
+DELETE FROM cl_victims WHERE id = ?;

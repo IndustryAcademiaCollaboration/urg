@@ -11,11 +11,12 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
+import androidx.compose.material3.Switch
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -28,61 +29,131 @@ import org.jetbrains.compose.resources.painterResource
 import urg.composeapp.generated.resources.Res
 import urg.composeapp.generated.resources.ic_manual
 
+private val SettingsTeal = Color(0xFF25B1BF)
+private val SettingsInk  = Color(0xFF10202A)
+
 @Composable
 fun SettingsScreen(
     onManualClick: () -> Unit,
+    bottomPadding: androidx.compose.ui.unit.Dp = 0.dp,
+    isDisasterMode: Boolean = false,
+    onDisasterModeChange: (Boolean) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
-    val teal = Color(0xFF25B1BF)
-
     Column(
         modifier = modifier
             .fillMaxSize()
             .background(Color(0xFFF2F4F6))
+            .padding(bottom = bottomPadding)
     ) {
         // ── ヘッダー ──────────────────────────────────────────────────────
-        Box(
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .statusBarsPadding()
-                .padding(horizontal = 16.dp, vertical = 4.dp)
+                .padding(start = 20.dp, end = 20.dp, top = 16.dp, bottom = 0.dp)
         ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    modifier = Modifier
+                        .width(3.dp)
+                        .height(20.dp)
+                        .clip(RoundedCornerShape(2.dp))
+                        .background(SettingsTeal)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "OTHER",
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = SettingsTeal,
+                    letterSpacing = 1.5.sp,
+                )
+            }
+            Spacer(modifier = Modifier.height(2.dp))
             Text(
                 text = "その他",
-                fontSize = 30.sp,
+                fontSize = 36.sp,
                 fontWeight = FontWeight.Bold,
-                color = teal,
-                modifier = Modifier.align(Alignment.Center)
+                color = SettingsInk,
             )
         }
 
-        Spacer(Modifier.height(32.dp))
+        Spacer(modifier = Modifier.height(20.dp))
 
-        // ── マニュアル ──────────────────────────────────────────────
-        Row(
+        // ── メニューカード ─────────────────────────────────────────────
+        Column(
             modifier = Modifier
                 .padding(horizontal = 20.dp)
                 .fillMaxWidth()
-                .background(Color.White, RoundedCornerShape(14.dp))
-                .clip(RoundedCornerShape(14.dp))
-                .clickable { onManualClick() }
-                .padding(horizontal = 30.dp, vertical = 40.dp),
-            verticalAlignment = Alignment.CenterVertically,
+                .background(Color.White, RoundedCornerShape(16.dp))
+                .clip(RoundedCornerShape(16.dp))
         ) {
-            Icon(
-                painter = painterResource(Res.drawable.ic_manual),
-                contentDescription = null,
-                tint = Color.Unspecified,
-                modifier = Modifier.size(40.dp)
-            )
-            Spacer(Modifier.width(20.dp))
-            Text(
-                text = "マニュアル",
-                fontSize = 22.sp,
-                fontWeight = FontWeight.Medium,
-                color = Color(0xFF1A1A1A),
-                modifier = Modifier.weight(1f),
-            )
+            // マニュアル行
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { onManualClick() }
+                    .padding(horizontal = 30.dp, vertical = 32.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                // アイコン背景
+                Box(
+                    contentAlignment = Alignment.Center,
+                    modifier = Modifier
+                        .size(60.dp)
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(Color(0xFFE2F5F7))
+                ) {
+                    Icon(
+                        painter = painterResource(Res.drawable.ic_manual),
+                        contentDescription = null,
+                        tint = Color.Unspecified,
+                        modifier = Modifier.size(40.dp)
+                    )
+                }
+                Spacer(modifier = Modifier.width(20.dp))
+                Text(
+                    text = "マニュアル",
+                    fontSize = 22.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = SettingsInk,
+                    modifier = Modifier.weight(1f),
+                )
+            }
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Column(
+                modifier = Modifier
+                    .padding(horizontal = 20.dp)
+                    .fillMaxWidth()
+                    .background(Color.White, RoundedCornerShape(16.dp))
+                    .clip(RoundedCornerShape(16.dp))
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 30.dp, vertical = 24.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "災害モード",
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = SettingsInk,
+                        )
+                        Text(
+                            text = if (isDisasterMode) "救護所モードで案内中" else "通常モード（医療機関で案内）",
+                            fontSize = 12.sp,
+                            color = Color.Gray,
+                        )
+                    }
+                    Switch(
+                        checked = isDisasterMode,
+                        onCheckedChange = onDisasterModeChange,
+                    )
+                }
+            }
         }
     }
 }

@@ -79,11 +79,11 @@ private data class StepInfo(
 )
 
 private val FLOW_STEPS = listOf(
-    StepInfo(TriageStep.TRAPPED,      "①", "挟まれ確認", "体が倒壊物や家具などに挟まれていますか？", YesDir.RIGHT, "severe_trapped", null),
-    StepInfo(TriageStep.WALK,         "②", "歩行確認",   "自力で歩けますか？",         YesDir.RIGHT, "minor",         null),
-    StepInfo(TriageStep.BREATHING,    "③", "呼吸確認",   "呼吸はありますか？",         YesDir.DOWN,  null,            "severe_airway"),
-    StepInfo(TriageStep.CIRCULATION,  "④", "循環確認",   "手首の脈はありますか？",           YesDir.DOWN,  null,            "severe_circ"),
-    StepInfo(TriageStep.CONSCIOUSNESS,"⑤", "意識確認",   "呼びかけに反応しますか？",   YesDir.RIGHT, "severe_injury", "severe_cons"),
+    StepInfo(TriageStep.TRAPPED,      "01", "挟まれ確認", "体が倒壊物や家具などに挟まれていますか？", YesDir.RIGHT, "severe_trapped", null),
+    StepInfo(TriageStep.WALK,         "02", "歩行確認",   "自力で歩けますか？",         YesDir.RIGHT, "minor",         null),
+    StepInfo(TriageStep.BREATHING,    "03", "呼吸確認",   "呼吸はありますか？",         YesDir.DOWN,  null,            "severe_airway"),
+    StepInfo(TriageStep.CIRCULATION,  "04", "循環確認",   "手首の脈はありますか？",     YesDir.DOWN,  null,            "severe_circ"),
+    StepInfo(TriageStep.CONSCIOUSNESS,"05", "意識確認",   "呼びかけに反応しますか？",   YesDir.RIGHT, "severe_injury", "severe_cons"),
 )
 
 private data class ResultInfo(
@@ -101,7 +101,7 @@ private val FLOW_RESULTS = mapOf(
     "severe_airway" to ResultInfo("重症",     listOf("気道確保・CPR", "AED使用"), Red, RedBg, Red),
     "severe_circ"   to ResultInfo("重症",     listOf("出血を圧迫", "圧迫を保持"), Red, RedBg, Red),
     "severe_cons"   to ResultInfo("重症",     listOf("回復体位", "呼吸を確認"), Red, RedBg, Red),
-    "severe_injury" to ResultInfo("重症",     listOf("出血箇所を圧迫", "・安静"), Red, RedBg, Red),
+    "severe_injury" to ResultInfo("重症",     listOf("救護所または医療者へ引き継ぎ"), Red, RedBg, Red),
 )
 
 // ─── LLM Messages (TODO: replace with actual ChatViewModel call) ──────────────
@@ -111,7 +111,7 @@ private val LLM_MESSAGES = mapOf(
     "severe_airway" to "呼吸停止の疑いがあります。直ちに気道を確保し、必要であればCPRを開始してください。AEDが利用可能な場合は速やかに使用してください。",
     "severe_circ"   to "循環障害の可能性があります。出血部位をタオルなどで強く圧迫し、その状態を保持してください。救急隊の到着を待ちながら観察を続けてください。",
     "severe_cons"   to "意識障害があります。患者を回復体位（横向き）に置き、呼吸状態を継続的に確認してください。嘔吐による窒息に注意してください。",
-    "severe_injury" to "重篤な外傷の可能性があります。出血箇所を強く圧迫止血し、患者を安静に保ってください。体を動かさないよう注意してください。",
+    "severe_injury" to "重い怪我の可能性があります。安全を確認し、救助隊や医療者に知らせてください。出血がある場合は、清潔な布で出血部位を直接圧迫してください。無理に体を動かさないでください。",
 )
 
 // ─── Flow State ───────────────────────────────────────────────────────────────
@@ -278,47 +278,49 @@ fun TriageFlowScreen(
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
+                            .clip(RoundedCornerShape(topStart = 50.dp, topEnd = 50.dp))
                             .background(Color.White)
-                            .padding(horizontal = 20.dp, vertical = 14.dp)
+                            .padding(start = 20.dp, end = 20.dp, top = 22.dp, bottom = 20.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
                     ) {
                         Text(
                             text = "あなた自身は安全ですか？",
-                            fontSize = 15.sp,
-                            fontWeight = FontWeight.Medium,
+                            fontSize = 20.sp,
+                            fontWeight = FontWeight.Bold,
                             color = BodyText,
                             textAlign = TextAlign.Center,
-                            modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp)
+                            modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)
                         )
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            horizontalArrangement = Arrangement.spacedBy(14.dp)
                         ) {
-                            // 安全ボタン（緑）
+                            // 安全ボタン（緑・solid）
                             Box(
                                 contentAlignment = Alignment.Center,
                                 modifier = Modifier
                                     .weight(1f)
-                                    .height(38.dp)
+                                    .height(52.dp)
                                     .clip(RoundedCornerShape(50))
-                                    .background(Color(0xFFE8FAF3))
+                                    .background(Green)
                                     .clickable {
                                         showSafetyPreCheck = false
                                         state = state.copy(currentStep = TriageStep.TRAPPED)
                                     }
                             ) {
-                                Text("✓  安全", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF2E9E6E))
+                                Text("✓  安全", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.White)
                             }
-                            // 危険ボタン（赤）
+                            // 危険ボタン（アンバー・solid）
                             Box(
                                 contentAlignment = Alignment.Center,
                                 modifier = Modifier
                                     .weight(1f)
-                                    .height(38.dp)
+                                    .height(52.dp)
                                     .clip(RoundedCornerShape(50))
-                                    .background(RedBg)
+                                    .background(Orange)
                                     .clickable { showDangerModal = true }
                             ) {
-                                Text("⚠  危険", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = Red)
+                                Text("⚠  危険", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.White)
                             }
                         }
                     }
@@ -329,17 +331,19 @@ fun TriageFlowScreen(
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
+                            .clip(RoundedCornerShape(topStart = 50.dp, topEnd = 50.dp))
                             .background(Color.White)
-                            .padding(horizontal = 20.dp, vertical = 14.dp)
+                            .padding(start = 20.dp, end = 20.dp, top = 18.dp, bottom = 20.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
                     ) {
                         if (info != null) {
                             Text(
                                 text = info.question,
-                                fontSize = 15.sp,
-                                fontWeight = FontWeight.Medium,
+                                fontSize = 20.sp,
+                                fontWeight = FontWeight.Bold,
                                 color = BodyText,
                                 textAlign = TextAlign.Center,
-                                modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp)
+                                modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)
                             )
                         }
                         Row(
@@ -350,23 +354,23 @@ fun TriageFlowScreen(
                                 contentAlignment = Alignment.Center,
                                 modifier = Modifier
                                     .weight(1f)
-                                    .height(38.dp)
+                                    .height(52.dp)
                                     .clip(RoundedCornerShape(50))
-                                    .background(Color(0xFFE8FAF3))
+                                    .background(Green)
                                     .clickable { answerFromButton(true) }
                             ) {
-                                Text("✓  はい", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF2E9E6E))
+                                Text("✓  はい", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.White)
                             }
                             Box(
                                 contentAlignment = Alignment.Center,
                                 modifier = Modifier
                                     .weight(1f)
-                                    .height(38.dp)
+                                    .height(52.dp)
                                     .clip(RoundedCornerShape(50))
-                                    .background(Color(0xFFFFF0F0))
+                                    .background(Red)
                                     .clickable { answerFromButton(false) }
                             ) {
-                                Text("✕  いいえ", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFFD94444))
+                                Text("✕  いいえ", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.White)
                             }
                         }
                     }
@@ -376,25 +380,27 @@ fun TriageFlowScreen(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 20.dp, vertical = 12.dp),
+                            .clip(RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp))
+                            .background(Color.White)
+                            .padding(start = 20.dp, end = 20.dp, top = 18.dp, bottom = 20.dp),
                         horizontalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
                         Box(
                             contentAlignment = Alignment.Center,
                             modifier = Modifier
                                 .weight(1f)
-                                .height(40.dp)
+                                .height(52.dp)
                                 .clip(RoundedCornerShape(50))
-                                .background(TealBg)
+                                .background(Teal)
                                 .clickable { showModal = true }
                         ) {
-                            Text("結果を確認", fontSize = 13.sp, color = Teal, fontWeight = FontWeight.SemiBold)
+                            Text("結果を確認", fontSize = 16.sp, color = Color.White, fontWeight = FontWeight.Bold)
                         }
                         Box(
                             contentAlignment = Alignment.Center,
                             modifier = Modifier
                                 .weight(1f)
-                                .height(40.dp)
+                                .height(52.dp)
                                 .clip(RoundedCornerShape(50))
                                 .background(GrayBg)
                                 .clickable {
@@ -402,7 +408,7 @@ fun TriageFlowScreen(
                                     showSafetyPreCheck = true
                                 }
                         ) {
-                            Text("↺ やり直す", fontSize = 13.sp, color = DarkGrayText)
+                            Text("↺  やり直す", fontSize = 16.sp, color = DarkGrayText, fontWeight = FontWeight.SemiBold)
                         }
                     }
                 }
@@ -756,12 +762,12 @@ private fun QuestionNode(
                 contentAlignment = Alignment.Center,
                 modifier = Modifier
                     .size(26.dp)
-                    .clip(CircleShape)
+                    .clip(RoundedCornerShape(6.dp))
                     .background(s.numBg)
             ) {
                 Text(
                     text       = info.num,
-                    fontSize   = 11.sp,
+                    fontSize   = 10.sp,
                     fontWeight = FontWeight.Bold,
                     color      = Color.White,
                 )

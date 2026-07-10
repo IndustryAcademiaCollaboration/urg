@@ -16,17 +16,46 @@ object KnowledgeLoader {
         val json = assets.open("knowledge/$fileName").bufferedReader().use { it.readText() }
         val root = JSONObject(json)
         val category = root.getString("category")
+        val subcategory = root.getString("subcategory")
+        val contextArr = root.getJSONArray("context")
+        val context = (0 until contextArr.length()).map { contextArr.getString(it) }
         val chunksArray = root.getJSONArray("chunks")
 
         return (0 until chunksArray.length()).map { i ->
             val obj = chunksArray.getJSONObject(i)
+
+            val keywordsArr = obj.getJSONArray("keywords")
+            val keywords = (0 until keywordsArr.length()).map { keywordsArr.getString(it) }
+
+            val stepsArr = obj.getJSONArray("steps")
+            val steps = (0 until stepsArr.length()).map { stepsArr.getString(it) }
+
+            val doNotArr = obj.optJSONArray("do_not")
+            val doNot = if (doNotArr != null) {
+                (0 until doNotArr.length()).map { doNotArr.getString(it) }
+            } else {
+                emptyList()
+            }
+            val tagsArr = obj.optJSONArray("tags")
+            val tags = if (tagsArr != null) {
+                (0 until tagsArr.length()).map { tagsArr.getString(it) }
+            } else {
+                emptyList()
+            }
+
             KnowledgeChunk(
                 id = obj.getString("id"),
                 category = category,
+                subcategory = subcategory,
+                context = context,
                 title = obj.getString("title"),
-                text = obj.getString("text"),
-                guidance = obj.optString("guidance").takeIf { it.isNotEmpty() },
-                severity = obj.optString("severity").takeIf { it.isNotEmpty() }
+                keywords = keywords,
+                whenToUse = obj.getString("when"),
+                steps = steps,
+                doNot = doNot,
+                severity = obj.optString("severity").takeIf { it.isNotEmpty() },
+                next = obj.optString("next").takeIf { it.isNotEmpty() },
+                tags = tags
             )
         }
     }

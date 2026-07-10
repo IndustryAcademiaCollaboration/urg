@@ -8,7 +8,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.ui.zIndex
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
@@ -20,8 +19,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.urg.edge.ChatScope
 import com.urg.edge.ChatUiState
 import com.urg.edge.ChatViewModel
+import com.urg.edge.VictimRecord
 
 @Composable
 fun TriageTabScreen(
@@ -38,19 +39,23 @@ fun TriageTabScreen(
     onTriageYes: () -> Unit,
     onTriageNo: () -> Unit,
     onNavigateToMap: () -> Unit,
+    victims: List<VictimRecord> = emptyList(),
+    onScopeChange: (ChatScope) -> Unit = {},
+    bottomPadding: androidx.compose.ui.unit.Dp = 0.dp,
     modifier: Modifier = Modifier,
 ) {
     Column(
         modifier = modifier
             .fillMaxSize()
             .background(Color(0xFFF2F4F6))
+            .padding(bottom = bottomPadding)
     ) {
-        // ── トグルヘッダー ────────────────────────────────────────────────
+        // ── タブ切替 ─────────────────────────────────────────────────
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .background(Color.White)
-                .padding(horizontal = 12.dp, vertical = 10.dp)
+                .padding(horizontal = 16.dp, vertical = 10.dp)
         ) {
             Row(
                 modifier = Modifier
@@ -120,6 +125,8 @@ fun TriageTabScreen(
                 onTestWavRecognize = onTestWavRecognize,
                 onTriageYes = onTriageYes,
                 onTriageNo = onTriageNo,
+                victims = victims,
+                onScopeChange = onScopeChange,
                 applyStatusBarPadding = false,
                 modifier = Modifier
                     .fillMaxSize()
