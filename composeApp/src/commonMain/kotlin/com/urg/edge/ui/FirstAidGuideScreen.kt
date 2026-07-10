@@ -532,13 +532,13 @@ private fun GuideCategoryCard(
         Spacer(modifier = Modifier.height(12.dp))
         Text(
             text = title,
-            fontSize = 14.sp,
+            fontSize = 16.sp,
             fontWeight = FontWeight.Bold,
             color = GuideInk,
-            lineHeight = 19.sp,
+            lineHeight = 22.sp,
         )
         Spacer(modifier = Modifier.height(4.dp))
-        Text(text = "${count}項目", fontSize = 11.sp, color = GuideMuted)
+        Text(text = "${count}項目", fontSize = 13.sp, color = GuideMuted)
     }
 }
 
@@ -615,12 +615,12 @@ private fun GuideListCard(
 private fun SeverityBadge() {
     Text(
         text = "重症",
-        fontSize = 11.sp,
+        fontSize = 14.sp,
         color = Color.White,
         fontWeight = FontWeight.Bold,
         modifier = Modifier
-            .background(GuideRed, RoundedCornerShape(5.dp))
-            .padding(horizontal = 6.dp, vertical = 2.dp)
+            .background(GuideRed, RoundedCornerShape(10.dp))
+            .padding(horizontal = 10.dp, vertical = 4.dp)
     )
 }
 
@@ -640,7 +640,7 @@ private fun ChunkDetailView(chunk: KnowledgeChunk, bottomPadding: Dp = 0.dp) {
         }
 
         DetailCard(title = "こんなとき", titleColor = GuideTeal) {
-            Text(text = chunk.whenToUse, fontSize = 18.sp, color = GuideInk, lineHeight = 25.sp)
+            Text(text = chunk.whenToUse, fontSize = 16.sp, color = GuideInk, lineHeight = 25.sp)
         }
 
         DetailCard(title = "やること", titleColor = GuideTeal) {
@@ -657,7 +657,7 @@ private fun ChunkDetailView(chunk: KnowledgeChunk, bottomPadding: Dp = 0.dp) {
                     Spacer(modifier = Modifier.width(10.dp))
                     Text(
                         text = step,
-                        fontSize = 18.sp,
+                        fontSize = 16.sp,
                         color = GuideInk,
                         lineHeight = 24.sp,
                         modifier = Modifier.weight(1f),
@@ -713,7 +713,7 @@ private fun DetailCard(
                     .background(titleColor, RoundedCornerShape(2.dp))
             )
             Spacer(modifier = Modifier.width(8.dp))
-            Text(text = title, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = titleColor)
+            Text(text = title, fontSize = 18.sp, fontWeight = FontWeight.Bold, color = titleColor)
         }
         Spacer(modifier = Modifier.height(10.dp))
         Column(content = content)
