@@ -187,51 +187,78 @@ fun App(
                     .navigationBarsPadding()
                     .padding(horizontal = 20.dp, vertical = 10.dp)
             ) {
+                // ── ピル ──────────────────────────────────────────────────
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
+                        .align(Alignment.BottomCenter)
+                        .padding(top = 12.dp)
                         .shadow(elevation = 16.dp, shape = RoundedCornerShape(999.dp))
                         .clip(RoundedCornerShape(999.dp))
-                        .background(Color.White.copy(alpha = 0.8f))
+                        .background(Color.White.copy(alpha = 0.9f))
                         .border(1.dp, Color(0xFFDDE3E8).copy(alpha = 0.5f), RoundedCornerShape(999.dp))
-                        .padding(vertical = 6.dp, horizontal = 4.dp),
+                        .padding(vertical = 8.dp, horizontal = 4.dp),
                     horizontalArrangement = Arrangement.SpaceAround,
                 ) {
-                        navItems.forEachIndexed { index, item ->
-                            val isSelected = selectedTab == index
-                            Column(
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .clickable { selectedTab = index; resetOverlays() }
-                                    .padding(vertical = 4.dp),
-                            ) {
+                    navItems.forEachIndexed { index, item ->
+                        val isSelected = selectedTab == index
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            modifier = Modifier
+                                .weight(1f)
+                                .clickable { selectedTab = index; resetOverlays() }
+                                .padding(vertical = 2.dp),
+                        ) {
+                            if (isSelected) {
+                                Spacer(modifier = Modifier.size(22.dp))
+                            } else {
+                                Icon(
+                                    painter = painterResource(item.icon),
+                                    contentDescription = item.label,
+                                    tint = Color.Unspecified,
+                                    modifier = Modifier.size(24.dp),
+                                )
+                            }
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = item.label,
+                                fontSize = 12.sp,
+                                color = if (isSelected) NavSelectedColor else NavUnselectedColor,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                            )
+                        }
+                    }
+                }
+
+                // ── 選択中アイコン円（ピルの上に浮く）───────────────────
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .align(Alignment.TopCenter),
+                    horizontalArrangement = Arrangement.SpaceAround,
+                ) {
+                    navItems.forEachIndexed { index, item ->
+                        Box(
+                            modifier = Modifier.weight(1f),
+                            contentAlignment = Alignment.TopCenter,
+                        ) {
+                            if (selectedTab == index) {
                                 Box(
                                     contentAlignment = Alignment.Center,
                                     modifier = Modifier
-                                        .size(40.dp)
-                                        .background(
-                                            if (isSelected) Color(0x2625B1BF) else Color.Transparent,
-                                            CircleShape,
-                                        )
+                                        .size(44.dp)
+                                        .shadow(3.dp, CircleShape)
+                                        .clip(CircleShape)
+                                        .background(NavSelectedColor)
+                                        .clickable { selectedTab = index; resetOverlays() },
                                 ) {
                                     Icon(
-                                        painter = painterResource(
-                                            if (isSelected) item.iconSelected else item.icon
-                                        ),
+                                        painter = painterResource(item.iconSelected),
                                         contentDescription = item.label,
-                                        tint = Color.Unspecified,
-                                        modifier = Modifier.size(26.dp),
+                                        tint = Color.White,
+                                        modifier = Modifier.size(24.dp),
                                     )
                                 }
-                                Spacer(modifier = Modifier.height(2.dp))
-                                Text(
-                                    text = item.label,
-                                    fontSize = if (isSelected) 12.sp else 11.sp,
-                                    color = if (isSelected) NavSelectedColor else NavUnselectedColor,
-                                    fontWeight = if (isSelected) FontWeight.ExtraBold else FontWeight.Normal,
-                                    letterSpacing = if (isSelected) 0.sp else 0.sp,
-                                )
                             }
                         }
                     }
@@ -239,3 +266,4 @@ fun App(
             }
         }
     }
+}
