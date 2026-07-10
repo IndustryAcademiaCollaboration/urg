@@ -88,7 +88,7 @@ class MainActivity : ComponentActivity() {
     private fun initRepository() {
         val database = DatabaseFactory(DatabaseDriverFactory(this)).createDatabase()
         val repository = TriageSessionRepositoryImpl(database)
-        val session = repository.startSession(latitude = null, longitude = null)
+        val session = repository.getLatestSession() ?: repository.startSession(latitude = null, longitude = null)
         chatViewModel.setRepository(repository, session)
     }
 
