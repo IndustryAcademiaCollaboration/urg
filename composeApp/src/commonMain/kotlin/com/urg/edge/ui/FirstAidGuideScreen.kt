@@ -571,20 +571,24 @@ private fun GuideListCard(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(14.dp))
+            .clip(RoundedCornerShape(16.dp))
             .background(Color.White)
-            .border(1.dp, Color(0xFFECEFF2), RoundedCornerShape(14.dp))
+            .border(1.dp, Color(0xFFECEFF2), RoundedCornerShape(16.dp))
             .clickable { onClick() }
-            .padding(horizontal = 18.dp, vertical = 16.dp),
+            .padding(horizontal = 18.dp, vertical = 18.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(modifier = Modifier.weight(1f)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
                 Text(
                     text = title,
                     fontSize = 17.sp,
                     fontWeight = FontWeight.Bold,
                     color = GuideInk,
+                    modifier = Modifier.weight(1f, fill = false),
                 )
                 if (showBadge) {
                     Spacer(modifier = Modifier.width(8.dp))
@@ -592,17 +596,17 @@ private fun GuideListCard(
                 }
             }
             if (subtitle.isNotEmpty()) {
-                Spacer(modifier = Modifier.height(3.dp))
+                Spacer(modifier = Modifier.height(6.dp))
                 Text(
                     text = subtitle,
-                    fontSize = 13.sp,
+                    fontSize = 14.sp,
                     color = GuideMuted,
-                    maxLines = 2,
-                    lineHeight = 18.sp,
+                    maxLines = 3,
+                    lineHeight = 20.sp,
                 )
             }
         }
-        Spacer(modifier = Modifier.width(8.dp))
+        Spacer(modifier = Modifier.width(10.dp))
         Text(text = "›", fontSize = 22.sp, color = Color(0xFFC8D0D6))
     }
 }
@@ -636,7 +640,7 @@ private fun ChunkDetailView(chunk: KnowledgeChunk, bottomPadding: Dp = 0.dp) {
         }
 
         DetailCard(title = "こんなとき", titleColor = GuideTeal) {
-            Text(text = chunk.whenToUse, fontSize = 14.sp, color = GuideInk, lineHeight = 22.sp)
+            Text(text = chunk.whenToUse, fontSize = 18.sp, color = GuideInk, lineHeight = 25.sp)
         }
 
         DetailCard(title = "やること", titleColor = GuideTeal) {
@@ -645,17 +649,17 @@ private fun ChunkDetailView(chunk: KnowledgeChunk, bottomPadding: Dp = 0.dp) {
                     Box(
                         contentAlignment = Alignment.Center,
                         modifier = Modifier
-                            .size(22.dp)
+                            .size(26.dp)
                             .background(GuideTeal, RoundedCornerShape(50))
                     ) {
-                        Text("${i + 1}", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                        Text("${i + 1}", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color.White)
                     }
                     Spacer(modifier = Modifier.width(10.dp))
                     Text(
                         text = step,
-                        fontSize = 14.sp,
+                        fontSize = 18.sp,
                         color = GuideInk,
-                        lineHeight = 20.sp,
+                        lineHeight = 24.sp,
                         modifier = Modifier.weight(1f),
                     )
                 }
@@ -668,16 +672,16 @@ private fun ChunkDetailView(chunk: KnowledgeChunk, bottomPadding: Dp = 0.dp) {
                     Row(modifier = Modifier.padding(vertical = 4.dp), verticalAlignment = Alignment.Top) {
                         Text(
                             "✕",
-                            fontSize = 13.sp,
+                            fontSize = 15.sp,
                             color = GuideRed,
                             fontWeight = FontWeight.Bold,
                             modifier = Modifier.width(24.dp),
                         )
                         Text(
                             text = item,
-                            fontSize = 14.sp,
+                            fontSize = 16.sp,
                             color = GuideInk,
-                            lineHeight = 20.sp,
+                            lineHeight = 24.sp,
                             modifier = Modifier.weight(1f),
                         )
                     }
@@ -705,11 +709,11 @@ private fun DetailCard(
             Box(
                 modifier = Modifier
                     .width(3.dp)
-                    .height(14.dp)
+                    .height(16.dp)
                     .background(titleColor, RoundedCornerShape(2.dp))
             )
             Spacer(modifier = Modifier.width(8.dp))
-            Text(text = title, fontSize = 13.sp, fontWeight = FontWeight.Bold, color = titleColor)
+            Text(text = title, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = titleColor)
         }
         Spacer(modifier = Modifier.height(10.dp))
         Column(content = content)
