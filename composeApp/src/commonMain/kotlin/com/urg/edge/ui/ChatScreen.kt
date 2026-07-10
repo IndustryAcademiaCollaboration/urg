@@ -64,6 +64,8 @@ fun ChatScreen(
     onTestWavRecognize: (String) -> Unit,
     onTriageYes: () -> Unit = {},
     onTriageNo: () -> Unit = {},
+    onMapNavYes: () -> Unit = {},
+    onMapNavNo: () -> Unit = {},
     victims: List<VictimRecord> = emptyList(),
     onScopeChange: (ChatScope) -> Unit = {},
     applyStatusBarPadding: Boolean = true,
@@ -140,43 +142,11 @@ fun ChatScreen(
                 }
 
                 if (uiState.showTriageButtons) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        Box(
-                            contentAlignment = Alignment.Center,
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(38.dp)
-                                .clip(RoundedCornerShape(50))
-                                .background(Color(0xFFE8FAF3))
-                                .clickable { onTriageYes() }
-                        ) {
-                            Text(
-                                text = "✓  ${Strings.BUTTON_YES}",
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = Color(0xFF2E9E6E),
-                            )
-                        }
-                        Box(
-                            contentAlignment = Alignment.Center,
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(38.dp)
-                                .clip(RoundedCornerShape(50))
-                                .background(Color(0xFFFFF0F0))
-                                .clickable { onTriageNo() }
-                        ) {
-                            Text(
-                                text = "✕  ${Strings.BUTTON_NO}",
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = Color(0xFFD94444),
-                            )
-                        }
-                    }
+                    YesNoButtonRow(onYes = onTriageYes, onNo = onTriageNo)
+                    Spacer(modifier = Modifier.height(8.dp))
+                } else if (uiState.pendingMapNavVictimId != null) {
+                    // 地図遷移の確認（トリアージボタン表示中は出さない＝トリアージ優先）
+                    YesNoButtonRow(onYes = onMapNavYes, onNo = onMapNavNo)
                     Spacer(modifier = Modifier.height(8.dp))
                 }
 
@@ -193,6 +163,52 @@ fun ChatScreen(
                     onVoiceInputClick = onVoiceInputClick,
                 )
             }
+        }
+    }
+}
+
+// ── はい/いいえ ボタン行（トリアージ確認・地図遷移確認で共用）───────────────────
+
+@Composable
+private fun YesNoButtonRow(
+    onYes: () -> Unit,
+    onNo: () -> Unit,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        Box(
+            contentAlignment = Alignment.Center,
+            modifier = Modifier
+                .weight(1f)
+                .height(38.dp)
+                .clip(RoundedCornerShape(50))
+                .background(Color(0xFFE8FAF3))
+                .clickable { onYes() }
+        ) {
+            Text(
+                text = "✓  ${Strings.BUTTON_YES}",
+                fontSize = 14.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = Color(0xFF2E9E6E),
+            )
+        }
+        Box(
+            contentAlignment = Alignment.Center,
+            modifier = Modifier
+                .weight(1f)
+                .height(38.dp)
+                .clip(RoundedCornerShape(50))
+                .background(Color(0xFFFFF0F0))
+                .clickable { onNo() }
+        ) {
+            Text(
+                text = "✕  ${Strings.BUTTON_NO}",
+                fontSize = 14.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = Color(0xFFD94444),
+            )
         }
     }
 }

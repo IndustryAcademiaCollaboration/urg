@@ -18,4 +18,6 @@ data class ChatUiState(
     val initBannerExpanded: Boolean = true,
     // チャットスコープ
     val chatScope: ChatScope = ChatScope.All,
+    // 地図遷移の確認待ち対象者ID（null = 非表示）
+    val pendingMapNavVictimId: String? = null,
 )
