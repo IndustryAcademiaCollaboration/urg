@@ -189,7 +189,6 @@ fun FirstAidGuideScreen(
                         GuideListCard(
                             title    = sub,
                             subtitle = "${count}項目",
-                            severe   = hasSevere,
                             onClick  = { screen = GuideScreen.ChunkList(s.category, sub) }
                         )
                     }
@@ -571,43 +570,59 @@ private fun GuideListCard(
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .height(IntrinsicSize.Min)
             .clip(RoundedCornerShape(16.dp))
             .background(Color.White)
             .border(1.dp, Color(0xFFECEFF2), RoundedCornerShape(16.dp))
-            .clickable { onClick() }
-            .padding(horizontal = 18.dp, vertical = 18.dp),
+            .clickable { onClick() },
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Column(modifier = Modifier.weight(1f)) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Text(
-                    text = title,
-                    fontSize = 17.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = GuideInk,
-                    modifier = Modifier.weight(1f, fill = false),
-                )
-                if (showBadge) {
-                    Spacer(modifier = Modifier.width(8.dp))
-                    SeverityBadge()
+        // 左カラーバー（重症のみ）
+        if (severe) {
+            Box(
+                modifier = Modifier
+                    .fillMaxHeight()
+                    .width(6.dp)
+                    .background(GuideRed)
+            )
+        }
+        Row(
+            modifier = Modifier
+                .weight(1f)
+                .padding(start = 16.dp, end = 18.dp, top = 18.dp, bottom = 18.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text(
+                        text = title,
+                        fontSize = 17.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = GuideInk,
+                        modifier = Modifier.weight(1f, fill = false),
+                    )
+                    if (showBadge) {
+                        Spacer(modifier = Modifier.width(8.dp))
+                        SeverityBadge()
+                    }
+                }
+                if (subtitle.isNotEmpty()) {
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(
+                        text = subtitle,
+                        fontSize = 14.sp,
+                        color = GuideMuted,
+                        maxLines = 3,
+                        lineHeight = 20.sp,
+                    )
                 }
             }
-            if (subtitle.isNotEmpty()) {
-                Spacer(modifier = Modifier.height(6.dp))
-                Text(
-                    text = subtitle,
-                    fontSize = 14.sp,
-                    color = GuideMuted,
-                    maxLines = 3,
-                    lineHeight = 20.sp,
-                )
-            }
+            Spacer(modifier = Modifier.width(10.dp))
+            Text(text = "›", fontSize = 22.sp, color = Color(0xFFC8D0D6))
         }
-        Spacer(modifier = Modifier.width(10.dp))
-        Text(text = "›", fontSize = 22.sp, color = Color(0xFFC8D0D6))
     }
 }
 
@@ -619,7 +634,7 @@ private fun SeverityBadge() {
         color = Color.White,
         fontWeight = FontWeight.Bold,
         modifier = Modifier
-            .background(GuideRed, RoundedCornerShape(10.dp))
+            .background(GuideRed, RoundedCornerShape(50))
             .padding(horizontal = 10.dp, vertical = 4.dp)
     )
 }
