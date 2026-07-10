@@ -10,6 +10,6 @@ import com.urg.edge.VictimRecord
 expect fun MapScreen(
     victims: List<VictimRecord> = emptyList(),
     focusedVictimId: String? = null,
-    bottomPadding: Dp = 0.dp,
+    bottomPadding: androidx.compose.ui.unit.Dp = 0.dp,
     modifier: Modifier = Modifier,
 )

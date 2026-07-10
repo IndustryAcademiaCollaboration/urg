@@ -27,6 +27,9 @@ import com.urg.edge.stt.createSttEngine
 import com.urg.edge.tts.createTtsEngine
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
+import com.urg.edge.map.MapDownloadManager
+import com.urg.edge.map.getPrefectureFileName
 import kotlinx.coroutines.withContext
 import android.app.AlertDialog
 import android.content.Intent
@@ -39,11 +42,25 @@ class MainActivity : ComponentActivity() {
     private val chatViewModel: ChatViewModel by viewModels()
     private val audioRecorder = AudioRecorder()
 
+    // マイク再要求用（handleMicStart から使用）
     private val requestPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { granted ->
         if (!granted) {
             chatViewModel.addSystemMessage(Strings.ERROR_MIC_PERMISSION)
+        }
+    }
+
+    // 起動時にマイク＋位置情報をまとめて要求
+    private val requestInitialPermissionsLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions ->
+        if (permissions[Manifest.permission.RECORD_AUDIO] != true) {
+            chatViewModel.addSystemMessage(Strings.ERROR_MIC_PERMISSION)
+        }
+        if (permissions[Manifest.permission.ACCESS_FINE_LOCATION] == true) {
+            initLocationTracking()
+            initMapDownload()
         }
     }
 
@@ -56,9 +73,10 @@ class MainActivity : ComponentActivity() {
         initKnowledgeRetriever()
         initDisasterDetection()
         initLocationTracking()
+        initMapDownload()
         initSttEngine()
         initTtsEngine()
-        requestMicPermission()
+        requestInitialPermissions()
 
         setContent {
             App(
@@ -100,7 +118,6 @@ class MainActivity : ComponentActivity() {
             try {
                 val modelFile = File(getExternalFilesDir(null), "models/${Strings.LLM_MODEL_FILE_NAME}")
                 if (!modelFile.exists()) {
-                    // Try downloading; if it fails, show ADB install instructions instead of crashing
                     try {
                         downloadModel(modelFile)
                     } catch (downloadEx: Exception) {
@@ -108,13 +125,13 @@ class MainActivity : ComponentActivity() {
                         withContext(Dispatchers.Main) {
                             chatViewModel.addSystemMessage(
                                 "⚠️ モデルの自動ダウンロードに失敗しました。\n" +
-                                "PCから次のコマンドで手動インストールしてください:\n\n" +
-                                "1. PCでモデルをダウンロード:\n" +
-                                "   ${Strings.LLM_MODEL_DOWNLOAD_URL}\n\n" +
-                                "2. ADBで端末に転送:\n" +
-                                "   adb push model.litertlm \\\n" +
-                                "   /sdcard/Android/data/com.urg.edge/files/models/model.litertlm\n\n" +
-                                "3. アプリを再起動してください"
+                                        "PCから次のコマンドで手動インストールしてください:\n\n" +
+                                        "1. PCでモデルをダウンロード:\n" +
+                                        "   ${Strings.LLM_MODEL_DOWNLOAD_URL}\n\n" +
+                                        "2. ADBで端末に転送:\n" +
+                                        "   adb push model.litertlm \\\n" +
+                                        "   /sdcard/Android/data/com.urg.edge/files/models/model.litertlm\n\n" +
+                                        "3. アプリを再起動してください"
                             )
                         }
                         return@launch
@@ -223,20 +240,77 @@ class MainActivity : ComponentActivity() {
         )
     }
 
+    private fun initMapDownload() {
+        lifecycleScope.launch(Dispatchers.IO) {
+            try {
+                val downloadManager = MapDownloadManager(this@MainActivity)
+
+                val saved = downloadManager.getDownloadedPrefecture()
+                if (saved != null && downloadManager.isMbtilesDownloaded(saved)) {
+                    withContext(Dispatchers.Main) {
+                        chatViewModel.updateMapProgress(1f)
+                    }
+                    return@launch
+                }
+
+                if (ContextCompat.checkSelfPermission(
+                        this@MainActivity, Manifest.permission.ACCESS_FINE_LOCATION
+                    ) != PackageManager.PERMISSION_GRANTED) {
+                    withContext(Dispatchers.Main) {
+                        chatViewModel.updateMapProgress(1f)
+                    }
+                    return@launch
+                }
+
+                // ダウンロードが必要 → バナー表示、進捗を0にリセット
+                withContext(Dispatchers.Main) {
+                    chatViewModel.updateMapProgress(0f)
+                    chatViewModel.showInitBanner()
+                }
+
+                val fusedClient = LocationServices.getFusedLocationProviderClient(this@MainActivity)
+                var loc = fusedClient.lastLocation.await()
+                if (loc == null) {
+                    val cts = CancellationTokenSource()
+                    loc = fusedClient.getCurrentLocation(
+                        com.google.android.gms.location.Priority.PRIORITY_BALANCED_POWER_ACCURACY,
+                        cts.token
+                    ).await()
+                }
+                val lat = loc?.latitude ?: return@launch
+                val lng = loc?.longitude ?: return@launch
+
+                val prefecture = downloadManager.getPrefectureFromLocation(lat, lng) ?: return@launch
+                val fileName = getPrefectureFileName(prefecture) ?: return@launch
+
+                val success = downloadManager.downloadMbtiles(fileName) { progress ->
+                    lifecycleScope.launch(Dispatchers.Main) {
+                        chatViewModel.updateMapProgress(progress / 100f)
+                    }
+                }
+
+                withContext(Dispatchers.Main) {
+                    if (success) {
+                        chatViewModel.updateMapProgress(1f)
+                    } else {
+                        chatViewModel.addSystemMessage("地図データのダウンロードに失敗しました")
+                    }
+                }
+            } catch (e: Exception) {
+                Log.w("MAP_INIT", "Map download failed: ${e.message}")
+            }
+        }
+    }
+
     private val disasterModeManager by lazy { DisasterModeManager(this) }
 
     private fun initDisasterDetection() {
-        // DataStore → ChatViewModel に同期
         lifecycleScope.launch {
             disasterModeManager.isDisasterMode.collect { enabled ->
                 chatViewModel.setDisasterMode(enabled)
             }
         }
-
-        // WorkManager でJMAポーリング開始
         DisasterCheckWorker.schedule(this)
-
-        // NLS権限チェック
         checkNlsPermission()
     }
 
@@ -254,6 +328,7 @@ class MainActivity : ComponentActivity() {
                 .show()
         }
     }
+
     private fun initSttEngine() {
         lifecycleScope.launch(Dispatchers.IO) {
             try {
@@ -262,14 +337,13 @@ class MainActivity : ComponentActivity() {
                     targetDir = modelDir,
                     files = VoiceModelAssets.sttFiles,
                     label = "STTモデル",
-                    onStatus = { /* ステータス文字列は不要（バナーで表示） */ },
+                    onStatus = { },
                     onProgress = { progress ->
                         withContext(Dispatchers.Main) {
                             chatViewModel.updateSttProgress(progress)
                         }
                     },
                 )
-
                 val engine = createSttEngine(this@MainActivity, SttConfig(), modelDir)
                 chatViewModel.setSttEngine(engine)
                 withContext(Dispatchers.Main) {
@@ -293,14 +367,13 @@ class MainActivity : ComponentActivity() {
                     targetDir = modelDir,
                     files = VoiceModelAssets.ttsFiles,
                     label = "TTSモデル",
-                    onStatus = { /* ステータス文字列は不要（バナーで表示） */ },
+                    onStatus = { },
                     onProgress = { progress ->
                         withContext(Dispatchers.Main) {
                             chatViewModel.updateTtsProgress(progress)
                         }
                     },
                 )
-
                 val engine = createTtsEngine(this@MainActivity, modelDir = modelDir)
                 chatViewModel.setTtsEngine(engine)
                 withContext(Dispatchers.Main) {
@@ -316,10 +389,15 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    private fun requestMicPermission() {
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) !=
-            PackageManager.PERMISSION_GRANTED) {
-            requestPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+    private fun requestInitialPermissions() {
+        val needed = buildList {
+            if (ContextCompat.checkSelfPermission(this@MainActivity, Manifest.permission.RECORD_AUDIO)
+                != PackageManager.PERMISSION_GRANTED) add(Manifest.permission.RECORD_AUDIO)
+            if (ContextCompat.checkSelfPermission(this@MainActivity, Manifest.permission.ACCESS_FINE_LOCATION)
+                != PackageManager.PERMISSION_GRANTED) add(Manifest.permission.ACCESS_FINE_LOCATION)
+        }
+        if (needed.isNotEmpty()) {
+            requestInitialPermissionsLauncher.launch(needed.toTypedArray())
         }
     }
 

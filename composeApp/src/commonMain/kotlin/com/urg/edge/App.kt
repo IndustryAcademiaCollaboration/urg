@@ -182,6 +182,7 @@ fun App(
                         llmProgress = uiState.llmProgress,
                         sttProgress = uiState.sttProgress,
                         ttsProgress = uiState.ttsProgress,
+                        mapProgress  = uiState.mapProgress,
                         expanded    = uiState.initBannerExpanded,
                         onToggle    = viewModel::toggleInitBanner,
                         onDismiss   = viewModel::dismissInitBanner,

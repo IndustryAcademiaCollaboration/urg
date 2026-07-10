@@ -153,6 +153,9 @@ class ChatViewModel(
     fun updateTtsProgress(progress: Float) {
         _uiState.update { it.copy(ttsProgress = progress.coerceIn(0f, 1f)) }
     }
+    fun updateMapProgress(progress: Float) {
+        _uiState.update { it.copy(mapProgress = progress.coerceIn(0f, 1f)) }
+    }
     fun dismissInitBanner() {
         _uiState.update { it.copy(showInitBanner = false) }
     }

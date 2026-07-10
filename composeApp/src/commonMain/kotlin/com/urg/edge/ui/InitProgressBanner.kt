@@ -34,6 +34,8 @@ import urg.composeapp.generated.resources.ic_closeBtn
 import urg.composeapp.generated.resources.ic_down
 import urg.composeapp.generated.resources.ic_stt
 import urg.composeapp.generated.resources.ic_tts
+import urg.composeapp.generated.resources.ic_map
+import urg.composeapp.generated.resources.ic_map_selected
 import urg.composeapp.generated.resources.ic_up
 
 private val Teal   = Color(0xFF25B1BF)
@@ -58,12 +60,13 @@ fun InitProgressBanner(
     llmProgress: Float,
     sttProgress: Float,
     ttsProgress: Float,
+    mapProgress: Float,
     expanded: Boolean,
     onToggle: () -> Unit,
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val overallProgress = (llmProgress + sttProgress + ttsProgress) / 3f
+    val overallProgress = (llmProgress + sttProgress + ttsProgress + mapProgress) / 4f
     val overallPct      = (overallProgress * 100).toInt()
     val allDone         = overallProgress >= 1f
 
@@ -138,6 +141,8 @@ fun InitProgressBanner(
                     ProgressRow(Res.drawable.ic_stt, "STTモデル", sttProgress)
                     Spacer(Modifier.height(10.dp))
                     ProgressRow(Res.drawable.ic_tts, "TTSモデル", ttsProgress)
+                    Spacer(Modifier.height(10.dp))
+                    ProgressRow(Res.drawable.ic_map_selected, "地図データ", mapProgress)
                 }
             }
         }
