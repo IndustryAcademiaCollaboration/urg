@@ -286,7 +286,12 @@ actual fun MapScreen(
         updateShelterSource(currentLat, currentLng, FacilityFilter.ALL, newData, filteredShelters)
     }
 
-    // focusedVictimId または mapRef が変化したときにカメラ移動
+    LaunchedEffect(victims, mapRef) {
+        val map = mapRef ?: return@LaunchedEffect
+        val style = map.style ?: return@LaunchedEffect
+        (style.getSource(SOURCE_VICTIMS) as? GeoJsonSource)
+            ?.setGeoJson(buildVictimGeoJson(victims))
+    }
     LaunchedEffect(focusedVictimId, mapRef) {
         val target = victims.firstOrNull { it.id == focusedVictimId } ?: return@LaunchedEffect
         val lat = target.latitude ?: return@LaunchedEffect
