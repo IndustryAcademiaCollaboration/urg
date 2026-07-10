@@ -114,6 +114,7 @@ fun App(
                 )
                 showManual -> ManualScreen(
                     onBack = { showManual = false },
+                    bottomPadding = bottomElementPadding,
                     modifier = contentModifier
                 )
                 selectedTab == 0 -> TriageTabScreen(
