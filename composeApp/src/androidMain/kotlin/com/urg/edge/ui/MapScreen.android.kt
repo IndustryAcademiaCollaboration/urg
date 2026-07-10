@@ -9,12 +9,17 @@ import android.graphics.Paint
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -30,9 +35,11 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -54,7 +61,6 @@ import com.mapbox.mapboxsdk.style.layers.LineLayer
 import com.mapbox.mapboxsdk.style.layers.PropertyFactory
 import com.mapbox.mapboxsdk.style.sources.GeoJsonSource
 import com.urg.edge.routing.BRouterEngine
-import com.mapbox.mapboxsdk.utils.BitmapUtils
 import com.urg.edge.map.MapDownloadManager
 import com.urg.edge.map.Rd5DownloadManager
 import com.urg.edge.map.getPrefectureFileName
@@ -63,12 +69,12 @@ import com.urg.edge.shelter.ShelterRepository
 import com.urg.edge.shelter.ShelterType
 import com.urg.edge.TriageResult
 import com.urg.edge.VictimRecord
+import com.urg.edge.toTimeString
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import org.json.JSONArray
 import org.json.JSONObject
 
-// 施設フィルター選択肢
 enum class FacilityFilter(val displayName: String) {
     ALL("全て"),
     EVACUATION_CENTER("指定避難所"),
@@ -77,7 +83,6 @@ enum class FacilityFilter(val displayName: String) {
     HOSPITAL("病院")
 }
 
-// GeoJSONソースID・レイヤーID定数
 private const val SOURCE_SHELTERS = "source-shelters"
 private const val SOURCE_CURRENT_LOCATION = "source-current-location"
 private const val LAYER_SHELTERS = "layer-shelters"
@@ -114,15 +119,14 @@ actual fun MapScreen(
     var sheltersByType by remember { mutableStateOf<Map<ShelterType, List<Shelter>>>(emptyMap()) }
     var filteredShelters by remember { mutableStateOf<List<Shelter>>(emptyList()) }
 
-    // MapboxMapへの参照（GeoJsonSource更新用）
     var mapRef by remember { mutableStateOf<MapboxMap?>(null) }
+    var tappedVictim by remember { mutableStateOf<VictimRecord?>(null) }
 
     val brouterEngine = remember { BRouterEngine(context) }
     val rd5Manager = remember { Rd5DownloadManager(context) }
     var showingRoute by remember { mutableStateOf(false) }
     var calculatingRoute by remember { mutableStateOf(false) }
 
-    // 避難所GeoJSONを更新する関数
     fun updateShelterSource(
         lat: Double,
         lng: Double,
@@ -189,7 +193,6 @@ actual fun MapScreen(
         }
     }
 
-    // フィルター変更時
     LaunchedEffect(selectedFilter) {
         if (currentLat == 0.0) return@LaunchedEffect
         when (selectedFilter) {
@@ -276,7 +279,6 @@ actual fun MapScreen(
         }
     }
 
-    // mapReady後に避難所データ取得＆ソース更新
     LaunchedEffect(mapReady) {
         if (!mapReady || currentLat == 0.0) return@LaunchedEffect
         val newData = shelterRepository.getNearestShelters(currentLat, currentLng)
@@ -284,16 +286,17 @@ actual fun MapScreen(
         updateShelterSource(currentLat, currentLng, FacilityFilter.ALL, newData, filteredShelters)
     }
 
-    // 傷病者にフォーカス
-    LaunchedEffect(focusedVictimId) {
+    // focusedVictimId または mapRef が変化したときにカメラ移動
+    LaunchedEffect(focusedVictimId, mapRef) {
         val target = victims.firstOrNull { it.id == focusedVictimId } ?: return@LaunchedEffect
         val lat = target.latitude ?: return@LaunchedEffect
         val lng = target.longitude ?: return@LaunchedEffect
-        mapRef?.animateCamera(
+        val map = mapRef ?: return@LaunchedEffect
+        map.animateCamera(
             CameraUpdateFactory.newCameraPosition(
                 CameraPosition.Builder()
                     .target(LatLng(lat, lng))
-                    .zoom(17.0)
+                    .zoom(18.0)
                     .build()
             ), 800
         )
@@ -342,13 +345,12 @@ actual fun MapScreen(
                                     .zoom(13.0)
                                     .build()
 
-                                // アイコン画像をスタイルに登録
                                 style.addImage("current-location-icon",
                                     createCircleBitmap(0xFF1565C0.toInt(), sizePx = 48))
                                 style.addImage("victim-severe-icon",
-                                    createCircleBitmap(0xFFE5463F.toInt(), sizePx = 40))
+                                    createDiamondBitmap(0xFFE5463F.toInt(), sizePx = 44))
                                 style.addImage("victim-minor-icon",
-                                    createCircleBitmap(0xFF16A36B.toInt(), sizePx = 40))
+                                    createDiamondBitmap(0xFF16A36B.toInt(), sizePx = 44))
                                 style.addImage(ShelterType.EVACUATION_CENTER.iconName(),
                                     createCircleBitmap(0xFF388E3C.toInt()))
                                 style.addImage(ShelterType.EMERGENCY_SHELTER.iconName(),
@@ -358,12 +360,10 @@ actual fun MapScreen(
                                 style.addImage(ShelterType.HOSPITAL.iconName(),
                                     createCircleBitmap(0xFF7B1FA2.toInt()))
 
-                                // ソースを登録
                                 style.addSource(GeoJsonSource(SOURCE_SHELTERS, emptyFeatureCollection()))
                                 style.addSource(GeoJsonSource(SOURCE_CURRENT_LOCATION, emptyFeatureCollection()))
                                 style.addSource(GeoJsonSource(SOURCE_VICTIMS, buildVictimGeoJson(victims)))
 
-                                // 傷病者レイヤー
                                 style.addLayer(
                                     com.mapbox.mapboxsdk.style.layers.SymbolLayer(LAYER_VICTIMS, SOURCE_VICTIMS)
                                         .withProperties(
@@ -375,17 +375,14 @@ actual fun MapScreen(
                                         )
                                 )
 
-                                // 現在地ピンを即時セット
                                 if (currentLat != 0.0) {
                                     val currentLocGeoJson = singlePointFeatureCollection(currentLng, currentLat)
                                     (style.getSource(SOURCE_CURRENT_LOCATION) as? GeoJsonSource)
                                         ?.setGeoJson(currentLocGeoJson)
                                 }
 
-                                // ルートソースを追加
                                 style.addSource(GeoJsonSource(SOURCE_ROUTE, emptyFeatureCollection()))
 
-                                // ルートラインレイヤーを追加
                                 style.addLayerBelow(
                                     LineLayer(LAYER_ROUTE, SOURCE_ROUTE).apply {
                                         minZoom = 0f
@@ -406,6 +403,16 @@ actual fun MapScreen(
 
                                 map.addOnMapClickListener { point ->
                                     val screenPoint = map.projection.toScreenLocation(point)
+
+                                    // 傷病者ピンを優先チェック
+                                    val victimFeatures = map.queryRenderedFeatures(screenPoint, LAYER_VICTIMS)
+                                    if (victimFeatures.isNotEmpty()) {
+                                        val victimId = victimFeatures[0].getStringProperty("id") ?: ""
+                                        tappedVictim = victims.firstOrNull { it.id == victimId }
+                                        return@addOnMapClickListener true
+                                    }
+
+                                    // 避難所ピン
                                     val features = map.queryRenderedFeatures(screenPoint, LAYER_SHELTERS)
                                     if (features.isNotEmpty()) {
                                         val feature = features[0]
@@ -455,6 +462,7 @@ actual fun MapScreen(
                                         }
                                         true
                                     } else {
+                                        tappedVictim = null
                                         false
                                     }
                                 }
@@ -496,7 +504,7 @@ actual fun MapScreen(
                 }
             }
 
-            // 左上：ルート解除ボタン（ルート表示中のみ）
+            // 左上：ルート解除ボタン
             if (showingRoute) {
                 FilledTonalButton(
                     onClick = {
@@ -510,6 +518,82 @@ actual fun MapScreen(
                         .padding(12.dp)
                 ) {
                     Text("✕ ルート解除", fontSize = 13.sp)
+                }
+            }
+
+            // 傷病者情報カード
+            tappedVictim?.let { victim ->
+                val isSevere = victim.result == TriageResult.SEVERE
+                val accentColor = if (isSevere) Color(0xFFE5463F) else Color(0xFF16A36B)
+                val numStr = "#${victim.displayNo.toString().padStart(3, '0')}"
+
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .padding(16.dp)
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(Color.White)
+                        .clickable { tappedVictim = null }
+                ) {
+                    Row(
+                        modifier = Modifier.padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        // 左カラーバー
+                        Box(
+                            modifier = Modifier
+                                .width(4.dp)
+                                .height(56.dp)
+                                .clip(RoundedCornerShape(2.dp))
+                                .background(accentColor)
+                        )
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    text = numStr,
+                                    fontSize = 22.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = accentColor,
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Box(
+                                    modifier = Modifier
+                                        .background(accentColor, RoundedCornerShape(50))
+                                        .padding(horizontal = 10.dp, vertical = 2.dp)
+                                ) {
+                                    Text(
+                                        text = if (isSevere) "重症" else "軽症",
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color.White,
+                                    )
+                                }
+                            }
+                            Text(
+                                text = victim.recordedAt.toTimeString(),
+                                fontSize = 13.sp,
+                                color = Color(0xFF94A6B0),
+                            )
+                            val noteText = listOfNotNull(
+                                victim.note?.location,
+                                victim.note?.feature
+                            ).joinToString("・")
+                            if (noteText.isNotEmpty()) {
+                                Text(
+                                    text = noteText,
+                                    fontSize = 13.sp,
+                                    color = Color(0xFF25B1BF),
+                                )
+                            }
+                        }
+                        Text(
+                            text = "✕",
+                            fontSize = 18.sp,
+                            color = Color(0xFF94A6B0),
+                        )
+                    }
                 }
             }
         }
@@ -555,7 +639,6 @@ actual fun MapScreen(
     }
 }
 
-// ShelterType のアイコン名
 private fun ShelterType.iconName(): String = when (this) {
     ShelterType.EVACUATION_CENTER  -> "evacuation-center-icon"
     ShelterType.EMERGENCY_SHELTER  -> "emergency-shelter-icon"
@@ -563,7 +646,6 @@ private fun ShelterType.iconName(): String = when (this) {
     ShelterType.HOSPITAL           -> "hospital-icon"
 }
 
-// FacilityFilter → ShelterType 変換
 private fun FacilityFilter.toShelterType(): ShelterType? = when (this) {
     FacilityFilter.EVACUATION_CENTER  -> ShelterType.EVACUATION_CENTER
     FacilityFilter.EMERGENCY_SHELTER  -> ShelterType.EMERGENCY_SHELTER
@@ -588,7 +670,33 @@ private fun buildVictimGeoJson(victims: List<VictimRecord>): String {
     return """{"type":"FeatureCollection","features":[${features.joinToString(",")}]}"""
 }
 
-/** 色付き円Bitmapを生成 */
+/** ひし形Bitmapを生成（傷病者ピン用） */
+private fun createDiamondBitmap(color: Int, sizePx: Int = 44): Bitmap {
+    val bitmap = Bitmap.createBitmap(sizePx, sizePx, Bitmap.Config.ARGB_8888)
+    val canvas = Canvas(bitmap)
+    val cx = sizePx / 2f
+    val cy = sizePx / 2f
+    val r = sizePx * 0.42f
+    val path = android.graphics.Path().apply {
+        moveTo(cx, cy - r)
+        lineTo(cx + r, cy)
+        lineTo(cx, cy + r)
+        lineTo(cx - r, cy)
+        close()
+    }
+    canvas.drawPath(path, Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        this.color = color
+        style = Paint.Style.FILL
+    })
+    canvas.drawPath(path, Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        this.color = android.graphics.Color.WHITE
+        style = Paint.Style.STROKE
+        strokeWidth = sizePx * 0.1f
+    })
+    return bitmap
+}
+
+/** 色付き円Bitmapを生成（避難所・現在地ピン用） */
 private fun createCircleBitmap(color: Int, sizePx: Int = 36): Bitmap {
     val bitmap = Bitmap.createBitmap(sizePx, sizePx, Bitmap.Config.ARGB_8888)
     val canvas = Canvas(bitmap)
