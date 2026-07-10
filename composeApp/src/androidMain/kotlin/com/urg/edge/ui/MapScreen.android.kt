@@ -9,21 +9,27 @@ import android.graphics.Paint
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Text
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -53,6 +59,7 @@ import com.mapbox.mapboxsdk.style.layers.LineLayer
 import com.mapbox.mapboxsdk.style.layers.PropertyFactory
 import com.mapbox.mapboxsdk.style.sources.GeoJsonSource
 import com.urg.edge.routing.BRouterEngine
+import com.urg.edge.routing.NogoPoint
 import com.mapbox.mapboxsdk.utils.BitmapUtils
 import com.urg.edge.map.MapDownloadManager
 import com.urg.edge.map.Rd5DownloadManager
@@ -82,6 +89,11 @@ private const val LAYER_SHELTER_LABELS = "layer-shelter-labels"
 private const val LAYER_CURRENT_LOCATION = "layer-current-location"
 private const val SOURCE_ROUTE = "source-route"
 private const val LAYER_ROUTE = "layer-route"
+private const val SOURCE_OBSTACLES = "source-obstacles"
+private const val LAYER_OBSTACLES = "layer-obstacles"
+
+// ルート線をタップ判定する許容範囲（スクリーンピクセル）
+private const val OBSTACLE_TAP_TOLERANCE_PX = 24f
 
 @Composable
 actual fun MapScreen(modifier: Modifier) {
@@ -112,6 +124,80 @@ actual fun MapScreen(modifier: Modifier) {
     val rd5Manager = remember { Rd5DownloadManager(context) }
     var showingRoute by remember { mutableStateOf(false) }
     var calculatingRoute by remember { mutableStateOf(false) }
+
+    // 出発地・目的地の名前表示用
+    var routeOriginName by remember { mutableStateOf("現在地") }
+    var routeDestinationName by remember { mutableStateOf("") }
+    // 再計算のために現在表示中のルートの目的地座標を保持
+    var routeDestLat by remember { mutableStateOf(0.0) }
+    var routeDestLng by remember { mutableStateOf(0.0) }
+
+    // 障害物（迂回）機能用の状態
+    var obstacleMode by remember { mutableStateOf(false) }
+    val nogoPoints = remember { mutableStateListOf<NogoPoint>() }
+
+    // ルート表示状態を初期化するヘルパー
+    fun clearRoute() {
+        showingRoute = false
+        obstacleMode = false
+        nogoPoints.clear()
+        routeDestinationName = ""
+        routeDestLat = 0.0
+        routeDestLng = 0.0
+        val style = mapRef?.style
+        (style?.getSource(SOURCE_ROUTE) as? GeoJsonSource)?.setGeoJson(emptyFeatureCollection())
+        (style?.getSource(SOURCE_OBSTACLES) as? GeoJsonSource)?.setGeoJson(emptyFeatureCollection())
+    }
+
+    // nogoPointsをGeoJSONに変換してSOURCE_OBSTACLESへ反映
+    fun updateObstacleSource() {
+        val style = mapRef?.style ?: return
+        val features = JSONArray()
+        nogoPoints.forEach { nogo ->
+            features.put(JSONObject().apply {
+                put("type", "Feature")
+                put("geometry", JSONObject().apply {
+                    put("type", "Point")
+                    put("coordinates", JSONArray().apply {
+                        put(nogo.lon)
+                        put(nogo.lat)
+                    })
+                })
+                put("properties", JSONObject())
+            })
+        }
+        val geojson = JSONObject().apply {
+            put("type", "FeatureCollection")
+            put("features", features)
+        }.toString()
+        (style.getSource(SOURCE_OBSTACLES) as? GeoJsonSource)?.setGeoJson(geojson)
+    }
+
+    // ルート結果をGeoJsonSourceに反映する共通処理（新規ルート・迂回ルート再計算の両方から呼ぶ）
+    fun drawRoute(route: com.urg.edge.routing.RouteResult) {
+        val style = mapRef?.style ?: return
+        val coords = JSONArray()
+        route.points.forEach { (lat, lng) ->
+            coords.put(JSONArray().apply {
+                put(lng)
+                put(lat)
+            })
+        }
+        val routeGeoJson = JSONObject().apply {
+            put("type", "FeatureCollection")
+            put("features", JSONArray().apply {
+                put(JSONObject().apply {
+                    put("type", "Feature")
+                    put("geometry", JSONObject().apply {
+                        put("type", "LineString")
+                        put("coordinates", coords)
+                    })
+                    put("properties", JSONObject())
+                })
+            })
+        }.toString()
+        (style.getSource(SOURCE_ROUTE) as? GeoJsonSource)?.setGeoJson(routeGeoJson)
+    }
 
     // 避難所GeoJSONを更新する関数
     // 選択肢変更時は必ず一度クリアしてから新しいデータをセットする
@@ -337,6 +423,8 @@ actual fun MapScreen(modifier: Modifier) {
                                     createCircleBitmap(0xFFD32F2F.toInt()))
                                 style.addImage(ShelterType.HOSPITAL.iconName(),
                                     createCircleBitmap(0xFF7B1FA2.toInt()))
+                                style.addImage("obstacle-icon",
+                                    createCircleBitmap(0xFFD32F2F.toInt(), sizePx = 32))
 
                                 // 空のGeoJsonSourceを登録（レイヤーはスタイルJSON内で定義済み）
                                 style.addSource(GeoJsonSource(SOURCE_SHELTERS, emptyFeatureCollection()))
@@ -372,8 +460,64 @@ actual fun MapScreen(modifier: Modifier) {
                                     LAYER_SHELTERS
                                 )
 
+                                // 障害物（迂回指定地点）ソース・レイヤーを追加
+                                style.addSource(GeoJsonSource(SOURCE_OBSTACLES, emptyFeatureCollection()))
+                                style.addLayer(
+                                    com.mapbox.mapboxsdk.style.layers.SymbolLayer(LAYER_OBSTACLES, SOURCE_OBSTACLES)
+                                        .withProperties(
+                                            PropertyFactory.iconImage("obstacle-icon"),
+                                            PropertyFactory.iconSize(1.0f),
+                                            PropertyFactory.iconAllowOverlap(true),
+                                            PropertyFactory.iconIgnorePlacement(true)
+                                        )
+                                )
+
                                 map.addOnMapClickListener { point ->
                                     val screenPoint = map.projection.toScreenLocation(point)
+
+                                    // --- 障害物指定モード中のタップ ---
+                                    if (obstacleMode && showingRoute) {
+                                        val tolerance = OBSTACLE_TAP_TOLERANCE_PX
+                                        val hitBox = android.graphics.RectF(
+                                            screenPoint.x - tolerance,
+                                            screenPoint.y - tolerance,
+                                            screenPoint.x + tolerance,
+                                            screenPoint.y + tolerance
+                                        )
+                                        val routeHits = map.queryRenderedFeatures(hitBox, LAYER_ROUTE)
+                                        if (routeHits.isEmpty()) {
+                                            // ルート線から離れた場所のタップは無視
+                                            return@addOnMapClickListener false
+                                        }
+
+                                        nogoPoints.add(NogoPoint(lat = point.latitude, lon = point.longitude))
+                                        updateObstacleSource()
+
+                                        if (routeDestLat != 0.0 && currentLat != 0.0) {
+                                            scope.launch {
+                                                calculatingRoute = true
+                                                val route = brouterEngine.calculateRoute(
+                                                    currentLat, currentLng,
+                                                    routeDestLat, routeDestLng,
+                                                    nogoPoints.toList()
+                                                )
+                                                calculatingRoute = false
+                                                if (route != null && route.points.isNotEmpty()) {
+                                                    drawRoute(route)
+                                                } else {
+                                                    android.util.Log.w("MapScreen", "迂回ルートが見つかりませんでした")
+                                                    // 迂回不能な場合は直前のnogoを取り消す
+                                                    if (nogoPoints.isNotEmpty()) {
+                                                        nogoPoints.removeAt(nogoPoints.lastIndex)
+                                                        updateObstacleSource()
+                                                    }
+                                                }
+                                            }
+                                        }
+                                        return@addOnMapClickListener true
+                                    }
+
+                                    // --- 通常時：避難所ピンのタップでルート計算 ---
                                     val features = map.queryRenderedFeatures(screenPoint, LAYER_SHELTERS)
                                     if (features.isNotEmpty()) {
                                         val feature = features[0]
@@ -392,30 +536,16 @@ actual fun MapScreen(modifier: Modifier) {
                                                 )
                                                 calculatingRoute = false
                                                 if (route != null && route.points.isNotEmpty()) {
-                                                    // ルートをGeoJsonSourceにセット
-                                                    val coords = JSONArray()
-                                                    route.points.forEach { (lat, lng) ->
-                                                        coords.put(JSONArray().apply {
-                                                            put(lng)
-                                                            put(lat)
-                                                        })
-                                                    }
-                                                    val routeGeoJson = JSONObject().apply {
-                                                        put("type", "FeatureCollection")
-                                                        put("features", JSONArray().apply {
-                                                            put(JSONObject().apply {
-                                                                put("type", "Feature")
-                                                                put("geometry", JSONObject().apply {
-                                                                    put("type", "LineString")
-                                                                    put("coordinates", coords)
-                                                                })
-                                                                put("properties", JSONObject())
-                                                            })
-                                                        })
-                                                    }.toString()
-                                                    val style = map.style
-                                                    (style?.getSource(SOURCE_ROUTE) as? GeoJsonSource)
-                                                        ?.setGeoJson(routeGeoJson)
+                                                    // 新しいルートなので、以前の障害物指定はリセットする
+                                                    obstacleMode = false
+                                                    nogoPoints.clear()
+                                                    updateObstacleSource()
+
+                                                    routeDestinationName = name
+                                                    routeDestLat = toLat
+                                                    routeDestLng = toLng
+
+                                                    drawRoute(route)
                                                     showingRoute = true
                                                 } else {
                                                     android.util.Log.w("MapScreen", "Route not found to $name")
@@ -465,21 +595,61 @@ actual fun MapScreen(modifier: Modifier) {
                 }
             }
 
-            // 左上：ルート解除ボタン（ルート表示中のみ）
+            // 上部：出発地→目的地バー（ルート表示中のみ、Google Mapsのようなヘッダー）
             if (showingRoute) {
-                FilledTonalButton(
-                    onClick = {
-                        showingRoute = false
-                        // ルートソースをクリア
-                        val style = mapRef?.style
-                        (style?.getSource(SOURCE_ROUTE) as? GeoJsonSource)
-                            ?.setGeoJson(emptyFeatureCollection())
-                    },
+                Box(
                     modifier = Modifier
                         .align(Alignment.TopStart)
-                        .padding(12.dp)
+                        .fillMaxWidth()
+                        .padding(top = 12.dp, start = 12.dp, end = 100.dp)
+                        .background(Color.White, shape = androidx.compose.foundation.shape.RoundedCornerShape(10.dp))
+                        .padding(horizontal = 12.dp, vertical = 10.dp)
                 ) {
-                    Text("✕ ルート解除", fontSize = 13.sp)
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = "✕",
+                            fontSize = 16.sp,
+                            color = Color.Gray,
+                            modifier = Modifier.clickable { clearRoute() }
+                        )
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = routeOriginName,
+                                fontSize = 12.sp,
+                                color = Color.Gray
+                            )
+                            Text(
+                                text = "→ ${routeDestinationName}",
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = Color(0xFF1A1A1A)
+                            )
+                        }
+                    }
+                }
+            }
+
+            // 下部：障害物ありボタン（ルート表示中のみ）
+            if (showingRoute) {
+                FilledTonalButton(
+                    onClick = { obstacleMode = !obstacleMode },
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .padding(bottom = 20.dp),
+                    colors = if (obstacleMode) {
+                        androidx.compose.material3.ButtonDefaults.filledTonalButtonColors(
+                            containerColor = Color(0xFFD32F2F),
+                            contentColor = Color.White
+                        )
+                    } else {
+                        androidx.compose.material3.ButtonDefaults.filledTonalButtonColors()
+                    }
+                ) {
+                    Text(
+                        text = if (obstacleMode) "障害物の位置をタップ（解除するには再タップ）" else "⚠ 障害物あり",
+                        fontSize = 13.sp
+                    )
                 }
             }
         }

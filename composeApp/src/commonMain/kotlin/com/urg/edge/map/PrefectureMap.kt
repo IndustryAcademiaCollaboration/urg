@@ -52,7 +52,7 @@ val prefectureToFile = mapOf(
 
 // Google Drive のファイルIDマップ（アップロード後に埋める）
 val prefectureGoogleDriveIds = mapOf(
-    "aichi" to "1nNyxbcYp-FNF1LpuFaalYcL-nKCRX_7A"
+    "aichi" to "1Khk8ZC4a6f_pqLgV5Nq0ZGYY1zW3fDQi"
 )
 
 fun getPrefectureFileName(prefectureName: String): String? {
