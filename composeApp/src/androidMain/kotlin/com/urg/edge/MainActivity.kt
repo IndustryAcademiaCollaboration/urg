@@ -208,17 +208,25 @@ class MainActivity : ComponentActivity() {
 
     private fun initLocationTracking() {
         val client = LocationServices.getFusedLocationProviderClient(this)
-        lifecycleScope.launch {
-            if (ContextCompat.checkSelfPermission(this@MainActivity, Manifest.permission.ACCESS_FINE_LOCATION)
-                == PackageManager.PERMISSION_GRANTED) {
-                client.getCurrentLocation(
-                    com.google.android.gms.location.Priority.PRIORITY_HIGH_ACCURACY,
-                    CancellationTokenSource().token
-                ).addOnSuccessListener { loc ->
-                    loc?.let { chatViewModel.setCurrentLocation(it.latitude, it.longitude) }
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
+            != PackageManager.PERMISSION_GRANTED) return
+
+        val request = com.google.android.gms.location.LocationRequest.Builder(
+            com.google.android.gms.location.Priority.PRIORITY_HIGH_ACCURACY,
+            5000L
+        ).setMinUpdateDistanceMeters(3f).build()
+
+        client.requestLocationUpdates(
+            request,
+            object : com.google.android.gms.location.LocationCallback() {
+                override fun onLocationResult(result: com.google.android.gms.location.LocationResult) {
+                    result.lastLocation?.let {
+                        chatViewModel.setCurrentLocation(it.latitude, it.longitude)
+                    }
                 }
-            }
-        }
+            },
+            mainLooper
+        )
     }
 
     private val disasterModeManager by lazy { DisasterModeManager(this) }
