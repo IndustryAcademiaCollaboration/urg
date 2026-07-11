@@ -41,9 +41,8 @@ LLM による行動案内、音声入力、応急対応知識の検索などを�
 ### 基本的な流れ(市民トリアージ)
 
 <p>
-	<img src="doc/tori.png" width="250">
-	<img src="doc/toricha.png" width="250">
-    <img src="doc/aicha.png" width="250">
+	<img src="doc/tria.png" width="250">
+    <img src="doc/pri.png" width="250">
 <p>
 
 1. アプリを起動します。
@@ -70,7 +69,7 @@ LLM による行動案内、音声入力、応急対応知識の検索などを�
 ### 基本的な流れ(辞書機能)
 
 <p>
-	<img src="doc/dic.png" width="250">
+	<img src="doc/dict.png" width="250">
 <p>
 
 
@@ -83,7 +82,7 @@ LLM による行動案内、音声入力、応急対応知識の検索などを�
 ### 基本的な流れ(地図機能)
 
 <p>
-	<img src="doc/map.png" width="250">
+	<img src="doc/mapp.png" width="250">
 <p>
 
 地図機能では、今いる地点から最寄りの病院、避難所、救護所を確認することができます。
@@ -102,7 +101,7 @@ LLM による行動案内、音声入力、応急対応知識の検索などを�
 ### 基本的な流れ(優先度機能)
 
 <p>
-	<img src="doc/prim.png" width="250">
+	<img src="doc/prio.png" width="250">
 <p>
 
 優先度機能では、トリアージ機能にてトリアージした人物の情報を編集、確認することができます。
