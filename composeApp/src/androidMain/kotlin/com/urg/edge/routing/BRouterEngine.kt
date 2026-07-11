@@ -15,6 +15,13 @@ data class RouteResult(
     val timeSeconds: Double
 )
 
+// 「障害物あり」ボタンで指定する通行禁止エリア（BRouterのnogo機能に対応）
+data class NogoPoint(
+    val lat: Double,
+    val lon: Double,
+    val radiusMeters: Double = 25.0 // 道路1本を塞ぐイメージのデフォルト半径
+)
+
 class BRouterEngine(private val context: Context) {
 
     companion object {
@@ -36,19 +43,41 @@ class BRouterEngine(private val context: Context) {
         fromLat: Double,
         fromLng: Double,
         toLat: Double,
-        toLng: Double
+        toLng: Double,
+        nogoPoints: List<NogoPoint> = emptyList()
     ): RouteResult? = withContext(Dispatchers.IO) {
         try {
             val segmentsDir = getSegmentsDir()
             Log.d(TAG, "Calculating route: from=($fromLat, $fromLng) to=($toLat, $toLng)")
             Log.d(TAG, "Segments dir: ${segmentsDir.absolutePath}")
             Log.d(TAG, "Segments files: ${segmentsDir.listFiles()?.map { it.name }}")
+            Log.d(TAG, "Nogo points: ${nogoPoints.size}")
             val profileFile = copyProfileFromAssets("trekking.brf")
             Log.d(TAG, "Profile file: ${profileFile.absolutePath}, exists=${profileFile.exists()}")
 
             // RoutingContext のセットアップ
             val rc = RoutingContext()
             rc.localFunction = profileFile.absolutePath
+
+            // 障害物（nogoポイント）を設定。「通れない」と指定した地点を中心とした
+            // 円の中を通るルートは、BRouterが計算時に避けてくれる
+            if (nogoPoints.isNotEmpty()) {
+                val nogoList = nogoPoints.map { nogo ->
+                    OsmNodeNamed().apply {
+                        // BRouterの命名規則「nogo<半径(m)>」。prepareNogoPointsはこの名前から
+                        // 半径を読み取ってradiusに反映するため、この形式に合わせる必要がある
+                        name = "nogo${nogo.radiusMeters.toInt()}"
+                        // ウェイポイントと同じ座標系（(度 + オフセット) * 1000000）でエンコード
+                        ilon = ((nogo.lon + 180.0) * 1000000.0 + 0.5).toInt()
+                        ilat = ((nogo.lat + 90.0) * 1000000.0 + 0.5).toInt()
+                        radius = nogo.radiusMeters
+                        isNogo = true // これが無いと円の中に入っても通行禁止として扱われない
+                    }
+                }.toMutableList()
+                // BRouter公式アプリと同じ手順：代入前に必ずprepareNogoPointsを呼ぶ必要がある
+                RoutingContext.prepareNogoPoints(nogoList)
+                rc.nogopoints = nogoList
+            }
 
             // ウェイポイントのセットアップ
             val waypoints = ArrayList<OsmNodeNamed>()
