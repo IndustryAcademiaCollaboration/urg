@@ -43,7 +43,7 @@ LLM による行動案内、音声入力、応急対応知識の検索などを�
 <p>
 	<img src="doc/tori.png" width="250">
 	<img src="doc/toricha.png" width="250">
-    <img src="doc/aichat.png" width="250">
+    <img src="doc/aicha.png" width="250">
 <p>
 
 1. アプリを起動します。
@@ -102,7 +102,7 @@ LLM による行動案内、音声入力、応急対応知識の検索などを�
 ### 基本的な流れ(優先度機能)
 
 <p>
-	<img src="doc/primuch.png" width="250">
+	<img src="doc/prim.png" width="250">
 <p>
 
 優先度機能では、トリアージ機能にてトリアージした人物の情報を編集、確認することができます。
@@ -135,7 +135,7 @@ LLM による行動案内、音声入力、応急対応知識の検索などを�
 リポジトリ内に含んでいないアセットは初回起動時に自動でインストールされます。
 
 <p>
-	<img src="doc/modelins.png" width="250">
+	<img src="doc/modelin.png" width="250">
 <p>
 
 <br>配置場所
