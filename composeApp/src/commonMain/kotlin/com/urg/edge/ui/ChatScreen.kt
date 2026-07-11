@@ -101,6 +101,7 @@ fun ChatScreen(
         MessageList(
             messages = uiState.messages,
             streamingText = uiState.streamingText,
+            victims = victims,
             modifier = Modifier
                 .weight(1f)
                 .padding(horizontal = 16.dp)
@@ -216,88 +217,99 @@ private fun ScopeChipRow(
 
     val hasActiveScope = selectedScope !is ChatScope.All
 
-    Column {
-        // クリアボタン行
-        Box(
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .background(Color(0xFFF1F4F7))
+            .padding(12.dp)
+    ) {
+        // ヘッダー行：送信対象ラベル ＋ クリアボタン
+        Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(24.dp)
+                .padding(bottom = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween,
         ) {
+            Text(
+                text = "対象を選択",
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFF8C9BA5),
+            )
             if (hasActiveScope) {
                 Row(
                     modifier = Modifier
-                        .align(Alignment.CenterEnd)
-                        .clip(RoundedCornerShape(8.dp))
                         .clickable {
                             onScopeChange(ChatScope.All)
                             indExpanded = false
-                        }
-                        .padding(horizontal = 6.dp, vertical = 2.dp),
+                        },
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(3.dp)
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
                 ) {
                     Text(
-                        text = "×",
+                        text = "✕",
                         fontSize = 12.sp,
-                        color = Color(0xFFB0BAC2),
+                        color = Color(0xFF8C9BA5),
                         fontWeight = FontWeight.Bold,
                     )
                     Text(
                         text = "クリア",
                         fontSize = 12.sp,
-                        color = Color(0xFFB0BAC2),
+                        color = Color(0xFF8C9BA5),
                     )
                 }
             }
         }
 
-        Spacer(Modifier.height(4.dp))
-
         // スコープチップ列
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .horizontalScroll(rememberScrollState()),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .background(Color.White)
+                .padding(4.dp),
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
         ) {
-            ScopeChip(
+            ScopeItem(
                 label = "全員",
                 selected = selectedScope is ChatScope.All,
+                modifier = Modifier.weight(1f),
                 onClick = {
                     onScopeChange(ChatScope.All)
                     indExpanded = false
-                }
+                },
             )
-            ScopeChip(
+            ScopeItem(
                 label = "重症 ($severeCount)",
                 selected = selectedScope is ChatScope.Severe,
-                severityDotColor = if (selectedScope !is ChatScope.Severe) Color(0xFFE5463F) else null,
-                selectedColor = Color(0xFFE5463F),
+                modifier = Modifier.weight(1f),
                 onClick = {
                     onScopeChange(if (selectedScope is ChatScope.Severe) ChatScope.All else ChatScope.Severe)
                     indExpanded = false
-                }
+                },
             )
-            ScopeChip(
+            ScopeItem(
                 label = "軽症 ($minorCount)",
                 selected = selectedScope is ChatScope.Minor,
-                severityDotColor = if (selectedScope !is ChatScope.Minor) Color(0xFF16A36B) else null,
-                selectedColor = Color(0xFF16A36B),
+                modifier = Modifier.weight(1f),
                 onClick = {
                     onScopeChange(if (selectedScope is ChatScope.Minor) ChatScope.All else ChatScope.Minor)
                     indExpanded = false
-                }
+                },
             )
-            ScopeChip(
+            ScopeItem(
                 label = if (customScope != null) "個別(${customScope.displayNos.size})" else "個別",
                 selected = customScope != null || indExpanded,
-                onClick = { indExpanded = !indExpanded }
+                modifier = Modifier.weight(1f),
+                onClick = { indExpanded = !indExpanded },
             )
         }
 
         // 患者チップ（個別モード）
         if (indExpanded) {
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(10.dp))
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -324,41 +336,25 @@ private fun ScopeChipRow(
 }
 
 @Composable
-private fun ScopeChip(
+private fun ScopeItem(
     label: String,
     selected: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
-    severityDotColor: Color? = null,
-    selectedColor: Color = Color(0xFF25B1BF),
 ) {
-    val bgColor     = if (selected) selectedColor else Color(0xFFF7F8FA)
-    val borderColor = if (selected) selectedColor else Color(0xFFDDE3E8)
-    val textColor   = if (selected) Color.White else Color(0xFF8C9BA5)
-
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(5.dp),
+    Box(
+        contentAlignment = Alignment.Center,
         modifier = modifier
-            .height(38.dp)
-            .clip(RoundedCornerShape(50))
-            .border(1.5.dp, borderColor, RoundedCornerShape(50))
-            .background(bgColor)
+            .height(40.dp)
+            .clip(RoundedCornerShape(10.dp))
+            .background(if (selected) Color(0xFF25B1BF) else Color.Transparent)
             .clickable { onClick() }
-            .padding(horizontal = 16.dp)
     ) {
-        if (severityDotColor != null) {
-            Box(
-                modifier = Modifier
-                    .size(8.dp)
-                    .background(severityDotColor, CircleShape)
-            )
-        }
         Text(
-            text       = label,
-            fontSize   = 14.sp,
-            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
-            color      = textColor,
+            text = label,
+            fontSize = 14.sp,
+            fontWeight = FontWeight.Bold,
+            color = if (selected) Color.White else Color(0xFF495057),
         )
     }
 }
@@ -374,43 +370,40 @@ private fun PatientChip(
     val borderColor = when {
         selected && isSevere  -> Color(0xFFE5463F)
         selected && !isSevere -> Color(0xFF16A36B)
-        else                  -> Color(0xFFDDE3E8)
+        else                  -> Color.Transparent
     }
     val bgColor = when {
-        selected && isSevere  -> Color(0xFFFFF4F4)
-        selected && !isSevere -> Color(0xFFF0FAF5)
-        else                  -> Color(0xFFF7F8FA)
+        selected && isSevere  -> Color(0xFFFFF0F0)
+        selected && !isSevere -> Color(0xFFE8FAF3)
+        else                  -> Color(0xFFE9ECEF)
     }
-    val textColor = when {
-        selected && isSevere  -> Color(0xFFC62828)
-        selected && !isSevere -> Color(0xFF0E7A50)
-        else                  -> Color(0xFF8C9BA5)
-    }
+    val textColor = Color(0xFF495057)
 
     Row(
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(7.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
         modifier = Modifier
-            .height(38.dp)
+            .height(36.dp)
             .clip(RoundedCornerShape(50))
-            .border(1.5.dp, borderColor, RoundedCornerShape(50))
+            .then(if (selected) Modifier.border(1.dp, borderColor, RoundedCornerShape(50)) else Modifier)
             .background(bgColor)
             .clickable { onClick() }
-            .padding(start = 10.dp, end = 16.dp)
+            .padding(horizontal = 14.dp)
     ) {
         Box(
             modifier = Modifier
-                .size(10.dp)
+                .size(8.dp)
                 .background(dotColor, CircleShape)
         )
         Text(
             text       = label,
-            fontSize   = 14.sp,
-            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
+            fontSize   = 15.sp,
+            fontWeight = FontWeight.Bold,
             color      = textColor,
         )
     }
 }
+
 
 // 録音パネル
 
