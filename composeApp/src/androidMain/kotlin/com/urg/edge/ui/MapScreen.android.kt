@@ -168,7 +168,7 @@ actual fun MapScreen(
     fun updateObstacleSource() {
         val style = mapRef?.style ?: return
         val features = JSONArray()
-        nogoPoints.forEach { nogo ->
+        nogoPoints.forEachIndexed { index, nogo ->
             features.put(JSONObject().apply {
                 put("type", "Feature")
                 put("geometry", JSONObject().apply {
@@ -178,7 +178,10 @@ actual fun MapScreen(
                         put(nogo.lat)
                     })
                 })
-                put("properties", JSONObject())
+                put("properties", JSONObject().apply {
+                    // タップされた障害物がどれかを特定するためのインデックス
+                    put("index", index)
+                })
             })
         }
         val geojson = JSONObject().apply {
@@ -521,9 +524,38 @@ actual fun MapScreen(
                                             screenPoint.x + tolerance,
                                             screenPoint.y + tolerance
                                         )
+
+                                        // まず「既存の障害物アイコン」をタップしたかどうかを判定する。
+                                        // 既存の障害物の上をタップした場合は、新規追加ではなく取り消し扱いにする
+                                        val obstacleHits = map.queryRenderedFeatures(hitBox, LAYER_OBSTACLES)
+                                        if (obstacleHits.isNotEmpty()) {
+                                            val indexToRemove = obstacleHits[0]
+                                                .getNumberProperty("index")?.toInt()
+                                            if (indexToRemove != null && indexToRemove in nogoPoints.indices) {
+                                                nogoPoints.removeAt(indexToRemove)
+                                                updateObstacleSource()
+
+                                                if (currentLat != 0.0 && routeDestLat != 0.0) {
+                                                    scope.launch {
+                                                        calculatingRoute = true
+                                                        val route = brouterEngine.calculateRoute(
+                                                            currentLat, currentLng,
+                                                            routeDestLat, routeDestLng,
+                                                            nogoPoints.toList()
+                                                        )
+                                                        calculatingRoute = false
+                                                        if (route != null && route.points.isNotEmpty()) {
+                                                            drawRoute(route)
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                            return@addOnMapClickListener true
+                                        }
+
                                         val routeHits = map.queryRenderedFeatures(hitBox, LAYER_ROUTE)
                                         if (routeHits.isEmpty()) {
-                                            // ルート線から離れた場所のタップは無視
+                                            // ルート線からも障害物アイコンからも離れた場所のタップは無視
                                             return@addOnMapClickListener false
                                         }
 
