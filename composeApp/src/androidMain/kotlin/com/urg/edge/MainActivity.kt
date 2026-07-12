@@ -86,10 +86,14 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun initRepository() {
-        val database = DatabaseFactory(DatabaseDriverFactory(this)).createDatabase()
-        val repository = TriageSessionRepositoryImpl(database)
-        val session = repository.getLatestSession() ?: repository.startSession(latitude = null, longitude = null)
-        chatViewModel.setRepository(repository, session)
+        lifecycleScope.launch(Dispatchers.IO) {
+            val database = DatabaseFactory(DatabaseDriverFactory(this@MainActivity)).createDatabase()
+            val repository = TriageSessionRepositoryImpl(database)
+            val session = repository.getLatestSession() ?: repository.startSession(latitude = null, longitude = null)
+            withContext(Dispatchers.Main) {
+                chatViewModel.setRepository(repository, session)
+            }
+        }
     }
 
     private fun initLlmEngine() {

@@ -1,6 +1,8 @@
 package com.urg.edge.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Column
+import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
@@ -22,10 +24,19 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.urg.edge.Message
 
+import com.urg.edge.TriageResult
+import com.urg.edge.VictimRecord
+import androidx.compose.runtime.remember
+
 @Composable
-fun MessageItem(message: Message) {
+fun MessageItem(message: Message, victims: List<VictimRecord> = emptyList()) {
     val isUser = message.role == "user"
     val isSystem = message.text.startsWith("[初期化]") || message.text.startsWith("[初期化エラー]")
+
+    val patientIds = remember(message.text) {
+        val regex = Regex("""^P(\d+)\s*:""", RegexOption.MULTILINE)
+        regex.findAll(message.text).map { it.groupValues[1].toInt() }.distinct().toList()
+    }
 
     when {
         // ─── システム・ステータスチップ ─────────────────────────
@@ -101,13 +112,69 @@ fun MessageItem(message: Message) {
                         )
                         .padding(horizontal = 14.dp, vertical = 10.dp)
                 ) {
-                    Text(
-                        text = message.text,
-                        fontSize = 15.sp,
-                        color = Color(0xFF333333),
-                    )
+                    Column {
+                        if (patientIds.isNotEmpty()) {
+                            Row(
+                                modifier = Modifier.padding(bottom = 8.dp),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                patientIds.forEach { id ->
+                                    val v = victims.find { it.displayNo == id }
+                                    PatientSeverityChip(
+                                        displayNo = id,
+                                        isSevere = v?.result == TriageResult.SEVERE
+                                    )
+                                }
+                            }
+                        }
+                        Text(
+                            text = message.text,
+                            fontSize = 15.sp,
+                            color = Color(0xFF333333),
+                        )
+                    }
                 }
             }
         }
+    }
+}
+
+@Composable
+fun PatientSeverityChip(
+    displayNo: Int,
+    isSevere: Boolean,
+    modifier: Modifier = Modifier
+) {
+    val themeColor = if (isSevere) Color(0xFFE24B4A) else Color(0xFF25B1BF)
+    val bgColor    = if (isSevere) Color(0xFFFCEBEB) else Color(0xFFE8F9FA)
+
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        modifier = modifier
+            .clip(RoundedCornerShape(50))
+            .background(bgColor)
+            .padding(horizontal = 4.dp, vertical = 3.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .size(20.dp)
+                .background(themeColor, CircleShape),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = "P$displayNo",
+                color = Color.White,
+                fontSize = 10.sp,
+                fontWeight = FontWeight.Bold
+            )
+        }
+        Text(
+            text = if (isSevere) "重症" else "軽症",
+            color = themeColor,
+            fontSize = 11.sp,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(end = 4.dp)
+        )
     }
 }

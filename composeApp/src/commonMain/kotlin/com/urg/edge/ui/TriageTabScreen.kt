@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.ui.zIndex
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -55,29 +56,31 @@ fun TriageTabScreen(
             modifier = Modifier
                 .fillMaxWidth()
                 .background(Color.White)
-                .padding(horizontal = 16.dp, vertical = 10.dp)
+                .padding(horizontal = 24.dp, vertical = 12.dp)
         ) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(Color(0xFFF0F0F0), RoundedCornerShape(10.dp))
-                    .padding(3.dp)
+                    .height(44.dp)
+                    .clip(RoundedCornerShape(50))
+                    .background(Color(0xFFF1F4F7))
+                    .padding(4.dp)
             ) {
                 // トリアージ タブ
                 Box(
                     contentAlignment = Alignment.Center,
                     modifier = Modifier
                         .weight(1f)
-                        .clip(RoundedCornerShape(8.dp))
+                        .fillMaxSize()
+                        .clip(RoundedCornerShape(50))
                         .background(if (!showChat) Color.White else Color.Transparent)
                         .clickable { onToggle(false) }
-                        .padding(vertical = 7.dp)
                 ) {
                     Text(
                         text = "トリアージ",
-                        fontSize = 13.sp,
-                        fontWeight = if (!showChat) FontWeight.SemiBold else FontWeight.Normal,
-                        color = if (!showChat) Color(0xFF25B1BF) else Color(0xFF888888),
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = if (!showChat) Color(0xFF1D828E) else Color(0xFF9AACB4),
                     )
                 }
                 // チャット タブ
@@ -85,16 +88,16 @@ fun TriageTabScreen(
                     contentAlignment = Alignment.Center,
                     modifier = Modifier
                         .weight(1f)
-                        .clip(RoundedCornerShape(8.dp))
+                        .fillMaxSize()
+                        .clip(RoundedCornerShape(50))
                         .background(if (showChat) Color.White else Color.Transparent)
                         .clickable { onToggle(true) }
-                        .padding(vertical = 7.dp)
                 ) {
                     Text(
                         text = "チャット",
-                        fontSize = 13.sp,
-                        fontWeight = if (showChat) FontWeight.SemiBold else FontWeight.Normal,
-                        color = if (showChat) Color(0xFF25B1BF) else Color(0xFF888888),
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = if (showChat) Color(0xFF1D828E) else Color(0xFF9AACB4),
                     )
                 }
             }
