@@ -40,6 +40,7 @@ fun TriageTabScreen(
     onTriageYes: () -> Unit,
     onTriageNo: () -> Unit,
     onNavigateToMap: () -> Unit,
+    onShowVictimOnMap: (String) -> Unit = {},
     victims: List<VictimRecord> = emptyList(),
     onScopeChange: (ChatScope) -> Unit = {},
     bottomPadding: androidx.compose.ui.unit.Dp = 0.dp,
@@ -128,6 +129,9 @@ fun TriageTabScreen(
                 onTestWavRecognize = onTestWavRecognize,
                 onTriageYes = onTriageYes,
                 onTriageNo = onTriageNo,
+                // 「はい」：対象者の存在を再確認できた場合のみ地図へ遷移する
+                onMapNavYes = { chatViewModel.answerMapNavYes()?.let(onShowVictimOnMap) },
+                onMapNavNo = chatViewModel::answerMapNavNo,
                 victims = victims,
                 onScopeChange = onScopeChange,
                 applyStatusBarPadding = false,

@@ -13,6 +13,12 @@ object Strings {
     const val BUTTON_MIC_LISTENING = "録音中..."
     const val ERROR_TEST_WAV_PREFIX = "テスト認識エラー: "
 
+    // 地図遷移の確認フロー
+    const val MAP_NAV_VICTIM_NOT_FOUND = "対象者が見つかりませんでした。"
+    const val MAP_NAV_DECLINED = "わかりました。"
+    fun mapNavConfirm(displayNo: Int) = "P${displayNo}さんの場所を地図で表示しますか？"
+    fun mapNavNoLocation(displayNo: Int) = "P${displayNo}さんの位置情報が記録されていません。"
+
     const val INIT_LLM_ERROR_PREFIX = "ERROR: LLM initialization failed: "
     const val LLM_MODEL_FILE_NAME = "model.litertlm"
     const val LLM_MODEL_DOWNLOAD_URL =
