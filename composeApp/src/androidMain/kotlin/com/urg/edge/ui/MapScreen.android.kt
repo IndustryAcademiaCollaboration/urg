@@ -41,7 +41,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -709,7 +708,7 @@ actual fun MapScreen(
                     onClick = { obstacleMode = !obstacleMode },
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
-                        .padding(bottom = 20.dp),
+                        .padding(bottom = bottomPadding + 20.dp),
                     colors = if (obstacleMode) {
                         androidx.compose.material3.ButtonDefaults.filledTonalButtonColors(
                             containerColor = Color(0xFFD32F2F),
@@ -735,7 +734,7 @@ actual fun MapScreen(
                 Box(
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
-                        .padding(16.dp)
+                        .padding(bottom = bottomPadding + 16.dp, start = 16.dp, end = 16.dp)
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(16.dp))
                         .background(Color.White)

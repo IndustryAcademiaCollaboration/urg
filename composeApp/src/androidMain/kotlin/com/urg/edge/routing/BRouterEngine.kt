@@ -72,6 +72,9 @@ class BRouterEngine(private val context: Context) {
                         ilat = ((nogo.lat + 90.0) * 1000000.0 + 0.5).toInt()
                         radius = nogo.radiusMeters
                         isNogo = true // これが無いと円の中に入っても通行禁止として扱われない
+                        // nogoWeightをNaNにしないと「重み付きnogo（追加コスト0）」＝実質無視されてしまう。
+                        // 絶対通行禁止として扱わせるにはNaNが必須（BRouter公式のdecodeNogoと同じ設定）
+                        nogoWeight = Double.NaN
                     }
                 }.toMutableList()
                 // BRouter公式アプリと同じ手順：代入前に必ずprepareNogoPointsを呼ぶ必要がある
@@ -122,7 +125,10 @@ class BRouterEngine(private val context: Context) {
                 points = points,
                 distanceMeters = track.distance.toDouble(),
                 timeSeconds = track.getTotalSeconds().toDouble()
-            )
+            ).also {
+                Log.d(TAG, "RESULT nogoCount=${nogoPoints.size} distance=${it.distanceMeters} " +
+                        "pointsCount=${points.size} firstPoint=${points.firstOrNull()} lastPoint=${points.lastOrNull()}")
+            }
         } catch (e: Exception) {
             Log.e(TAG, "Route calculation failed: ${e.message}", e)
             null
