@@ -10,10 +10,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.urg.edge.Message
 
+import com.urg.edge.VictimRecord
+
 @Composable
 fun MessageList(
     messages: List<Message>,
     streamingText: String,
+    victims: List<VictimRecord> = emptyList(),
     modifier: Modifier = Modifier
 ) {
     val listState = rememberLazyListState()
@@ -35,9 +38,9 @@ fun MessageList(
         modifier = modifier,
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        items(messages) { message -> MessageItem(message) }
+        items(messages) { message -> MessageItem(message, victims) }
         if (streamingText.isNotEmpty()) {
-            item { MessageItem(Message("assistant", streamingText)) }
+            item { MessageItem(Message("assistant", streamingText), victims) }
         }
     }
 }
