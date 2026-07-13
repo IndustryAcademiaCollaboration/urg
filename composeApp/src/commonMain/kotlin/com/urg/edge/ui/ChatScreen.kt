@@ -8,12 +8,14 @@ import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -47,6 +49,7 @@ import androidx.compose.ui.unit.sp
 import com.urg.edge.ChatScope
 import com.urg.edge.ChatUiState
 import com.urg.edge.Strings
+import com.urg.edge.TriageResult
 import com.urg.edge.VictimRecord
 import kotlinx.coroutines.delay
 import kotlin.math.PI
@@ -64,15 +67,15 @@ fun ChatScreen(
     onTestWavRecognize: (String) -> Unit,
     onTriageYes: () -> Unit = {},
     onTriageNo: () -> Unit = {},
+    onMapNavYes: () -> Unit = {},
+    onMapNavNo: () -> Unit = {},
     victims: List<VictimRecord> = emptyList(),
     onScopeChange: (ChatScope) -> Unit = {},
     applyStatusBarPadding: Boolean = true,
     modifier: Modifier = Modifier,
 ) {
-    // 送信保留フラグ：STT完了後に自動送信
     var pendingSend by remember { mutableStateOf(false) }
 
-    // 録音タイマー
     var recordSeconds by remember { mutableStateOf(0) }
     LaunchedEffect(uiState.isListening) {
         if (uiState.isListening) {
@@ -84,7 +87,6 @@ fun ChatScreen(
         }
     }
 
-    // STT完了後に送信
     LaunchedEffect(uiState.isListening, uiState.promptText) {
         if (pendingSend && !uiState.isListening && uiState.promptText.isNotBlank()) {
             onSendClick()
@@ -101,13 +103,13 @@ fun ChatScreen(
         MessageList(
             messages = uiState.messages,
             streamingText = uiState.streamingText,
+            victims = victims,
             modifier = Modifier
                 .weight(1f)
                 .padding(horizontal = 16.dp)
         )
 
         if (uiState.isListening) {
-            // ── 録音パネル ─────────────────────────────────────────
             VoiceRecordingPanel(
                 promptText = uiState.promptText,
                 recordSeconds = recordSeconds,
@@ -123,7 +125,6 @@ fun ChatScreen(
                 },
             )
         } else {
-            // ── 通常の入力エリア ────────────────────────────────────
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -136,50 +137,19 @@ fun ChatScreen(
                         selectedScope = uiState.chatScope,
                         onScopeChange = onScopeChange,
                     )
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(10.dp))
                 }
 
                 if (uiState.showTriageButtons) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        Box(
-                            contentAlignment = Alignment.Center,
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(38.dp)
-                                .clip(RoundedCornerShape(50))
-                                .background(Color(0xFFE8FAF3))
-                                .clickable { onTriageYes() }
-                        ) {
-                            Text(
-                                text = "✓  ${Strings.BUTTON_YES}",
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = Color(0xFF2E9E6E),
-                            )
-                        }
-                        Box(
-                            contentAlignment = Alignment.Center,
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(38.dp)
-                                .clip(RoundedCornerShape(50))
-                                .background(Color(0xFFFFF0F0))
-                                .clickable { onTriageNo() }
-                        ) {
-                            Text(
-                                text = "✕  ${Strings.BUTTON_NO}",
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = Color(0xFFD94444),
-                            )
-                        }
-                    }
+                    YesNoButtonRow(onYes = onTriageYes, onNo = onTriageNo)
+                    Spacer(modifier = Modifier.height(8.dp))
+                } else if (uiState.pendingMapNavVictimId != null) {
+                    // 地図遷移の確認（トリアージボタン表示中は出さない＝トリアージ優先）
+                    YesNoButtonRow(onYes = onMapNavYes, onNo = onMapNavNo)
                     Spacer(modifier = Modifier.height(8.dp))
                 }
 
+                // 入力行：テキスト入力
                 PromptInput(
                     value = uiState.promptText,
                     onValueChange = onPromptChange,
@@ -188,11 +158,58 @@ fun ChatScreen(
 
                 Spacer(modifier = Modifier.height(10.dp))
 
+                // 音声入力ボタン
                 ActionButtons(
                     isListening = uiState.isListening,
                     onVoiceInputClick = onVoiceInputClick,
                 )
             }
+        }
+    }
+}
+
+// ── はい/いいえ ボタン行（トリアージ確認・地図遷移確認で共用）───────────────────
+
+@Composable
+private fun YesNoButtonRow(
+    onYes: () -> Unit,
+    onNo: () -> Unit,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        Box(
+            contentAlignment = Alignment.Center,
+            modifier = Modifier
+                .weight(1f)
+                .height(38.dp)
+                .clip(RoundedCornerShape(50))
+                .background(Color(0xFFE8FAF3))
+                .clickable { onYes() }
+        ) {
+            Text(
+                text = "✓  ${Strings.BUTTON_YES}",
+                fontSize = 14.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = Color(0xFF2E9E6E),
+            )
+        }
+        Box(
+            contentAlignment = Alignment.Center,
+            modifier = Modifier
+                .weight(1f)
+                .height(38.dp)
+                .clip(RoundedCornerShape(50))
+                .background(Color(0xFFFFF0F0))
+                .clickable { onNo() }
+        ) {
+            Text(
+                text = "✕  ${Strings.BUTTON_NO}",
+                fontSize = 14.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = Color(0xFFD94444),
+            )
         }
     }
 }
@@ -205,55 +222,128 @@ private fun ScopeChipRow(
     selectedScope: ChatScope,
     onScopeChange: (ChatScope) -> Unit,
 ) {
-    var customPickerExpanded by remember(selectedScope is ChatScope.Custom) {
-        mutableStateOf(selectedScope is ChatScope.Custom)
+    val severeCount = victims.count { it.result == TriageResult.SEVERE }
+    val minorCount  = victims.count { it.result == TriageResult.MINOR }
+    val customScope = selectedScope as? ChatScope.Custom
+    var indExpanded by remember { mutableStateOf(customScope != null) }
+
+    LaunchedEffect(selectedScope) {
+        if (selectedScope !is ChatScope.Custom) indExpanded = false
     }
 
-    Column {
+    val hasActiveScope = selectedScope !is ChatScope.All
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .background(Color(0xFFF1F4F7))
+            .padding(12.dp)
+    ) {
+        // ヘッダー行：送信対象ラベル ＋ クリアボタン
         Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween,
         ) {
-            ChatScope.presets.forEach { scope ->
-                val count = victims.count { scope.matches(it) }
-                val selected = scope == selectedScope
-                ScopeChip(
-                    label = "${scope.label}($count)",
-                    selected = selected,
-                    modifier = Modifier.weight(1f),
-                    onClick = {
-                        customPickerExpanded = false
-                        // 選択中のチップを再タップしたら解除（全員対象に戻る）
-                        onScopeChange(if (selected) ChatScope.All else scope)
-                    },
-                )
+            Text(
+                text = "対象を選択",
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFF8C9BA5),
+            )
+            if (hasActiveScope) {
+                Row(
+                    modifier = Modifier
+                        .clickable {
+                            onScopeChange(ChatScope.All)
+                            indExpanded = false
+                        },
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    Text(
+                        text = "✕",
+                        fontSize = 12.sp,
+                        color = Color(0xFF8C9BA5),
+                        fontWeight = FontWeight.Bold,
+                    )
+                    Text(
+                        text = "クリア",
+                        fontSize = 12.sp,
+                        color = Color(0xFF8C9BA5),
+                    )
+                }
             }
-            val customScope = selectedScope as? ChatScope.Custom
-            ScopeChip(
-                label = if (customScope != null) "個別(${customScope.displayNos.size})" else "個別",
-                selected = customScope != null,
+        }
+
+        // スコープチップ列
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(12.dp))
+                .background(Color.White)
+                .padding(4.dp),
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            ScopeItem(
+                label = "全員",
+                selected = selectedScope is ChatScope.All,
                 modifier = Modifier.weight(1f),
-                onClick = { customPickerExpanded = !customPickerExpanded },
+                onClick = {
+                    onScopeChange(ChatScope.All)
+                    indExpanded = false
+                },
+            )
+            ScopeItem(
+                label = "重症 ($severeCount)",
+                selected = selectedScope is ChatScope.Severe,
+                modifier = Modifier.weight(1f),
+                onClick = {
+                    onScopeChange(if (selectedScope is ChatScope.Severe) ChatScope.All else ChatScope.Severe)
+                    indExpanded = false
+                },
+            )
+            ScopeItem(
+                label = "軽症 ($minorCount)",
+                selected = selectedScope is ChatScope.Minor,
+                modifier = Modifier.weight(1f),
+                onClick = {
+                    onScopeChange(if (selectedScope is ChatScope.Minor) ChatScope.All else ChatScope.Minor)
+                    indExpanded = false
+                },
+            )
+            ScopeItem(
+                label = if (customScope != null) "個別(${customScope.displayNos.size})" else "個別",
+                selected = customScope != null || indExpanded,
+                modifier = Modifier.weight(1f),
+                onClick = { indExpanded = !indExpanded },
             )
         }
 
-        if (customPickerExpanded) {
-            Spacer(modifier = Modifier.height(6.dp))
-            val selectedNos = (selectedScope as? ChatScope.Custom)?.displayNos ?: emptySet()
-            FlowRow(
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                verticalArrangement = Arrangement.spacedBy(6.dp),
+        // 患者チップ（個別モード）
+        if (indExpanded) {
+            Spacer(Modifier.height(10.dp))
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 victims.sortedBy { it.displayNo }.forEach { v ->
-                    val checked = v.displayNo in selectedNos
-                    ScopeChip(
-                        label = "P${v.displayNo}",
+                    val isSevere = v.result == TriageResult.SEVERE
+                    val checked  = v.displayNo in (customScope?.displayNos ?: emptySet())
+                    PatientChip(
+                        label    = "P${v.displayNo}",
+                        isSevere = isSevere,
                         selected = checked,
-                        compact = true,
-                        onClick = {
-                            val next = if (checked) selectedNos - v.displayNo else selectedNos + v.displayNo
+                        onClick  = {
+                            val nos  = customScope?.displayNos ?: emptySet()
+                            val next = if (checked) nos - v.displayNo else nos + v.displayNo
                             onScopeChange(if (next.isEmpty()) ChatScope.All else ChatScope.Custom(next))
-                        },
+                        }
                     )
                 }
             }
@@ -262,32 +352,76 @@ private fun ScopeChipRow(
 }
 
 @Composable
-private fun ScopeChip(
+private fun ScopeItem(
     label: String,
     selected: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
-    compact: Boolean = false,
 ) {
     Box(
         contentAlignment = Alignment.Center,
         modifier = modifier
-            .height(32.dp)
-            .clip(RoundedCornerShape(50))
-            .background(if (selected) Color(0xFF25B1BF) else Color(0xFFF0F0F0))
+            .height(40.dp)
+            .clip(RoundedCornerShape(10.dp))
+            .background(if (selected) Color(0xFF25B1BF) else Color.Transparent)
             .clickable { onClick() }
-            .then(if (compact) Modifier.padding(horizontal = 12.dp) else Modifier)
     ) {
         Text(
             text = label,
-            fontSize = 12.sp,
-            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
-            color = if (selected) Color.White else Color(0xFF888888),
+            fontSize = 14.sp,
+            fontWeight = FontWeight.Bold,
+            color = if (selected) Color.White else Color(0xFF495057),
         )
     }
 }
 
-// ── 録音パネル ─────────────────────────────────────────────────────────────────
+@Composable
+private fun PatientChip(
+    label: String,
+    isSevere: Boolean,
+    selected: Boolean,
+    onClick: () -> Unit,
+) {
+    val dotColor    = if (isSevere) Color(0xFFE5463F) else Color(0xFF16A36B)
+    val borderColor = when {
+        selected && isSevere  -> Color(0xFFE5463F)
+        selected && !isSevere -> Color(0xFF16A36B)
+        else                  -> Color.Transparent
+    }
+    val bgColor = when {
+        selected && isSevere  -> Color(0xFFFFF0F0)
+        selected && !isSevere -> Color(0xFFE8FAF3)
+        else                  -> Color(0xFFE9ECEF)
+    }
+    val textColor = Color(0xFF495057)
+
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        modifier = Modifier
+            .height(36.dp)
+            .clip(RoundedCornerShape(50))
+            .then(if (selected) Modifier.border(1.dp, borderColor, RoundedCornerShape(50)) else Modifier)
+            .background(bgColor)
+            .clickable { onClick() }
+            .padding(horizontal = 14.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .size(8.dp)
+                .background(dotColor, CircleShape)
+        )
+        Text(
+            text       = label,
+            fontSize   = 15.sp,
+            fontWeight = FontWeight.Bold,
+            color      = textColor,
+        )
+    }
+}
+
+
+// 録音パネル
 
 @Composable
 private fun VoiceRecordingPanel(
@@ -308,7 +442,6 @@ private fun VoiceRecordingPanel(
             .clip(RoundedCornerShape(topStart = 22.dp, topEnd = 22.dp))
             .background(Color(0xFF1A2D38))
     ) {
-        // ハンドルバー
         Spacer(Modifier.height(10.dp))
         Box(
             modifier = Modifier
@@ -319,7 +452,6 @@ private fun VoiceRecordingPanel(
         )
         Spacer(Modifier.height(10.dp))
 
-        // 録音中ラベル + タイマー
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -362,7 +494,6 @@ private fun VoiceRecordingPanel(
 
         Spacer(Modifier.height(10.dp))
 
-        // 文字起こしカード（タップで編集可能）
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -372,7 +503,6 @@ private fun VoiceRecordingPanel(
                 .padding(horizontal = 14.dp, vertical = 12.dp),
         ) {
             Column {
-                // 録音中・認識後どちらでも常にタップ・編集できる
                 BasicTextField(
                     value = promptText,
                     onValueChange = onPromptChange,
@@ -408,7 +538,6 @@ private fun VoiceRecordingPanel(
             }
         }
 
-        // 声紋 Canvas（中央寄せ・上下余白多め）
         Spacer(Modifier.height(14.dp))
         Box(
             modifier = Modifier.fillMaxWidth(),
@@ -423,14 +552,12 @@ private fun VoiceRecordingPanel(
         }
         Spacer(Modifier.height(14.dp))
 
-        // ボタン行
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 20.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            // キャンセル（赤丸 ✕）
             Box(
                 contentAlignment = Alignment.Center,
                 modifier = Modifier
@@ -442,7 +569,6 @@ private fun VoiceRecordingPanel(
                 Text("✕", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
             }
             Spacer(Modifier.width(12.dp))
-            // 送信ボタン
             Box(
                 contentAlignment = Alignment.Center,
                 modifier = Modifier
@@ -463,12 +589,11 @@ private fun VoiceRecordingPanel(
     }
 }
 
-// ── 声紋 Canvas アニメーション ─────────────────────────────────────────────────
+// 声紋 Canvas アニメーション
 
 @Composable
 private fun VoiceWaveCanvas(amplitude: Float = 0f, modifier: Modifier = Modifier) {
     val transition = rememberInfiniteTransition(label = "wave")
-    // 速い波（メイン）
     val phase1 by transition.animateFloat(
         initialValue = 0f,
         targetValue = (2 * PI).toFloat(),
@@ -478,7 +603,6 @@ private fun VoiceWaveCanvas(amplitude: Float = 0f, modifier: Modifier = Modifier
         ),
         label = "phase1",
     )
-    // 遅い波（サブ：有機的な揺らぎを加える）
     val phase2 by transition.animateFloat(
         initialValue = 0f,
         targetValue = (2 * PI).toFloat(),
@@ -491,17 +615,14 @@ private fun VoiceWaveCanvas(amplitude: Float = 0f, modifier: Modifier = Modifier
 
     val barCount = 18
     val barColor = Color(0xFFFF6366)
-
-    // 音量を 0..1 に正規化（通常会話の RMS は 0.02〜0.2 程度）
     val ampNorm = (amplitude / 0.18f).coerceIn(0f, 1f)
 
     Canvas(modifier = modifier) {
-        val barW    = 3.5.dp.toPx()
-        val gap     = 3.5.dp.toPx()
-        val totalW  = barCount * (barW + gap) - gap
-        val startX  = (size.width - totalW) / 2f
+        val barW   = 3.5.dp.toPx()
+        val gap    = 3.5.dp.toPx()
+        val totalW = barCount * (barW + gap) - gap
+        val startX = (size.width - totalW) / 2f
 
-        // 無音時は最小高さのみ表示し、発話に応じて大きくなる
         val minBarH = size.height * 0.06f
         val maxBarH = size.height * (0.12f + 0.83f * ampNorm)
 
@@ -510,14 +631,11 @@ private fun VoiceWaveCanvas(amplitude: Float = 0f, modifier: Modifier = Modifier
             val t   = i.toFloat() / (barCount - 1)
             val off = t * 2f * PI.toFloat()
 
-            // 2つのサイン波を合成してより有機的な動きに
             val wave1    = sin(phase1 + off * 2.2f)
             val wave2    = sin(phase2 + off * 1.3f + 0.9f)
-            val combined = (wave1 * 0.65f + wave2 * 0.35f + 1f) / 2f  // 0..1
+            val combined = (wave1 * 0.65f + wave2 * 0.35f + 1f) / 2f
 
-            // 中央が高くなるベルカーブ
             val bell = 1f - (abs(t - 0.5f) * 2f) * 0.28f
-
             val barH = minBarH + (maxBarH - minBarH) * combined * bell
             val top  = (size.height - barH) / 2f
 

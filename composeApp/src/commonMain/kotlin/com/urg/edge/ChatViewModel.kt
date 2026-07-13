@@ -534,6 +534,34 @@ class ChatViewModel(
         val text = _uiState.value.promptText.trim()
         if (text.isBlank() || _uiState.value.isLoading) return
 
+        // 場所質問の検出（ルールベース）。発火時はLLM生成をスキップして定型の確認フローへ。
+        // LLM/検索が未初期化でも動くよう、engine/retriever のチェックより前に行う。
+        // 確認のやり取りは MessageType.MAP_NAV とし、LLM履歴（CHATのみ抽出）に混入させない。
+        when (val detection = MapNavigationDetector.detect(text, _victims.value, _uiState.value.chatScope)) {
+            is MapNavDetection.Found -> {
+                appendMessage(Message("user", text, MessageType.MAP_NAV))
+                appendMessage(Message(
+                    "assistant",
+                    Strings.mapNavConfirm(detection.victim.displayNo),
+                    MessageType.MAP_NAV
+                ))
+                _uiState.update { it.copy(promptText = "", pendingMapNavVictimId = detection.victim.id) }
+                return
+            }
+            is MapNavDetection.FoundWithoutLocation -> {
+                appendMessage(Message("user", text, MessageType.MAP_NAV))
+                appendMessage(Message(
+                    "assistant",
+                    Strings.mapNavNoLocation(detection.victim.displayNo),
+                    MessageType.MAP_NAV
+                ))
+                // 古い確認待ちのボタンが残らないよう解除する
+                _uiState.update { it.copy(promptText = "", pendingMapNavVictimId = null) }
+                return
+            }
+            is MapNavDetection.NotApplicable -> Unit // 従来どおりLLMに流す
+        }
+
         val engine = llmEngine ?: run {
             addSystemMessage(Strings.ERROR_LLM_NOT_INITIALIZED)
             return
@@ -544,7 +572,8 @@ class ChatViewModel(
         }
 
         appendMessage(Message("user", text))
-        _uiState.update { it.copy(promptText = "", isLoading = true) }
+        // 確認待ちのまま別の質問が送信されたら、地図確認は破棄してLLM応答に切り替える
+        _uiState.update { it.copy(promptText = "", isLoading = true, pendingMapNavVictimId = null) }
 
         val currentMessages = _uiState.value.messages.filter { it.type == MessageType.CHAT }.takeLast(4)
 
@@ -578,6 +607,28 @@ class ChatViewModel(
                 _uiState.update { it.copy(isLoading = false) }
             }
         }
+    }
+
+    // ── 地図遷移の確認フロー ─────────────────────────────────────────────────
+    // 「はい」押下：確認中の対象者がまだ存在するか再確認し、地図遷移する victimId を返す。
+    // 確認表示中に削除された場合は定型応答で中断し null を返す。
+    fun answerMapNavYes(): String? {
+        val victimId = _uiState.value.pendingMapNavVictimId ?: return null
+        appendMessage(Message("user", Strings.BUTTON_YES, MessageType.MAP_NAV))
+        _uiState.update { it.copy(pendingMapNavVictimId = null) }
+        if (_victims.value.none { it.id == victimId }) {
+            appendMessage(Message("assistant", Strings.MAP_NAV_VICTIM_NOT_FOUND, MessageType.MAP_NAV))
+            return null
+        }
+        return victimId
+    }
+
+    // 「いいえ」押下：確認を解除してチャットに留まる
+    fun answerMapNavNo() {
+        if (_uiState.value.pendingMapNavVictimId == null) return
+        appendMessage(Message("user", Strings.BUTTON_NO, MessageType.MAP_NAV))
+        _uiState.update { it.copy(pendingMapNavVictimId = null) }
+        appendMessage(Message("assistant", Strings.MAP_NAV_DECLINED, MessageType.MAP_NAV))
     }
 
     fun setChatScope(scope: ChatScope) {

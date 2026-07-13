@@ -19,13 +19,16 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.MenuDefaults
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.FilledTonalButton
+import androidx.compose.foundation.layout.size
+import androidx.compose.ui.draw.shadow
 import androidx.compose.material3.Text
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -633,69 +636,137 @@ actual fun MapScreen(
             Box(
                 modifier = Modifier
                     .align(Alignment.TopEnd)
-                    .padding(12.dp)
+                    .padding(top = 14.dp, end = 14.dp)
             ) {
-                FilledTonalButton(onClick = { dropdownExpanded = true }) {
-                    Text(text = selectedFilter.displayName, fontSize = 13.sp)
-                    Text(text = " ▼", fontSize = 11.sp)
+                Box(
+                    modifier = Modifier
+                        .shadow(elevation = 6.dp, shape = RoundedCornerShape(24.dp))
+                        .background(Color.White, RoundedCornerShape(24.dp))
+                        .clickable { dropdownExpanded = true }
+                        .padding(horizontal = 16.dp, vertical = 9.dp)
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = selectedFilter.displayName,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = Color(0xFF2D3A45),
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = if (dropdownExpanded) "▲" else "▼",
+                            fontSize = 10.sp,
+                            color = Color(0xFF8C9BA5),
+                        )
+                    }
                 }
                 DropdownMenu(
                     expanded = dropdownExpanded,
-                    onDismissRequest = { dropdownExpanded = false }
+                    onDismissRequest = { dropdownExpanded = false },
+                    shape = RoundedCornerShape(16.dp),
+                    containerColor = Color.White,
+                    tonalElevation = 0.dp,
+                    shadowElevation = 10.dp,
                 ) {
-                    FacilityFilter.entries.forEach { filter ->
+                    FacilityFilter.entries.forEachIndexed { index, filter ->
+                        val isSelected = filter == selectedFilter
+                        val dotColor = when (filter) {
+                            FacilityFilter.EVACUATION_CENTER -> Color(0xFF388E3C)
+                            FacilityFilter.EMERGENCY_SHELTER -> Color(0xFF1976D2)
+                            FacilityFilter.FIRST_AID_STATION -> Color(0xFFD32F2F)
+                            FacilityFilter.HOSPITAL          -> Color(0xFF7B1FA2)
+                            FacilityFilter.ALL               -> null
+                        }
                         DropdownMenuItem(
                             text = {
-                                Text(
-                                    text = filter.displayName,
-                                    color = if (filter == selectedFilter) Color(0xFF1976D2)
-                                    else Color.Unspecified
-                                )
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.padding(vertical = 2.dp),
+                                ) {
+                                    if (dotColor != null) {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(10.dp)
+                                                .background(dotColor, CircleShape)
+                                        )
+                                        Spacer(modifier = Modifier.width(10.dp))
+                                    }
+                                    Text(
+                                        text = filter.displayName,
+                                        fontSize = 14.sp,
+                                        color = if (isSelected) Color(0xFF25B1BF) else Color(0xFF4A5568),
+                                        fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
+                                    )
+                                }
                             },
                             onClick = {
                                 selectedFilter = filter
                                 dropdownExpanded = false
-                            }
+                            },
+                            modifier = Modifier.background(
+                                if (isSelected) Color(0xFFF0FAFE) else Color.Transparent
+                            ),
+                            colors = MenuDefaults.itemColors(
+                                textColor = if (isSelected) Color(0xFF25B1BF) else Color(0xFF4A5568),
+                            ),
                         )
+                        if (index < FacilityFilter.entries.size - 1) {
+                            HorizontalDivider(
+                                modifier = Modifier.padding(horizontal = 16.dp),
+                                thickness = 0.5.dp,
+                                color = Color(0xFFF0F2F4),
+                            )
+                        }
                     }
                 }
             }
 
-            // 左上：ルート解除ボタン
+            // 左上：ルート解除カード
             if (showingRoute) {
-                FilledTonalButton(
-                    onClick = {
-                        showingRoute = false
-                        val style = mapRef?.style
-                        (style?.getSource(SOURCE_ROUTE) as? GeoJsonSource)
-                            ?.setGeoJson(emptyFeatureCollection())
-                    },
+                Box(
                     modifier = Modifier
                         .align(Alignment.TopStart)
-                        .fillMaxWidth()
-                        .padding(top = 12.dp, start = 12.dp, end = 100.dp)
-                        .background(Color.White, shape = androidx.compose.foundation.shape.RoundedCornerShape(10.dp))
-                        .padding(horizontal = 12.dp, vertical = 10.dp)
+                        .padding(top = 14.dp, start = 12.dp, end = 80.dp)
+                        .shadow(elevation = 6.dp, shape = RoundedCornerShape(16.dp))
+                        .background(Color.White, RoundedCornerShape(16.dp))
+                        .clickable { clearRoute() }
+                        .padding(10.dp)
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(
-                            text = "✕",
-                            fontSize = 16.sp,
-                            color = Color.Gray,
-                            modifier = Modifier.clickable { clearRoute() }
+                        Box(
+                            modifier = Modifier
+                                .width(4.dp)
+                                .height(36.dp)
+                                .clip(RoundedCornerShape(2.dp))
+                                .background(Color(0xFF25B1BF))
                         )
                         Spacer(modifier = Modifier.width(10.dp))
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                text = routeOriginName,
-                                fontSize = 12.sp,
-                                color = Color.Gray
+                                text = "現在地から",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = Color(0xFFADB5BD),
                             )
                             Text(
-                                text = "→ ${routeDestinationName}",
+                                text = routeDestinationName,
                                 fontSize = 14.sp,
-                                fontWeight = FontWeight.Medium,
-                                color = Color(0xFF1A1A1A)
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF1A2D38),
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Box(
+                            modifier = Modifier
+                                .size(28.dp)
+                                .background(Color(0xFFF2F4F6), CircleShape),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Text(
+                                text = "✕",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF8C9BA5),
                             )
                         }
                     }
@@ -704,23 +775,27 @@ actual fun MapScreen(
 
             // 下部：障害物ありボタン（ルート表示中のみ）
             if (showingRoute) {
-                FilledTonalButton(
-                    onClick = { obstacleMode = !obstacleMode },
+                Box(
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
-                        .padding(bottom = 20.dp),
-                    colors = if (obstacleMode) {
-                        androidx.compose.material3.ButtonDefaults.filledTonalButtonColors(
-                            containerColor = Color(0xFFD32F2F),
-                            contentColor = Color.White
+                        .padding(bottom = 20.dp)
+                        .shadow(
+                            elevation = 6.dp,
+                            shape = RoundedCornerShape(24.dp),
                         )
-                    } else {
-                        androidx.compose.material3.ButtonDefaults.filledTonalButtonColors()
-                    }
+                        .background(
+                            if (obstacleMode) Color(0xFFD32F2F) else Color.White,
+                            RoundedCornerShape(24.dp),
+                        )
+                        .clickable { obstacleMode = !obstacleMode }
+                        .padding(horizontal = 20.dp, vertical = 12.dp)
                 ) {
                     Text(
-                        text = if (obstacleMode) "障害物の位置をタップ（解除するには再タップ）" else "⚠ 障害物あり",
-                        fontSize = 13.sp
+                        text = if (obstacleMode) "障害物の位置をタップ（解除するには再タップ）"
+                               else "⚠ 障害物あり",
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = if (obstacleMode) Color.White else Color(0xFF2D3A45),
                     )
                 }
             }
