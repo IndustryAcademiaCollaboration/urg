@@ -29,6 +29,7 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.foundation.layout.size
 import androidx.compose.ui.draw.shadow
 import androidx.compose.material3.Text
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -46,7 +47,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
@@ -168,7 +168,7 @@ actual fun MapScreen(
     fun updateObstacleSource() {
         val style = mapRef?.style ?: return
         val features = JSONArray()
-        nogoPoints.forEach { nogo ->
+        nogoPoints.forEachIndexed { index, nogo ->
             features.put(JSONObject().apply {
                 put("type", "Feature")
                 put("geometry", JSONObject().apply {
@@ -178,7 +178,10 @@ actual fun MapScreen(
                         put(nogo.lat)
                     })
                 })
-                put("properties", JSONObject())
+                put("properties", JSONObject().apply {
+                    // タップされた障害物がどれかを特定するためのインデックス
+                    put("index", index)
+                })
             })
         }
         val geojson = JSONObject().apply {
@@ -521,9 +524,38 @@ actual fun MapScreen(
                                             screenPoint.x + tolerance,
                                             screenPoint.y + tolerance
                                         )
+
+                                        // まず「既存の障害物アイコン」をタップしたかどうかを判定する。
+                                        // 既存の障害物の上をタップした場合は、新規追加ではなく取り消し扱いにする
+                                        val obstacleHits = map.queryRenderedFeatures(hitBox, LAYER_OBSTACLES)
+                                        if (obstacleHits.isNotEmpty()) {
+                                            val indexToRemove = obstacleHits[0]
+                                                .getNumberProperty("index")?.toInt()
+                                            if (indexToRemove != null && indexToRemove in nogoPoints.indices) {
+                                                nogoPoints.removeAt(indexToRemove)
+                                                updateObstacleSource()
+
+                                                if (currentLat != 0.0 && routeDestLat != 0.0) {
+                                                    scope.launch {
+                                                        calculatingRoute = true
+                                                        val route = brouterEngine.calculateRoute(
+                                                            currentLat, currentLng,
+                                                            routeDestLat, routeDestLng,
+                                                            nogoPoints.toList()
+                                                        )
+                                                        calculatingRoute = false
+                                                        if (route != null && route.points.isNotEmpty()) {
+                                                            drawRoute(route)
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                            return@addOnMapClickListener true
+                                        }
+
                                         val routeHits = map.queryRenderedFeatures(hitBox, LAYER_ROUTE)
                                         if (routeHits.isEmpty()) {
-                                            // ルート線から離れた場所のタップは無視
+                                            // ルート線からも障害物アイコンからも離れた場所のタップは無視
                                             return@addOnMapClickListener false
                                         }
 
@@ -779,7 +811,7 @@ actual fun MapScreen(
                 Box(
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
-                        .padding(bottom = 20.dp)
+                        .padding(bottom = bottomPadding + 20.dp)
                         .shadow(
                             elevation = 6.dp,
                             shape = RoundedCornerShape(24.dp),
@@ -793,14 +825,13 @@ actual fun MapScreen(
                 ) {
                     Text(
                         text = if (obstacleMode) "障害物の位置をタップ（解除するには再タップ）"
-                               else "⚠ 障害物あり",
+                        else "⚠ 障害物あり",
                         fontSize = 13.sp,
                         fontWeight = FontWeight.SemiBold,
                         color = if (obstacleMode) Color.White else Color(0xFF2D3A45),
                     )
                 }
             }
-
             // 傷病者情報カード
             tappedVictim?.let { victim ->
                 val isSevere = victim.result == TriageResult.SEVERE
@@ -810,7 +841,7 @@ actual fun MapScreen(
                 Box(
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
-                        .padding(start = 16.dp, end = 16.dp, bottom = bottomPadding + 8.dp)
+                        .padding(bottom = bottomPadding + 16.dp, start = 16.dp, end = 16.dp)
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(16.dp))
                         .background(Color.White)
