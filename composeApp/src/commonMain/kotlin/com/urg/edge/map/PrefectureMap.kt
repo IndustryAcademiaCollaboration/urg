@@ -50,16 +50,11 @@ val prefectureToFile = mapOf(
     "沖縄県" to "okinawa"
 )
 
-// Google Drive のファイルIDマップ（アップロード後に埋める）
-val prefectureGoogleDriveIds = mapOf(
-    "aichi" to "1Khk8ZC4a6f_pqLgV5Nq0ZGYY1zW3fDQi"
-)
+private const val GITHUB_RELEASES_BASE =
+    "https://github.com/IndustryAcademiaCollaboration/urg/releases/download/map-tiles"
 
-fun getPrefectureFileName(prefectureName: String): String? {
-    return prefectureToFile[prefectureName]
-}
+fun getPrefectureFileName(prefectureName: String): String? =
+    prefectureToFile[prefectureName]
 
-fun getGoogleDriveDownloadUrl(fileName: String): String? {
-    val fileId = prefectureGoogleDriveIds[fileName] ?: return null
-    return "https://drive.usercontent.google.com/download?id=$fileId&export=download&confirm=t"
-}
+fun getMapDownloadUrl(fileName: String): String =
+    "$GITHUB_RELEASES_BASE/$fileName.mbtiles"

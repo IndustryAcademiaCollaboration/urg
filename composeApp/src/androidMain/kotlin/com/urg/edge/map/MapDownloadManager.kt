@@ -113,11 +113,7 @@ class MapDownloadManager(private val context: Context) {
         onProgress: (Int) -> Unit
     ): Boolean {
         return withContext(Dispatchers.IO) {
-            val downloadUrl = getGoogleDriveDownloadUrl(fileName)
-            if (downloadUrl == null) {
-                Log.e(TAG, "No download URL for: $fileName")
-                return@withContext false
-            }
+            val downloadUrl = getMapDownloadUrl(fileName)
 
             try {
                 val outputFile = File(getMbtilesPath(fileName))
@@ -134,7 +130,7 @@ class MapDownloadManager(private val context: Context) {
 
                 connection.inputStream.use { input ->
                     tempFile.outputStream().use { output ->
-                        val buffer = ByteArray(8192)
+                        val buffer = ByteArray(65536)
                         var downloaded = 0L
                         var bytes: Int
 
