@@ -14,6 +14,7 @@ data class ChatUiState(
     val llmProgress: Float = 0f,
     val sttProgress: Float = 0f,
     val ttsProgress: Float = 0f,
+    val mapProgress: Float = 0f,
     val showInitBanner: Boolean = false,
     val initBannerExpanded: Boolean = true,
     // チャットスコープ
