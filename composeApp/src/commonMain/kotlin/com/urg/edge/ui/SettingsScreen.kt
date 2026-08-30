@@ -28,6 +28,7 @@ import androidx.compose.ui.unit.sp
 import org.jetbrains.compose.resources.painterResource
 import urg.composeapp.generated.resources.Res
 import urg.composeapp.generated.resources.ic_manual
+import urg.composeapp.generated.resources.ic_settings
 
 private val SettingsTeal = Color(0xFF25B1BF)
 private val SettingsInk  = Color(0xFF10202A)
@@ -35,6 +36,7 @@ private val SettingsInk  = Color(0xFF10202A)
 @Composable
 fun SettingsScreen(
     onManualClick: () -> Unit,
+    onLicenseClick: () -> Unit = {},
     bottomPadding: androidx.compose.ui.unit.Dp = 0.dp,
     isDisasterMode: Boolean = false,
     onDisasterModeChange: (Boolean) -> Unit = {},
@@ -119,6 +121,47 @@ fun SettingsScreen(
                     color = SettingsInk,
                     modifier = Modifier.weight(1f),
                 )
+            }
+
+            HorizontalDivider(color = Color(0xFFE8ECEF))
+
+            // ライセンス行
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { onLicenseClick() }
+                    .padding(horizontal = 30.dp, vertical = 32.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                // アイコン背景
+                Box(
+                    contentAlignment = Alignment.Center,
+                    modifier = Modifier
+                        .size(60.dp)
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(Color(0xFFE2F5F7))
+                ) {
+                    Icon(
+                        painter = painterResource(Res.drawable.ic_settings),
+                        contentDescription = null,
+                        tint = Color.Unspecified,
+                        modifier = Modifier.size(40.dp)
+                    )
+                }
+                Spacer(modifier = Modifier.width(20.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "ライセンス",
+                        fontSize = 22.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = SettingsInk,
+                    )
+                    Text(
+                        text = "使用している著作物とライセンス表記",
+                        fontSize = 12.sp,
+                        color = Color.Gray,
+                    )
+                }
             }
             Spacer(modifier = Modifier.height(12.dp))
 

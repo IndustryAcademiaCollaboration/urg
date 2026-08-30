@@ -39,6 +39,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.urg.edge.ui.FirstAidGuideScreen
 import com.urg.edge.ui.InitProgressBanner
+import com.urg.edge.ui.LicenseScreen
 import com.urg.edge.ui.ManualScreen
 import com.urg.edge.ui.MapScreen
 import com.urg.edge.ui.PriorityScreen
@@ -83,6 +84,7 @@ fun App(
     var focusedVictimId by remember { mutableStateOf<String?>(null) }
     var showVoiceInput by remember { mutableStateOf(false) }
     var showManual     by remember { mutableStateOf(false) }
+    var showLicense    by remember { mutableStateOf(false) }
     var showTriageChat by remember { mutableStateOf(false) }
     val isDisasterMode by viewModel.isDisasterMode.collectAsStateWithLifecycle()
 
@@ -97,6 +99,7 @@ fun App(
     fun resetOverlays() {
         showVoiceInput = false
         showManual     = false
+        showLicense    = false
         showTriageChat = false
     }
 
@@ -116,6 +119,11 @@ fun App(
                 )
                 showManual -> ManualScreen(
                     onBack = { showManual = false },
+                    bottomPadding = bottomElementPadding,
+                    modifier = contentModifier
+                )
+                showLicense -> LicenseScreen(
+                    onBack = { showLicense = false },
                     bottomPadding = bottomElementPadding,
                     modifier = contentModifier
                 )
@@ -169,6 +177,7 @@ fun App(
                 )
                 else -> SettingsScreen(
                     onManualClick = { showManual = true },
+                    onLicenseClick = { showLicense = true },
                     bottomPadding = bottomElementPadding,
                     isDisasterMode = isDisasterMode,
                     onDisasterModeChange = viewModel::setDisasterMode,
